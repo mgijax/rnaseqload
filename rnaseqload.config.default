@@ -1,0 +1,82 @@
+#format: sh
+#
+#  rnaseqload.config.default
+#
+#  This file sets up environment variables that are needed for 
+#  the GXD RNA-Seq load
+#
+###########################################################################
+
+###########################################################################
+#
+#  GENERAL SETTINGS
+#
+###########################################################################
+
+#
+#  If the MGICONFIG environment variable does not have a local override,
+#  use the default "live" settings.
+#
+if [ "${MGICONFIG}" = "" ]
+then
+    MGICONFIG=/usr/local/mgi/live/mgiconfig
+    export MGICONFIG
+fi
+
+. ${MGICONFIG}/master.config.sh
+
+###########################################################################
+#
+#  LOAD SPECIFIC SETTINGS
+#
+###########################################################################
+
+#  Path name of the archive, logs, reports and output directories
+FILEDIR=${DATALOADSOUTPUT}/mgi/rnaseqload
+ARCHIVEDIR=${FILEDIR}/archive
+LOGDIR=${FILEDIR}/logs
+RPTDIR=${FILEDIR}/reports
+OUTPUTDIR=${FILEDIR}/output
+INPUTDIR=${FILEDIR}/input
+
+export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR
+
+# raw input file
+INPUT_FILE_DEFAULT=${DATADOWNLOADS}/
+
+# assocload input file
+INPUT_FILE=${INPUTDIR}/
+export INPUT_FILE_DEFAULT INPUT_FILE
+
+
+# Complete path name of the rnaseqload log files
+LOG_FILE=${LOGDIR}/rnaseqload.log
+LOG_PROC=${LOGDIR}/rnaseqload.proc.log
+LOG_DIAG=${LOGDIR}/rnaseqload.diag.log
+LOG_CUR=${LOGDIR}/rnaseqload.cur.log
+LOG_VAL=${LOGDIR}/rnaseqload.val.log
+
+export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL
+
+#  The name of the job stream for the load
+JOBSTREAM=rnaseqload
+
+export JOBSTREAM
+
+
+###########################################################################
+#
+#  MISCELLANEOUS SETTINGS
+#
+###########################################################################
+
+#  The name of the load for the subject of an email notification
+MAIL_LOADNAME="GXD RNA-Seq Load"
+
+#  Recipient list for mailing the log files (comma-separated)
+MAIL_LOG_PROC="sc"
+
+export MAIL_LOADNAME MAIL_LOG_PROC
+
+INSTALLDIR=${RNASEQLOAD}
+export INSTALLDIR
