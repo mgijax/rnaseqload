@@ -63,3 +63,7 @@ if [ ! -d ${INPUTDIR} ]
 then
     mkdir -p ${INPUTDIR}
 fi
+
+# placeholder so rm in download script doesn't report error
+touch ${INPUTDIR}/temp.aes.txt
+touch  ${INPUTDIR}/temp.eas.txt
