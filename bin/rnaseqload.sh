@@ -94,7 +94,7 @@ cleanDir ${OUTPUTDIR}
 #rm *.aes.txt
 
 echo "Downloading input files" >> ${LOG_DIAG}
-${RNASEQLOAD}/bin/downloadFiles.py #>> ${LOG_DIAG}
+${RNASEQLOAD}/bin/downloadFiles.py >> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "downloadFiles.py"
 #wget --no-check-certificate --tries=10 -nd -o /data/loads/sc/mgi/rnaseqload/logs/E-MTAB-7279.aes.log -O /data/loads/sc/mgi/rnaseqload/input/E-MTAB-7279.aes.txt https://www.ebi.ac.uk/arrayexpress/files/E-MTAB-7279/E-MTAB-7279.sdrf.txt
