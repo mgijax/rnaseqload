@@ -1,16 +1,22 @@
 #!/usr/bin/python
-# /usr/bin/python is python2.6.* or 2.7.* depending on server. It is required for urllib2
+# /usr/bin/python
+# /usr/bin/python is 2.6.* or 2.7.* depending on server. It is required for urllib2
+# /opt/python2.7/bin/python
 ##########################################################################
-#
+# 
 # Purpose:
 #       Download ArrayExpress and Expression Atlas files by experiment
 #
 # Usage: downloadFiles.py
 # Env Vars:
-#	 1. 
+#	 1. INPUT_FILE - Connie's file of experiment IDs
+#	 2. LOGDIR 
+#	 3. INPUTDIR - files are downloaded to this directory
+#	 4. AES_URL_TEMPLATE - url template for Array Express
+#	 5. EAE_URL_TEMPLATE - url template for Expression Atlas
 #
 # Inputs:
-#	1. ${INPUTFILE} - Connie's file of experiment IDs
+#	1. INPUTFILE - Connie's file of experiment IDs
 #	2. Configuration (see rnaseqload.config)
 #
 # Outputs:
@@ -28,11 +34,9 @@
 #
 ###########################################################################
 
-import sys
 import os
 import mgi_utils
 import string
-import db
 import urllib2
 
 print '%s' % mgi_utils.date()
@@ -47,87 +51,77 @@ inputDir =  os.getenv('INPUTDIR')
 fpCur = open (os.environ['LOG_CUR'], 'a')
 fpDiag = open (os.environ['LOG_DIAG'], 'a')
 # constants
-TAB= '\t'
 CRT = '\n'
-SPACE = ' '
 
 # ArrayExpress Sample File URL  Template
 aesTemplate = os.getenv('AES_URL_TEMPLATE')
+aesLocalFileTemplate = os.getenv('AES_LOCAL_FILE_TEMPLATE')
 
 # Expression Atlas Experiment file URL Templage
 eaeTemplate  = os.getenv('EAE_URL_TEMPLATE')
-
-# wget commands
-
-# ArrayExpress
-# 'wget --no-check-certificate --tries=10 -nd -o E-MTAB-7277.tpm.htseq2.tsv.log -O E-MTAB-7277.tpm.htseq2.tsv ftp://ftp.ebi.ac.uk/pub/databases/arrayexpress/data/atlas/rnaseq/studies/arrayexpress/E-MTAB-7277/mus_musculus/genes.tpm.htseq2.tsv'
-
-# Expression Atlas
-# 'wget --no-check-certificate --tries=10 -nd -o log -O E-MTAB-7277.tpm.htseq2.tsv ftp://ftp.ebi.ac.uk/pub/databases/arrayexpress/data/atlas/rnaseq/studies/arrayexpress/E-MTAB-7277/mus_musculus/genes.tpm.htseq2.tsvdrf.txt'
-
-wgetCmd = 'wget --no-check-certificate --tries=10 -nd -o %s -O %s %s'
+eaeLocalFileTemplate = os.getenv('EAE_LOCAL_FILE_TEMPLATE')
 
 # remove all aes and eae input files; we don't want to remove Connie's
 #  published file
 cmd = 'rm %s/*.aes.*' % inputDir
 rc = os.system(cmd)
 if rc != 0:
-    print 'rm cmd failed: %s%s' % (cmd, CRT)
-    fpDiag.write(cmd)
-    fpCur.write(cmd)
+    msg = 'rm cmd failed: %s%s' % (cmd, CRT)
+    fpDiag.write(msg)
+    fpCur.write(msg)
 
 cmd = 'rm %s/*.eae.*' % inputDir
 rc = os.system(cmd)
 if rc != 0:
-    print 'rm cmd failed: %s%s' % (cmd, CRT)
-    fpDiag.write(cmd)
-    fpCur.write(cmd)
+    msg = 'rm cmd failed: %s%s' % (cmd, CRT)
+    fpDiag.write(msg)
+    fpCur.write(msg)
 
+# number of files unable to be downloaded
+errorCt = 0
+
+fpCur.write('%sFiles unable to be downloaded%s' % (CRT, CRT))
+fpCur.write('------------------------------%s' % CRT)
+fpDiag.write('Files unable to be downloaded%s%s' % (CRT, CRT))
+fpDiag.write('------------------------------%s' % CRT)
+
+# parse the input file and download files for each experiment
 for line in fpInfile.readlines():
     expID = string.strip(string.split(line)[0])
-    print 'ID: "%s"' % expID
+    fpDiag.write('Download files for experiment ID: %s%s' % (expID, CRT))
 
     # AES
-    aesLog = '%s/%s.aes.log' % (logDir, expID) 
-    aesFile = '%s/%s.aes.txt' % (inputDir, expID)
+    aesFile = aesLocalFileTemplate % expID 
     fpAes = open(aesFile, 'w')
     aesURL = aesTemplate % (expID, expID)
-    #aesCmd = wgetCmd % (aesLog, aesFile, aesURL )
-    #print aesCmd
-    #rc = os.system(aesCmd)
-    #if rc != 0:
-    #    print 'aesCmd failed: %s' % aesCmd
     try:
 	request = urllib2.Request(aesURL)
 	result = urllib2.urlopen(request)
 	fpAes.write(result.read())
 	fpAes.close()
     except:
-	msg = 'Unable to download %s%s' % (aesURL, CRT)
+	errorCt += 1
+	msg = '%s%s' % (aesURL, CRT)
 	fpDiag.write(msg)
 	fpCur.write(msg)
     
     # EAE
-    eaeLog = '%s/%s.eae.log' % (logDir, expID)
-    eaeFile = '%s/%s.eae.txt' % (inputDir, expID)
+    eaeFile = eaeLocalFileTemplate % expID 
     fpEae = open(eaeFile, 'w')
     eaeURL = eaeTemplate % expID
-    #eaeCmd = wgetCmd % (eaeLog, eaeFile, eaeURL)
-    #print eaeCmd
-    #rc = os.system(eaeCmd)
-    #if rc != 0:
-    #    print 'eaeCmd failed: %s' % eaeCmd
     try:
 	request = urllib2.Request(eaeURL)
 	result = urllib2.urlopen(request)
 	fpEae.write(result.read())
 	fpEae.close()
     except:
-	msg = 'Unable to download %s%s' % (eaeURL, CRT)
-  	print msg
+	errorCt += 1
+	msg = '%s%s' % (eaeURL, CRT)
 	fpDiag.write(msg)
 	fpCur.write(msg)
 
+fpCur.write('%sTotal files unable to be downloaded: %s%s' % (CRT, errorCt, CRT))
+fpDiag.write('%sTotal files unable to be downloaded: %s%s' % (CRT, errorCt, CRT))
 fpCur.close()
 fpDiag.close()
 fpInfile.close()

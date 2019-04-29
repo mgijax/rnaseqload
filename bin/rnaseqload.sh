@@ -90,15 +90,19 @@ preload ${OUTPUTDIR}
 cleanDir ${OUTPUTDIR}
 
 # remove all but Connie's file from the INPUT directory
-#rm *.eae.txt
-#rm *.aes.txt
+rm *.eae.txt
+rm *.aes.txt
 
 echo "Downloading input files" >> ${LOG_DIAG}
 ${RNASEQLOAD}/bin/downloadFiles.py >> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "downloadFiles.py"
-#wget --no-check-certificate --tries=10 -nd -o /data/loads/sc/mgi/rnaseqload/logs/E-MTAB-7279.aes.log -O /data/loads/sc/mgi/rnaseqload/input/E-MTAB-7279.aes.txt https://www.ebi.ac.uk/arrayexpress/files/E-MTAB-7279/E-MTAB-7279.sdrf.txt
-#wget --no-check-certificate --tries=10 -nd -o E-MTAB-7279.aes.log -O E-MTAB-7279.aes.txt https://www.ebi.ac.uk/arrayexpress/files/E-MTAB-7279/E-MTAB-7279.sdrf.txt
+
+#echo "Running rnaseqload.py" >> ${LOG_DIAG}
+#${RNASEQLOAD}/bin/rnaseqload.py >> ${LOG_DIAG}
+#STAT=$?
+#checkStatus ${STAT} "rnaseqload.py"
+
 #
 # run postload cleanup and email logs
 #
