@@ -89,10 +89,6 @@ preload ${OUTPUTDIR}
 # remove files from output directory
 cleanDir ${OUTPUTDIR}
 
-# remove all but Connie's file from the INPUT directory
-rm *.eae.txt
-rm *.aes.txt
-
 echo "Downloading input files" >> ${LOG_DIAG}
 ${RNASEQLOAD}/bin/downloadFiles.py >> ${LOG_DIAG}
 STAT=$?

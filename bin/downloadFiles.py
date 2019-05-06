@@ -64,6 +64,7 @@ eaeLocalFileTemplate = os.getenv('EAE_LOCAL_FILE_TEMPLATE')
 # remove all aes and eae input files; we don't want to remove Connie's
 #  published file
 cmd = 'rm %s/*.aes.*' % inputDir
+
 rc = os.system(cmd)
 if rc != 0:
     msg = 'rm cmd failed: %s%s' % (cmd, CRT)
@@ -96,14 +97,25 @@ for line in fpInfile.readlines():
     aesURL = aesTemplate % (expID, expID)
     try:
 	request = urllib2.Request(aesURL)
+    except:
+	print 'failed request = urllib2.Request(aesURL)'
+    try:
 	result = urllib2.urlopen(request)
+    except:
+	print 'failed result = urllib2.urlopen(request)'
+    try:
 	fpAes.write(result.read())
+    except:
+	print 'failed fpAes.write(result.read())'
+    try:
 	fpAes.close()
     except:
-	errorCt += 1
-	msg = '%s%s' % (aesURL, CRT)
-	fpDiag.write(msg)
-	fpCur.write(msg)
+	print 'failed to close aes file'
+
+#	errorCt += 1
+#	msg = '%s%s' % (aesURL, CRT)
+#	fpDiag.write(msg)
+#	fpCur.write(msg)
     
     # EAE
     eaeFile = eaeLocalFileTemplate % expID 
