@@ -69,14 +69,12 @@ rc = os.system(cmd)
 if rc != 0:
     msg = 'rm cmd failed: %s%s' % (cmd, CRT)
     fpDiag.write(msg)
-    fpCur.write(msg)
 
 cmd = 'rm %s/*.eae.*' % inputDir
 rc = os.system(cmd)
 if rc != 0:
     msg = 'rm cmd failed: %s%s' % (cmd, CRT)
     fpDiag.write(msg)
-    fpCur.write(msg)
 
 # number of files unable to be downloaded
 errorCt = 0
@@ -95,27 +93,28 @@ for line in fpInfile.readlines():
     aesFile = aesLocalFileTemplate % expID 
     fpAes = open(aesFile, 'w')
     aesURL = aesTemplate % (expID, expID)
+    msg = ''
     try:
 	request = urllib2.Request(aesURL)
     except:
-	print 'failed request = urllib2.Request(aesURL)'
+	msg =  msg + ' failed request = urllib2.Request(aesURL) %s' % expID
     try:
 	result = urllib2.urlopen(request)
     except:
-	print 'failed result = urllib2.urlopen(request)'
+	msg =  msg + ' failed result = urllib2.urlopen(request) %s' % expID
     try:
 	fpAes.write(result.read())
     except:
-	print 'failed fpAes.write(result.read())'
+	msg =  msg + ' failed fpAes.write(result.read())%s' % expID
     try:
 	fpAes.close()
     except:
-	print 'failed to close aes file'
-
-#	errorCt += 1
-#	msg = '%s%s' % (aesURL, CRT)
-#	fpDiag.write(msg)
-#	fpCur.write(msg)
+	msg =  msg + 'i failed to close aes file %s' % expID
+    if msg:
+	errorCt += 1
+	msg = '%s: %s%s' % (aesURL, msg, CRT)
+	fpDiag.write(msg)
+	fpCur.write(msg)
     
     # EAE
     eaeFile = eaeLocalFileTemplate % expID 
