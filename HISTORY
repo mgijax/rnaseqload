@@ -1,3 +1,9 @@
+TAG: rnaseqload-6-0-15-4
+DATE: 05/08/2019
+STAFF: sc
+CHANGES: GRSD-34 load stub and 
+file processing, with file discrepancy QC
+
 TAG: rnaseqload-6-0-15-3
 TAG: rnaseqload-6-0-15-2
 TAG: rnaseqload-6-0-15-1
