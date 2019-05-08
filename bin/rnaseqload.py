@@ -45,10 +45,11 @@ inFilePath= os.getenv('INPUT_FILE')
 fpInfile = open(inFilePath, 'r')
 logDir =  os.getenv('LOGDIR')
 inputDir =  os.getenv('INPUTDIR')
+outputDir = os.getenv('OUTPUTDIR')
 
 # curation log
 fpCur = open (os.environ['LOG_CUR'], 'a')
-#fpDiag = open (os.environ['LOG_DIAG'], 'a')
+fpDiag = open (os.environ['LOG_DIAG'], 'a')
 # constants
 TAB = '\t'
 CRT = '\n'
@@ -57,9 +58,9 @@ CRT = '\n'
 aesTemplate = '%s' % os.getenv('AES_LOCAL_FILE_TEMPLATE')
 
 # Mapping of runID to sampleID
-runIdToSampleIdDict = {}
+#runIdToSampleIdDict = {}
 
-# Expression Atlas Experiment file URL Templage
+# Expression Atlas Experiment file URL Template
 eaeTemplate  =  '%s' % os.getenv('EAE_LOCAL_FILE_TEMPLATE')
 
 # GXT HT Experiment IDs in the database
@@ -130,18 +131,74 @@ def init():
 
     return 0
 
+# end init() -------------------------------------------------
+
 def mean(numList):
     raw =  float(sum(numList)) / max(len(numList), 1)
 
     return round(raw, 2)
 
-def processAESFile(expID):
-    global runIdToSampleIdDict
-    
-    runIdToSampleIdDict = {}
+# end mean () -------------------------------------------------
 
+def createAESTable():
+    # aesTable is global set by process function
+    fpDiag.write('creating table %s%s' % (aesTable, CRT))
+    db.sql('''create table %s (
+	runID text not null,
+	sampleID text not null)''' % aesTable, None)
+
+    return 0
+
+# end createAESTable () ---------------------------------------
+
+def bcpAESTable(bcpFile):
+    # aesTable is global set by process function
+    fpDiag.write('bcping %s into %s%s' % (bcpFile, aesTable, CRT))
+    db.bcp(bcpFile,  aesTable)
+    results = db.sql('''select count(*) from %s''' % aesTable)
+    fpDiag.write('results: %s%s' % (results, CRT))
+
+    return 0
+
+# end bcpAESTable ()--------------------------------------------
+
+def createAESIndex():
+    # aesTable is global set by process function
+    fpDiag.write('creating runID index on table %s%s' % (aesTable, CRT))
+    db.sql('''create index idxAES on %s(runID)''' % aesTable, None)
+
+    return 0
+
+# end createAESIndex ()--------------------------------------------
+
+def dropAESTable():
+    # aesTable is global set by process function
+    fpDiag.write('dropping table %s%s' % (aesTable, CRT))
+    db.sql('''drop table %s''' % aesTable, None)
+
+    return 0
+
+# end dropAESTable ()--------------------------------------------
+
+def bcpAESFile(expID):
+    #global runIdToSampleIdDict
+       
+    #runIdToSampleIdDict = {}
+
+    # path the aes bcp file for this experiment 
+    currentBcp = '%s/%s.aes.bcp' % (outputDir, expID)
+    fpCurrentBcp = open(currentBcp, 'w')
+
+    # create the table for the bcp file
+    createAESTable()
+
+    # path to the aes input file for this experiment
     aesFile = aesTemplate % expID
     fpAes = open(aesFile, 'r')
+
+    #
+    # process the header line
+    #
     header = fpAes.readline()
     headerList = string.split(header, TAB)
 
@@ -164,7 +221,9 @@ def processAESFile(expID):
     if runIDX == None:
 	print 'ENA_RUN not found for %s' % expID
 
+    #
     # now iterate through each gene/run/tpm in the file
+    #
     for line in fpAes.readlines():
         tokens = string.split(line, TAB)
 	sampleID = '' # The sampleID we load to the lookup
@@ -202,18 +261,26 @@ def processAESFile(expID):
 	    sampleIdNotInDbList.append('Exp: %s Sample Name ID %s and Sample ENA ID %s not in the database' % (expID, ssID, enaID))
 	else:
 	    runID = string.strip(tokens[runIDX])
-	    runIdToSampleIdDict[runID] = sampleID
+	    #runIdToSampleIdDict[runID] = sampleID
+	    fpCurrentBcp.write('%s%s%s%s' % (runID, TAB, sampleID, CRT))
 	# we load all samples except those not in the database. We will exclude
 	# non-relevant and churchill samples later so we may differentiate btwn
 	# a)non-relevant b)churchill c)not in the aes file (excluding those not
 	# in the database
+    fpCurrentBcp.close();
+    bcpAESTable(currentBcp)
+    createAESIndex()
 
     return 0
+
+# end bcpAESFile ()---------------------------------------------------
 
 def splitOffGene(tokens):
     del tokens[0] # remove 'Gene ID' 
 
     return tokens
+
+# end splitOffGene ()--------------------------------------------
 
 def writeQC():
     if len(experimentNotInDbList):
@@ -260,93 +327,210 @@ def writeQC():
 
     return 0
 
+# end writeQC ()--------------------------------------------
+
+def createEAETable():
+    fpDiag.write('creating table %s%s' % (eaeTable, CRT))
+    db.sql('''create table %s (
+	geneID text not null,
+        runID text not null,
+        tpm text not null)''' % eaeTable, None)
+
+    return 0
+
+# end createEAETable ()--------------------------------------------
+
+def bcpEAETable(bcpFile):
+    fpDiag.write('bcping %s into %s%s' % (bcpFile, eaeTable, CRT))
+    db.bcp(bcpFile,  eaeTable)
+    results = db.sql('''select count(*) from %s''' % eaeTable)
+    fpDiag.write('results: %s%s' % (results, CRT))
+
+    return 0
+
+# end bcpEAETable ()--------------------------------------------
+
+def createEAEIndex():
+    fpDiag.write('creating runID index on table %s%s' % (eaeTable, CRT))
+    db.sql('''create index idxEAE on %s(runID)''' % eaeTable, None)
+
+    return 0
+
+# end createEAEIndex ()--------------------------------------------
+
+def dropEAETable():
+    fpDiag.write('dropping table %s%s' % (eaeTable, CRT))
+    db.sql('''drop table %s''' % eaeTable, None)
+
+    return 0
+
+# end dropEAETable ()--------------------------------------------
+
+def bcpEAEFile(expID):
+
+    # path the aes bcp file for this experiment
+    currentBcp = '%s/%s.eae.bcp' % (outputDir, expID)
+    fpCurrentBcp = open(currentBcp, 'w')
+
+    # create the table for the bcp file
+    createEAETable()
+
+    # create file name and open file descriptor
+    print 'expID: %s' % expID
+    eaeFile = eaeTemplate % expID
+    fpEae = open(eaeFile, 'r')
+
+    # get the runIDs from the header, we will use the index of the tpms
+    # in each gene/tpm line to get the runID
+    header = string.split(fpEae.readline(), TAB)
+    runIdList = splitOffGene(header)
+    print 'Num runIDs: %s %s' % (len(runIdList), runIdList)
+    
+    # process each gene and it's sample tpm's
+    print '%sTIME: Processing Runs from the EAE file %s %s%s' % (CRT, expID, mgi_utils.date(), CRT)
+    sys.stdout.flush()
+    sys.stdout.flush()
+
+    for line in fpEae.readlines():
+	tokens = string.split(line, TAB)
+	geneID = tokens[0]
+	###print 'geneID: %s' % geneID
+
+	# list of runs for geneID
+	tpmList = splitOffGene(tokens)
+
+	for idx, tpm in enumerate(tpmList):
+	    tpm = string.strip(tpm)
+
+	    # get the runID that goes with this tpm value
+	    runID = string.strip(runIdList[idx])
+	    fpCurrentBcp.write('%s%s%s%s%s%s' % (geneID, TAB, runID, TAB, tpm, CRT))
+	    # NEW report this from sql query using outer join to aes table
+	    # can the runID be translated to a sampleID? If not report
+	    #if runID not in runIdToSampleIdDict:
+	    #    msg = '%s: %s' % (expID, runID)
+	    #    if msg not in  runIdNotInAEList:
+	    #	runIdNotInAEList.append(msg)
+	    #    continue
+
+	    # runID can be translated, get the sampleID
+	    #sampleID = string.strip(runIdToSampleIdDict[runID])
+	    
+	    # NEW check that sample is relevant and not churchill when
+	    # processing sql query
+	    # is sampleID flagged as relevant in the db? If not report/skip
+	    #if sampleID not in relevantSampleList: 
+	    #    nonRelSkippedList.append(sampleID)
+	    #    continue
+	    #elif sampleID in churchillSampleList:
+	    #    # Report/skip if the sampleID is in the churchill set
+	    #    churchillSkippedList.append(sampleID)
+	    #    continue
+
+    fpCurrentBcp.close();
+    bcpEAETable(currentBcp)
+    createEAEIndex()
+
+    return 0
+
+# end bcpEAEFile ()--------------------------------------------
+
 def process():
+    global aesTable, eaeTable
     # for each expID in Connie's file
     for line in fpInfile.readlines():
-	expID = string.strip(string.split(line)[0])
-
-	# report if expID not in the database and skip
-	if expID not in experimentInDbList:
-	    experimentNotInDbList.append(expID)
-	    continue
-
-	# load run/sample mapping from the aes file for this expID
-	print '%sTIME: Calling processAESFile %s %s%s' % (CRT, expID, mgi_utils.date(), CRT)
-	sys.stdout.flush()
-	rc = processAESFile(expID)
-	if rc != 0:
-	    print 'Processing AES file failed with rc%s, skipping file for %s' % (rc, expID)
-	    continue
-
-	# process the EAE file
-	# create file name and open file descriptor
-        print 'expID: %s' % expID
-	eaeFile = eaeTemplate % expID
-	fpEae = open(eaeFile, 'r')
-
-	# get the runIDs from the header
-	header = string.split(fpEae.readline(), TAB)
-	runIdList = splitOffGene(header)
-	print 'Num runIDs: %s %s' % (len(runIdList), runIdList)
+        expID = string.strip(string.split(line)[0])
 	
-	# process each gene and it's sample tpm's
-	print '%sTIME: Processing Runs from the EAE file %s %s%s' % (CRT, expID, mgi_utils.date(), CRT)
-	sys.stdout.flush()
-	sys.stdout.flush()
-	for line in fpEae.readlines():
-	    tokens = string.split(line, TAB)
-	    geneID = tokens[0]
-	    ###print 'geneID: %s' % geneID
+        # report if expID not in the database and skip
+        if expID not in experimentInDbList:
+            experimentNotInDbList.append(expID)
+            continue
 
-	    # list of runs for geneID
-	    tpmList = splitOffGene(tokens)
+	# table names can't contain '-'
+        aesTable = '%s_aes' % expID
+	aesTable = aesTable.replace('-', '_')
+        eaeTable = '%s_eae' % expID
+        eaeTable = eaeTable.replace('-', '_')
 
-	    # The samples for this gene with their one or more TPM values
-	    sampleDict = {} # {sampleID: [tmp1, ...], ...}
+        # load run/sample mapping from the aes file into db for this expID
+        print '%sTIME: Calling bcpAESFile %s %s%s' % \
+	    (CRT, expID, mgi_utils.date(), CRT)
+        sys.stdout.flush()
+        rc = bcpAESFile(expID)
+        if rc != 0:
+            print 'bcp AES file failed with rc%s, skipping file for %s' % \
+		(rc, expID)
+            continue
 
-	    for idx, tpm in enumerate(tpmList):
-		tpm = string.strip(tpm)
+        #  load gene/run/tpm mapping from eae file into db for this expID
+        print '%sTIME: Calling bcpEAEFile %s %s%s' % \
+	    (CRT, expID, mgi_utils.date(), CRT)
+        sys.stdout.flush()
+        rc = bcpEAEFile(expID)
+        if rc != 0:
+            print 'bcp EAE file failed with rc %s, skipping file for %s' % \
+		(rc, expID)
+            continue
 
-		# get the runID that goes with this tpm value
-		runID = string.strip(runIdList[idx])
+	# using outer join in case there are runIDs missing from the aes file
+	# query the two tables for the data
+        results = db.sql('''select distinct eae.geneID, eae.tpm, 
+		aes.sampleID, eae.runID
+		from %s eae
+		left outer join %s aes on (eae.runID = aes.runID)
+		order by eae.geneID''' % (eaeTable, aesTable), 'auto')
+	geneDict = {}
+	for r in results:
+	    geneID = r['geneID']
+	    runID = r['runID']
+	    sampleID = r['sampleID']
+	    tpm = r['tpm']
+	    # if the runID from the eae file is not in the aes file the sampleID
+	    # will be None since we did a left outer join, report this
+	    #print '%s %s %s' % (geneID, runID, sampleID, tpm)
+	    if sampleID == None:
+	  	#print '%s %s %s %s' % (geneID, runID, sampleID, tpm)
+                msg = '%s: %s' % (expID, runID)
+                if msg not in  runIdNotInAEList:
+		    runIdNotInAEList.append(msg)
+		continue
+            # is sampleID flagged as relevant in the db? If not report/skip
+	    # we do this here rather than excluding when create the aes bcp file
+	    # so we may differentiate between sample id 1) not in database and 
+	    # 2) a) not relevant b) in churchill set
+            elif sampleID not in relevantSampleList:
+                nonRelSkippedList.append(sampleID)
+                continue
+            elif sampleID in churchillSampleList:
+                # Report/skip if the sampleID is in the churchill set
+                churchillSkippedList.append(sampleID)
+                continue
 
-		# can the runID be translated to a sampleID? If not report
-		if runID not in runIdToSampleIdDict:
-		    msg = '%s: %s' % (expID, runID)
-		    if msg not in  runIdNotInAEList:
-			runIdNotInAEList.append(msg)
-		    continue
+	    if geneID not in geneDict:
+		geneDict[geneID] = {}
+	    if sampleID not in geneDict[geneID]:
+		geneDict[geneID][sampleID] = []
+	    geneDict[geneID][sampleID].append(tpm)
+	#calcTpm - grsd-73
+	#writeRnaSeq(geneDict)  - grsd-37
 
-		# runID can be translated, get the sampleID
-		sampleID = string.strip(runIdToSampleIdDict[runID])
 
-		# is sampleID flagged as relevant in the db? If not report/skip
-		if sampleID not in relevantSampleList: 
-		    nonRelSkippedList.append(sampleID)
-		    continue
-		elif sampleID in churchillSampleList:
-		    # Report/skip if the sampleID is in the churchill set
-		    churchillSkippedList.append(sampleID)
-		    continue
-		# Add to the sample dictionary for this gene
-		# later we will average all tpm/sample for this gene
-		# added runID to the tpm just for debugging
-		if sampleID not in sampleDict:
-		    sampleDict[sampleID] = []
-		sampleDict[sampleID].append('%s|%s' % (runID,tpm))
-	    ###print 'Printing samples for gene ID: %s' % geneID
-	    #for sampleID in sampleDict:
-	#	if len(sampleDict[sampleID]) > 2:
-	#	    print 'sample with runs > 2 %s has %s runs' % (sampleID, len(sampleDict[sampleID]))
-		###print 'sampleID:%s Runs: %s' % (sampleID, sampleDict[sampleID])
+	dropAESTable()
+	dropEAETable()
+
+    return 0
+
+# end process ()--------------------------------------------
 
 def closefiles():
     fpCur.close()
-    #fpDiag.close()
+    fpDiag.close()
     fpInfile.close()
     db.useOneConnection(0)
 
     return 0
+
+# end closeFiles ()--------------------------------------------
 
 #
 # Main
