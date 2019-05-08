@@ -44,6 +44,7 @@ export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR
 # Connie's experiment ID file
 #INPUT_FILE=${INPUTDIR}/
 INPUT_FILE=/mgi/all/wts_projects/13000/13007/data/RNASeq_Experiments_from_Connie.txt
+#INPUT_FILE=${INPUTDIR}/test_expts.txt
 export INPUT_FILE
 
 
@@ -58,12 +59,14 @@ export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL
 
 # Array Express Sample File Template
 AES_URL_TEMPLATE="https://www.ebi.ac.uk/arrayexpress/files/%s/%s.sdrf.txt"
-#AES_URL_TEMPLATE="www.ebi.ac.uk/arrayexpress/files/%s/%s.sdrf.txt"
+AES_LOCAL_FILE_TEMPLATE=${INPUTDIR}/%s.aes.txt
+
 # Expression Atlas Experiment File Template
 EAE_URL_TEMPLATE="ftp://ftp.ebi.ac.uk/pub/databases/arrayexpress/data/atlas/rnaseq/studies/arrayexpress/%s/mus_musculus/genes.tpm.htseq2.tsv"
+EAE_LOCAL_FILE_TEMPLATE=${INPUTDIR}/%s.eae.txt
 
 
-export AES_URL_TEMPLATE EAE_URL_TEMPLATE
+export AES_URL_TEMPLATE AES_LOCAL_FILE_TEMPLATE EAE_URL_TEMPLATE EAE_LOCAL_FILE_TEMPLATE
 
 #  The name of the job stream for the load
 JOBSTREAM=rnaseqload
