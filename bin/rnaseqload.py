@@ -498,6 +498,10 @@ def process():
 
 	# using outer join in case there are runIDs missing from the aes file
 	# query the two tables for the data
+	# changed to union/not exists to help performance
+	print '%sTIME: Querying to join file data %s %s%s' % \
+            (CRT, expID, mgi_utils.date(), CRT)
+        sys.stdout.flush()
         results = db.sql('''select distinct eae.geneID, eae.tpm, 
 		aes.sampleID, eae.runID
 		from %s eae, %s aes
@@ -508,6 +512,9 @@ def process():
 		where not exists( select 1
 		from %s aes where eae.runID = aes.runID)''' % (eaeTable, aesTable, eaeTable, aesTable), 'auto')
 	geneDict = {}
+	print '%sTIME: DONE querying to join file data %s %s%s' % \
+            (CRT, expID, mgi_utils.date(), CRT)
+        sys.stdout.flush()
 	for r in results:
 	    geneID = r['geneID']
 	    runID = r['runID']
