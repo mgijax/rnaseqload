@@ -76,6 +76,12 @@ churchillSampleList = []
 # samples flagged as relevant in the db
 relevantSampleList = []
 
+# ensembl IDs assoc w/markers
+ensemblMarkerList = []
+
+# ensembl IDs assoc w/sequences
+ensemblSequenceList = []
+
 #
 # QC data structures
 #
@@ -98,9 +104,12 @@ churchillSkippedList = []
 # non-relevant samples skipped
 nonRelSkippedList = []
 
+# empty TPM values set to 0.0
+noTpmValueList = []
+
 def init():
     global experimentInDbList, sampleInDbList, churchillSampleList
-    global relevantSampleList
+    global relevantSampleList, ensemblMarkerList, ensemblSequenceList
 
     db.useOneConnection(1)
 
@@ -129,6 +138,22 @@ def init():
     for r in results:
         relevantSampleList.append(string.strip(r['name']))
 
+    #results = db.sql('''select accid
+#	from ACC_Accession
+#	where _LogicalDB_key =  60
+#	and _MGIType_key = 2
+#	and preferred = 1 ''', 'auto')
+#    for r in results:
+#	ensemblMarkerList.append(r['accid'])
+
+#    results = db.sql('''select accid
+#        from ACC_Accession
+#        where _LogicalDB_key =  60
+#        and _MGIType_key = 19
+#        and preferred = 1 ''', 'auto')
+#    for r in results:
+#        ensemblSequenceList.append(r['accid'])
+
     return 0
 
 # end init() -------------------------------------------------
@@ -143,7 +168,7 @@ def mean(numList):
 def createAESTable():
     # aesTable is global set by process function
     fpDiag.write('creating table %s%s' % (aesTable, CRT))
-    db.sql('''create table %s (
+    db.sql('''create table radar.%s (
 	runID text not null,
 	sampleID text not null)''' % aesTable, None)
 
@@ -154,7 +179,7 @@ def createAESTable():
 def bcpAESTable(bcpFile):
     # aesTable is global set by process function
     fpDiag.write('bcping %s into %s%s' % (bcpFile, aesTable, CRT))
-    db.bcp(bcpFile,  aesTable)
+    db.bcp(bcpFile,  aesTable, schema='radar')
     results = db.sql('''select count(*) from %s''' % aesTable)
     fpDiag.write('results: %s%s' % (results, CRT))
 
@@ -181,10 +206,8 @@ def dropAESTable():
 # end dropAESTable ()--------------------------------------------
 
 def bcpAESFile(expID):
-    #global runIdToSampleIdDict
+    global noRunOrSampleColList, sampleIdNotInDbList
        
-    #runIdToSampleIdDict = {}
-
     # path the aes bcp file for this experiment 
     currentBcp = '%s/%s.aes.bcp' % (outputDir, expID)
     fpCurrentBcp = open(currentBcp, 'w')
@@ -261,7 +284,6 @@ def bcpAESFile(expID):
 	    sampleIdNotInDbList.append('Exp: %s Sample Name ID %s and Sample ENA ID %s not in the database' % (expID, ssID, enaID))
 	else:
 	    runID = string.strip(tokens[runIDX])
-	    #runIdToSampleIdDict[runID] = sampleID
 	    fpCurrentBcp.write('%s%s%s%s' % (runID, TAB, sampleID, CRT))
 	# we load all samples except those not in the database. We will exclude
 	# non-relevant and churchill samples later so we may differentiate btwn
@@ -325,13 +347,20 @@ def writeQC():
             fpCur.write('%s%s' % (e, CRT))
         fpCur.write('Total: %s' % len(churchillSkippedList))
 
+    if len(noTpmValueList):
+        fpCur.write('%sRuns with empty TPM value set to 0.0%s' % (CRT, CRT))
+        fpCur.write('-------------------------------------------------%s' % CRT)
+        for e in noTpmValueList:
+            fpCur.write('%s%s' % (e, CRT))
+        fpCur.write('Total: %s' % len(noTpmValueList))
+
     return 0
 
 # end writeQC ()--------------------------------------------
 
 def createEAETable():
     fpDiag.write('creating table %s%s' % (eaeTable, CRT))
-    db.sql('''create table %s (
+    db.sql('''create table radar.%s (
 	geneID text not null,
         runID text not null,
         tpm text not null)''' % eaeTable, None)
@@ -342,7 +371,7 @@ def createEAETable():
 
 def bcpEAETable(bcpFile):
     fpDiag.write('bcping %s into %s%s' % (bcpFile, eaeTable, CRT))
-    db.bcp(bcpFile,  eaeTable)
+    db.bcp(bcpFile,  eaeTable, schema='radar')
     results = db.sql('''select count(*) from %s''' % eaeTable)
     fpDiag.write('results: %s%s' % (results, CRT))
 
@@ -368,6 +397,8 @@ def dropEAETable():
 
 def bcpEAEFile(expID):
 
+    global noTpmValueList
+
     # path the aes bcp file for this experiment
     currentBcp = '%s/%s.eae.bcp' % (outputDir, expID)
     fpCurrentBcp = open(currentBcp, 'w')
@@ -380,7 +411,7 @@ def bcpEAEFile(expID):
     eaeFile = eaeTemplate % expID
     fpEae = open(eaeFile, 'r')
 
-    # get the runIDs from the header, we will use the index of the tpms
+    # get the runIDs from the header, we will use the index of te`e tpms
     # in each gene/tpm line to get the runID
     header = string.split(fpEae.readline(), TAB)
     runIdList = splitOffGene(header)
@@ -394,38 +425,29 @@ def bcpEAEFile(expID):
     for line in fpEae.readlines():
 	tokens = string.split(line, TAB)
 	geneID = tokens[0]
-	###print 'geneID: %s' % geneID
+	#if geneID not in ensemblMarkers:
+	#    report
+	#    continue
+	# elif geneID not in ensemblSequences:
+        #    report
+        #    continue
 
 	# list of runs for geneID
 	tpmList = splitOffGene(tokens)
 
 	for idx, tpm in enumerate(tpmList):
-	    tpm = string.strip(tpm)
 
 	    # get the runID that goes with this tpm value
-	    runID = string.strip(runIdList[idx])
-	    fpCurrentBcp.write('%s%s%s%s%s%s' % (geneID, TAB, runID, TAB, tpm, CRT))
-	    # NEW report this from sql query using outer join to aes table
-	    # can the runID be translated to a sampleID? If not report
-	    #if runID not in runIdToSampleIdDict:
-	    #    msg = '%s: %s' % (expID, runID)
-	    #    if msg not in  runIdNotInAEList:
-	    #	runIdNotInAEList.append(msg)
-	    #    continue
+            runID = string.strip(runIdList[idx])
+	    tpm = string.strip(tpm)
 
-	    # runID can be translated, get the sampleID
-	    #sampleID = string.strip(runIdToSampleIdDict[runID])
-	    
-	    # NEW check that sample is relevant and not churchill when
-	    # processing sql query
-	    # is sampleID flagged as relevant in the db? If not report/skip
-	    #if sampleID not in relevantSampleList: 
-	    #    nonRelSkippedList.append(sampleID)
-	    #    continue
-	    #elif sampleID in churchillSampleList:
-	    #    # Report/skip if the sampleID is in the churchill set
-	    #    churchillSkippedList.append(sampleID)
-	    #    continue
+	    # report blank tpm values and set them to 0.0
+	    if tpm == '':
+		tpm = 0.0
+		noTpmValueList.append('ExpID: %s geneID: %s runID: %s' % \
+		    (expID, geneID, runID))
+
+	    fpCurrentBcp.write('%s%s%s%s%s%s' % (geneID, TAB, runID, TAB, tpm, CRT))
 
     fpCurrentBcp.close();
     bcpEAETable(currentBcp)
@@ -436,7 +458,9 @@ def bcpEAEFile(expID):
 # end bcpEAEFile ()--------------------------------------------
 
 def process():
-    global aesTable, eaeTable
+    global aesTable, eaeTable, experimentNotInDbList, runIdNotInAEList
+    global nonRelSkippedList, churchillSkippedList
+
     # for each expID in Connie's file
     for line in fpInfile.readlines():
         expID = string.strip(string.split(line)[0])
@@ -476,9 +500,13 @@ def process():
 	# query the two tables for the data
         results = db.sql('''select distinct eae.geneID, eae.tpm, 
 		aes.sampleID, eae.runID
+		from %s eae, %s aes
+		where eae.runID = aes.runID
+	        union
+		select distinct eae.geneID, eae.tpm, null,  eae.runID
 		from %s eae
-		left outer join %s aes on (eae.runID = aes.runID)
-		order by eae.geneID''' % (eaeTable, aesTable), 'auto')
+		where not exists( select 1
+		from %s aes where eae.runID = aes.runID)''' % (eaeTable, aesTable, eaeTable, aesTable), 'auto')
 	geneDict = {}
 	for r in results:
 	    geneID = r['geneID']
