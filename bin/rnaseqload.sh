@@ -94,10 +94,10 @@ ${RNASEQLOAD}/bin/downloadFiles.py >> ${LOG_DIAG}
 STAT=$?
 checkStatus ${STAT} "downloadFiles.py"
 
-#echo "Running rnaseqload.py" >> ${LOG_DIAG}
-#${RNASEQLOAD}/bin/rnaseqload.py >> ${LOG_DIAG}
-#STAT=$?
-#checkStatus ${STAT} "rnaseqload.py"
+echo "Running rnaseqload.py" >> ${LOG_DIAG}
+${RNASEQLOAD}/bin/rnaseqload.py >> ${LOG_DIAG}
+STAT=$?
+checkStatus ${STAT} "rnaseqload.py"
 
 #
 # run postload cleanup and email logs
