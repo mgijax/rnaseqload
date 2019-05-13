@@ -80,8 +80,8 @@ experimentInDbList = []
 # {sampleID:sampleKey, ...}
 sampleInDbDict = {}
 
-# Churchill samples with genotypeKey = 90560 in the db`:w
-churchillSampleList = []
+# samples with strain J:DO; genotypeKey = 90560 in the db
+JDOSampleList = []
 
 # samples flagged as relevant in the db
 relevantSampleList = []
@@ -108,8 +108,8 @@ sampleIdNotInDbList = []
 # run ID, sample ID columns not in the AES file
 noRunOrSampleColList = []
 
-# churchill samples skipped
-churchillSkippedList = []
+# J:DO strain samples skipped
+JDOSkippedList = []
 
 # non-relevant samples skipped
 nonRelSkippedList = []
@@ -118,7 +118,7 @@ nonRelSkippedList = []
 noTpmValueList = []
 
 def init():
-    global experimentInDbList, sampleInDbList, churchillSampleList
+    global experimentInDbList, sampleInDbList, JDOSampleList
     global relevantSampleList, ensemblMarkerList, ensemblSequenceList
 
     db.useOneConnection(1)
@@ -140,7 +140,7 @@ def init():
         from GXD_HTSample
 	where _Genotype_key = 90560''', 'auto')
     for r in results:
-        churchillSampleList.append(string.strip(r['name']))
+        JDOSampleList.append(string.strip(r['name']))
 
     results =  db.sql('''select name
         from GXD_HTSample
@@ -255,8 +255,8 @@ def ppAESFile(expID):
 	    if line not in ppList:
 		ppList.append(line)
 	# we write all samples except those not in the database to the file. 
-	# We will exclude non-relevant and churchill samples later so we may 
-	# differentiate btwn a)non-relevant b)churchill c)not in the aes file 
+	# We will exclude non-relevant and J:DO strain samples later so we may 
+	# differentiate btwn a)non-relevant b)J:DO c)not in the aes file 
 	# (excluding those not in the database
     for line in ppList:
 	fpCurrentPP.write(line)
@@ -281,12 +281,12 @@ def writeQC():
 	    fpCur.write('%s%s' % (e, CRT))
 	fpCur.write('Total: %s' % len(experimentNotInDbList))
 
-    if len(runIdNotInAEList):
-        fpCur.write('%sRun IDs not in AE File%s' % (CRT, CRT))
-        fpCur.write('-------------------------%s' % CRT)
-        for e in runIdNotInAEList:
+    if len(noRunOrSampleColList):
+        fpCur.write('%sExperiments with no Run or Sample Columns%s' % (CRT, CRT))
+        fpCur.write('--------------------------------------------%s' % CRT)
+        for e in noRunOrSampleColList:
             fpCur.write('%s%s' % (e, CRT))
-        fpCur.write('Total: %s' % len(runIdNotInAEList))
+        fpCur.write('Total: %s' % len(noRunOrSampleColList))
 
     if len(sampleIdNotInDbList):
         fpCur.write('%sSample IDs from AE file not in the Database%s' % (CRT, CRT))
@@ -295,12 +295,19 @@ def writeQC():
             fpCur.write('%s%s' % (e, CRT))
         fpCur.write('Total: %s' % len(sampleIdNotInDbList))
 
-    if len(noRunOrSampleColList):
-        fpCur.write('%sExperiments with no Run or Sample Columns%s' % (CRT, CRT))
-        fpCur.write('--------------------------------------------%s' % CRT)
-        for e in noRunOrSampleColList:
+    if len(noTpmValueList):
+        fpCur.write('%sRuns with empty TPM value set to 0.0%s' % (CRT, CRT))
+        fpCur.write('-------------------------------------------------%s' % CRT)
+        for e in noTpmValueList:
             fpCur.write('%s%s' % (e, CRT))
-        fpCur.write('Total: %s' % len(noRunOrSampleColList))
+        fpCur.write('Total: %s' % len(noTpmValueList))
+
+    if len(runIdNotInAEList):
+        fpCur.write('%sRun IDs not in AE File%s' % (CRT, CRT))
+        fpCur.write('-------------------------%s' % CRT)
+        for e in runIdNotInAEList:
+            fpCur.write('%s%s' % (e, CRT))
+        fpCur.write('Total: %s' % len(runIdNotInAEList))
 
     if len(nonRelSkippedList):
         fpCur.write('%sSamples not flagged as Relevant in the Database%s' % (CRT, CRT))
@@ -309,19 +316,12 @@ def writeQC():
             fpCur.write('%s%s' % (e, CRT))
         fpCur.write('Total: %s' % len(nonRelSkippedList))
 
-    if len(churchillSkippedList):
-        fpCur.write('%sSamples in the Churchill set in the Database%s' % (CRT, CRT))
+    if len(JDOSkippedList):
+        fpCur.write('%sSamples with strain: J:DO%s' % (CRT, CRT))
         fpCur.write('-------------------------------------------------%s' % CRT)
-        for e in churchillSkippedList:
+        for e in JDOSkippedList:
             fpCur.write('%s%s' % (e, CRT))
-        fpCur.write('Total: %s' % len(churchillSkippedList))
-
-    if len(noTpmValueList):
-        fpCur.write('%sRuns with empty TPM value set to 0.0%s' % (CRT, CRT))
-        fpCur.write('-------------------------------------------------%s' % CRT)
-        for e in noTpmValueList:
-            fpCur.write('%s%s' % (e, CRT))
-        fpCur.write('Total: %s' % len(noTpmValueList))
+        fpCur.write('Total: %s' % len(JDOSkippedList))
 
     return 0
 
@@ -386,7 +386,7 @@ def ppEAEFile(expID):
 
 def process():
     global  experimentNotInDbList, runIdNotInAEList
-    global nonRelSkippedList, churchillSkippedList
+    global nonRelSkippedList, JDOSkippedList
 
     # for each expID in Connie's file
     for line in fpInfile.readlines():
@@ -456,14 +456,18 @@ def process():
             # is sampleID flagged as relevant in the db? If not report/skip
 	    # we do this here rather than excluding when create the aes pp file
 	    # so we may differentiate between sample id 1) not in database and 
-	    # 2) a) not relevant b) in churchill set
+	    # 2) a) not relevant b) in J:DO strain set
             if sampleID not in relevantSampleList:
-                nonRelSkippedList.append(sampleID)
+		msg = '%s: %s' % (expID, sampleID)
+		if msg not in  nonRelSkippedList:
+		    nonRelSkippedList.append(msg)
 		line = fpJoined.readline()
                 continue
-            elif sampleID in churchillSampleList:
-                # Report/skip if the sampleID is in the churchill set
-                churchillSkippedList.append(sampleID)
+            elif sampleID in JDOSampleList:
+                # Report/skip if the sampleID is in the J:DO strain set
+		msg = '%s: %s' % (expID, sampleID)
+		if msg not in JDOSkippedList:
+		    JDOSkippedList.append(msg)
 		line = fpJoined.readline()
                 continue
 
