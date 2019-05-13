@@ -7,5 +7,10 @@
 #   file1 and 2.2 is field 2 from file 2
 # each file is sorted and redireced into join - note that the sort syntax  and 
 #   $'\t' only works in bash
+#
+# eae = Expression Atlas Experiment file
+# aes = ArrayExpress Sample file
+#
+# usage: run_join <path to eae file> <path to eas file> <path to joined output file>
 
 join -a 1 -t $'\t' -1 2 -2 1 -o 1.1,1.2,1.3,2.2 <(sort -k 2 $1) <(sort -k 1 $2) > $3
