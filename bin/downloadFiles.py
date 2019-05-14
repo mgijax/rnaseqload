@@ -131,7 +131,7 @@ for line in fpInfile.readlines():
 	fpDiag.write(msg)
 	fpCur.write(msg)
 
-fpCur.write('%sTotal files unable to be downloaded: %s%s' % (CRT, errorCt, CRT))
+fpCur.write('%sTotal: %s%s' % (CRT, errorCt, CRT))
 fpDiag.write('%sTotal files unable to be downloaded: %s%s' % (CRT, errorCt, CRT))
 fpCur.close()
 fpDiag.close()
