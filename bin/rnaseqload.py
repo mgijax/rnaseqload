@@ -44,6 +44,7 @@ import mgi_utils
 import string
 import db
 import sys
+import time             # used for its time.time() function (for timestamps)
 
 # paths to input and two output files
 inFilePath= os.getenv('INPUT_FILE')
@@ -236,7 +237,6 @@ def ppAESFile(expID):
 	if not (ssID or enaID): 
 	    noRunOrSampleColList.append('Exp: %s file has neither Sample column' % expID)
 	    return 2
-
 	# choose the ID to use: not empty and in database. Checking the database
 	# is the only way we know if we have a sampleID (and not something else)
         inDb = 0 # sample ID in the database? 0/1
@@ -274,54 +274,47 @@ def splitOffGene(tokens):
 # end splitOffGene ()--------------------------------------------
 
 def writeQC():
-    if len(experimentNotInDbList):
-	fpCur.write('%sExperimentIDs From Connie File Not in the Database%s' % (CRT, CRT))
-	fpCur.write('----------------------------------------------------%s' % CRT)
-	for e in experimentNotInDbList:
-	    fpCur.write('%s%s' % (e, CRT))
-	fpCur.write('Total: %s' % len(experimentNotInDbList))
+    fpCur.write("%sExperimentIDs From Experiment Input File Not in the Database%s" % (CRT, CRT))
+    fpCur.write('----------------------------------------------------%s' % CRT)
+    for e in experimentNotInDbList:
+	fpCur.write('%s%s' % (e, CRT))
+    fpCur.write('Total: %s%s' % (len(experimentNotInDbList), CRT))
 
-    if len(noRunOrSampleColList):
-        fpCur.write('%sExperiments with no Run or Sample Columns%s' % (CRT, CRT))
-        fpCur.write('--------------------------------------------%s' % CRT)
-        for e in noRunOrSampleColList:
-            fpCur.write('%s%s' % (e, CRT))
-        fpCur.write('Total: %s' % len(noRunOrSampleColList))
+    fpCur.write('%sExperiments missing Run Column or Sample Columns, or both%s' % (CRT, CRT))
+    fpCur.write('--------------------------------------------%s' % CRT)
+    for e in noRunOrSampleColList:
+	fpCur.write('%s%s' % (e, CRT))
+    fpCur.write('Total: %s%s' % (len(noRunOrSampleColList), CRT))
 
-    if len(sampleIdNotInDbList):
-        fpCur.write('%sSample IDs from AE file not in the Database%s' % (CRT, CRT))
-        fpCur.write('---------------------------------------------%s' % CRT)
-        for e in sampleIdNotInDbList:
-            fpCur.write('%s%s' % (e, CRT))
-        fpCur.write('Total: %s' % len(sampleIdNotInDbList))
+    fpCur.write('%sSample IDs from AE file not in the Database%s' % (CRT, CRT))
+    fpCur.write('---------------------------------------------%s' % CRT)
+    for e in sampleIdNotInDbList:
+	fpCur.write('%s%s' % (e, CRT))
+    fpCur.write('Total: %s%s' % (len(sampleIdNotInDbList), CRT))
 
-    if len(noTpmValueList):
-        fpCur.write('%sRuns with empty TPM value set to 0.0%s' % (CRT, CRT))
-        fpCur.write('-------------------------------------------------%s' % CRT)
-        for e in noTpmValueList:
-            fpCur.write('%s%s' % (e, CRT))
-        fpCur.write('Total: %s' % len(noTpmValueList))
+    fpCur.write('%sRuns with empty TPM value set to 0.0%s' % (CRT, CRT))
+    fpCur.write('-------------------------------------------------%s' % CRT)
+    for e in noTpmValueList:
+	fpCur.write('%s%s' % (e, CRT))
+    fpCur.write('Total: %s%s' % (len(noTpmValueList), CRT))
 
-    if len(runIdNotInAEList):
-        fpCur.write('%sRun IDs not in AE File%s' % (CRT, CRT))
-        fpCur.write('-------------------------%s' % CRT)
-        for e in runIdNotInAEList:
-            fpCur.write('%s%s' % (e, CRT))
-        fpCur.write('Total: %s' % len(runIdNotInAEList))
+    fpCur.write('%sRun IDs not in AE File%s' % (CRT, CRT))
+    fpCur.write('-------------------------%s' % CRT)
+    for e in runIdNotInAEList:
+	fpCur.write('%s%s' % (e, CRT))
+    fpCur.write('Total: %s%s' % (len(runIdNotInAEList), CRT))
 
-    if len(nonRelSkippedList):
-        fpCur.write('%sSamples not flagged as Relevant in the Database%s' % (CRT, CRT))
-        fpCur.write('-------------------------------------------------%s' % CRT)
-        for e in nonRelSkippedList:
-            fpCur.write('%s%s' % (e, CRT))
-        fpCur.write('Total: %s' % len(nonRelSkippedList))
+    fpCur.write('%sSamples not flagged as Relevant in the Database%s' % (CRT, CRT))
+    fpCur.write('-------------------------------------------------%s' % CRT)
+    for e in nonRelSkippedList:
+	fpCur.write('%s%s' % (e, CRT))
+    fpCur.write('Total: %s%s' % (len(nonRelSkippedList), CRT))
 
-    if len(JDOSkippedList):
-        fpCur.write('%sSamples with strain: J:DO%s' % (CRT, CRT))
-        fpCur.write('-------------------------------------------------%s' % CRT)
-        for e in JDOSkippedList:
-            fpCur.write('%s%s' % (e, CRT))
-        fpCur.write('Total: %s' % len(JDOSkippedList))
+    fpCur.write('%sSamples with strain: J:DO%s' % (CRT, CRT))
+    fpCur.write('-------------------------------------------------%s' % CRT)
+    for e in JDOSkippedList:
+	fpCur.write('%s%s' % (e, CRT))
+    fpCur.write('Total: %s%s' % (len(JDOSkippedList), CRT))
 
     return 0
 
@@ -330,6 +323,8 @@ def writeQC():
 def ppEAEFile(expID):
 
     global noTpmValueList, currentEaePPFile
+
+    start_time = time.time()
 
     # path the aes preprocessed file for this experiment
     currentEaePPFile = eaePPTemplate % expID
@@ -345,12 +340,9 @@ def ppEAEFile(expID):
     header = string.split(fpEae.readline(), TAB)
     runIdList = splitOffGene(header)
     print 'Num runIDs: %s %s' % (len(runIdList), runIdList)
-    
-    # process each gene and it's sample tpm's
-    print '%sTIME: Processing Runs from the EAE file %s %s%s' % (CRT, expID, mgi_utils.date(), CRT)
-    sys.stdout.flush()
     sys.stdout.flush()
 
+    # process each gene and it's sample tpm's
     for line in fpEae.readlines():
 	tokens = string.split(line, TAB)
 	geneID = tokens[0]
@@ -379,7 +371,8 @@ def ppEAEFile(expID):
 	    fpCurrentPP.write('%s%s%s%s%s%s' % (geneID, TAB, runID, TAB, tpm, CRT))
 
     fpCurrentPP.close();
-
+    elapsed_time = time.time() - start_time
+    print '%sTIME: Processing Runs from the EAE file %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT) 
     return 0
 
 # end ppEAEFile ()--------------------------------------------
@@ -398,7 +391,6 @@ def process():
             continue
 
         # preprocess the aes file for this expID (run, sample)
-        print '%sTIME: Calling ppAESFile %s %s%s' % \
 	    (CRT, expID, mgi_utils.date(), CRT)
         sys.stdout.flush()
         rc = ppAESFile(expID)
@@ -408,7 +400,6 @@ def process():
             continue
 
         # preprocess the eae file for this expID (gene, run, tpm)
-        print '%sTIME: Calling ppEAEFile %s %s%s' % \
 	    (CRT, expID, mgi_utils.date(), CRT)
         sys.stdout.flush()
         rc = ppEAEFile(expID)
@@ -417,31 +408,35 @@ def process():
 		    skipping file for %s''' % (rc, expID)
             continue
 
+	start_time = time.time()
+
         joinedFile =  joinedPPTemplate % expID
-	print '%sTIME: Calling run_join to create joinedFile: %s %s %s' % (CRT, joinedFile,  mgi_utils.date(), CRT)
-	sys.stdout.flush()
 	cmd = "%s/run_join %s %s %s" % (binDir, currentEaePPFile, currentAesPPFile, joinedFile)
 	fpDiag.write('cmd: %s%s' % (cmd, CRT))
 	rc = os.system(cmd)
         if rc != 0:
             msg = 'join cmd failed: %s%s' % (cmd, CRT)
             fpDiag.write(msg)
-	print '%sTIME: Done calling run_join %s%s' % (CRT, mgi_utils.date(), CRT)
+
+ 	elapsed_time = time.time() - start_time
+	print '%sTIME: Creating  the join file %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
 	sys.stdout.flush()
 
         # now open the joined file and process
+	start_time = time.time()
+
 	geneDict = {}
 	fpJoined = open(joinedFile, 'r') 
 	line = fpJoined.readline()
 	print line
 	while line:
-	    tokens = string.split(line)
+	    tokens = string.split(line, TAB)
 	    geneID = tokens[0]
 	    runID = tokens[1]
 	    tpm = tokens[2]
 	    sampleID = ''
 	    try:
-		sampleID = tokens[3]
+		sampleID = string.strip(tokens[3])
 	    except:
 		# if the runID from the eae file is not in the aes file 
 		# the sample column will be missing
@@ -453,6 +448,7 @@ def process():
 			runIdNotInAEList.append(msg)
 		    line = fpJoined.readline()
 		    continue
+
             # is sampleID flagged as relevant in the db? If not report/skip
 	    # we do this here rather than excluding when create the aes pp file
 	    # so we may differentiate between sample id 1) not in database and 
@@ -480,6 +476,8 @@ def process():
 	#calcTpm - grsd-73
 	#writeRnaSeq(geneDict)  - grsd-37
 
+	elapsed_time = time.time() - start_time
+        print '%sTIME: Processing Runs from the AES file %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
     return 0
 
 # end process ()--------------------------------------------
@@ -498,21 +496,36 @@ def closefiles():
 # Main
 #
 
-print 'TIME: Calling init %s' % mgi_utils.date()
+# -------------------------------------------------------------
+START_TIME = time.time()
+
+print 'Start time: %s' % time.strftime("%H:%M:%S", time.gmtime(START_TIME))
 sys.stdout.flush()
 init()
-
-print 'TIME: Calling process %s' % mgi_utils.date()
+elapsed_time = time.time() - START_TIME
+print 'TIME to run init %s' %  time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
 sys.stdout.flush()
+
+# -------------------------------------------------------------
+TIME = time.time()
+
 process()
-
-print 'TIME Calling writeQC %s' % mgi_utils.date()
+elapsed_time = time.time() - TIME
+print 'TIME to run process %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
 sys.stdout.flush()
+
+# -------------------------------------------------------------
+TIME = time.time()
+
 writeQC()
-
-print 'TIME: Calling closefiles %s' % mgi_utils.date()
+elapsed_time = time.time() - TIME
+print 'TIME to run writeQC %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
 sys.stdout.flush()
+
+# -------------------------------------------------------------
+
 closefiles()
 
-print '%s' % mgi_utils.date()
+elapsed_time = time.time() - START_TIME
+print 'Total run time: %s' %  time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
 
