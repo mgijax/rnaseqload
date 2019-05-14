@@ -75,23 +75,23 @@ eaePPTemplate  =  '%s' % os.getenv('EAE_PP_FILE_TEMPLATE')
 joinedPPTemplate = '%s' % os.getenv('JOINED_PP_FILE_TEMPLATE')
 
 # GXT HT Experiment IDs in the database
-experimentInDbList = []
+experimentInDbSet = set()
 
 # GXD HT Sample name in the database
 # {sampleID:sampleKey, ...}
 sampleInDbDict = {}
 
 # samples with strain J:DO; genotypeKey = 90560 in the db
-JDOSampleList = []
+JDOSampleSet = set()
 
 # samples flagged as relevant in the db
-relevantSampleList = []
+relevantSampleSet = set()
 
 # ensembl IDs assoc w/markers
-ensemblMarkerList = []
+ensemblMarkerSet = set()
 
 # ensembl IDs assoc w/sequences
-ensemblSequenceList = []
+ensemblSequenceSet = set()
 
 #
 # QC data structures
@@ -119,8 +119,8 @@ nonRelSkippedList = []
 noTpmValueList = []
 
 def init():
-    global experimentInDbList, sampleInDbList, JDOSampleList
-    global relevantSampleList, ensemblMarkerList, ensemblSequenceList
+    global experimentInDbSet, sampleInDbList, JDOSampleSet
+    global relevantSampleSet, ensemblMarkerSet, ensemblSequenceSet
 
     db.useOneConnection(1)
 
@@ -129,7 +129,7 @@ def init():
 	where _MGIType_key = 42
 	and preferred = 1''', 'auto')
     for r in results:
-	experimentInDbList.append(r['accid'])
+	experimentInDbSet.add(r['accid'])
 
     results = db.sql('''select name, _Sample_key
 	from GXD_HTSample''', 'auto')
@@ -141,13 +141,13 @@ def init():
         from GXD_HTSample
 	where _Genotype_key = 90560''', 'auto')
     for r in results:
-        JDOSampleList.append(string.strip(r['name']))
+        JDOSampleSet.add(string.strip(r['name']))
 
     results =  db.sql('''select name
         from GXD_HTSample
         where _Relevance_key = 20475450''', 'auto')
     for r in results:
-        relevantSampleList.append(string.strip(r['name']))
+        relevantSampleSet.add(string.strip(r['name']))
 
     #results = db.sql('''select accid
 #	from ACC_Accession
@@ -155,7 +155,7 @@ def init():
 #	and _MGIType_key = 2
 #	and preferred = 1 ''', 'auto')
 #    for r in results:
-#	ensemblMarkerList.append(r['accid'])
+#	ensemblMarkerSet.add(r['accid'])
 
 #    results = db.sql('''select accid
 #        from ACC_Accession
@@ -163,7 +163,7 @@ def init():
 #        and _MGIType_key = 19
 #        and preferred = 1 ''', 'auto')
 #    for r in results:
-#        ensemblSequenceList.append(r['accid'])
+#        ensemblSequenceSet.add(r['accid'])
 
     return 0
 
@@ -205,12 +205,6 @@ def ppAESFile(expID):
 	    enaSampleIDX = idx
 	elif string.find(colName, 'ENA_RUN') != -1:
 	    runIDX = idx
-    if sourceSampleIDX == None:
-	print 'Source Name not found for %s' % expID
-    if enaSampleIDX == None:
-	print 'ENA_SAMPLE not found for %s' % expID
-    if runIDX == None:
-	print 'ENA_RUN not found for %s' % expID
 
     #
     # now iterate through each gene/run/tpm in the file
@@ -331,7 +325,7 @@ def ppEAEFile(expID):
     fpCurrentPP = open(currentEaePPFile, 'w')
 
     # create file name and open file descriptor
-    print 'expID: %s' % expID
+    #print 'expID: %s' % expID
     eaeFile = eaeTemplate % expID
     fpEae = open(eaeFile, 'r')
 
@@ -339,7 +333,7 @@ def ppEAEFile(expID):
     # in each gene/tpm line to get the runID
     header = string.split(fpEae.readline(), TAB)
     runIdList = splitOffGene(header)
-    print 'Num runIDs: %s %s' % (len(runIdList), runIdList)
+    #print 'Num runIDs: %s %s' % (len(runIdList), runIdList)
     sys.stdout.flush()
 
     # process each gene and it's sample tpm's
@@ -380,18 +374,17 @@ def ppEAEFile(expID):
 def process():
     global  experimentNotInDbList, runIdNotInAEList
     global nonRelSkippedList, JDOSkippedList
-
+    
     # for each expID in Connie's file
     for line in fpInfile.readlines():
         expID = string.strip(string.split(line)[0])
 	
         # report if expID not in the database and skip
-        if expID not in experimentInDbList:
+        if expID not in experimentInDbSet:
             experimentNotInDbList.append(expID)
             continue
 
         # preprocess the aes file for this expID (run, sample)
-	    (CRT, expID, mgi_utils.date(), CRT)
         sys.stdout.flush()
         rc = ppAESFile(expID)
         if rc != 0:
@@ -400,7 +393,6 @@ def process():
             continue
 
         # preprocess the eae file for this expID (gene, run, tpm)
-	    (CRT, expID, mgi_utils.date(), CRT)
         sys.stdout.flush()
         rc = ppEAEFile(expID)
         if rc != 0:
@@ -408,6 +400,7 @@ def process():
 		    skipping file for %s''' % (rc, expID)
             continue
 
+        # start of the join
 	start_time = time.time()
 
         joinedFile =  joinedPPTemplate % expID
@@ -418,8 +411,9 @@ def process():
             msg = 'join cmd failed: %s%s' % (cmd, CRT)
             fpDiag.write(msg)
 
+	# end of the join
  	elapsed_time = time.time() - start_time
-	print '%sTIME: Creating  the join file %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
+	print '%sTIME: Creating the join file %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
 	sys.stdout.flush()
 
         # now open the joined file and process
@@ -428,38 +422,36 @@ def process():
 	geneDict = {}
 	fpJoined = open(joinedFile, 'r') 
 	line = fpJoined.readline()
-	print line
 	while line:
 	    tokens = string.split(line, TAB)
 	    geneID = tokens[0]
 	    runID = tokens[1]
 	    tpm = tokens[2]
 	    sampleID = ''
+	    # some join files have no column 4, do a try/except
 	    try:
 		sampleID = string.strip(tokens[3])
 	    except:
-		# if the runID from the eae file is not in the aes file 
-		# the sample column will be missing
-		#print '%s %s %s %s' % (geneID, runID, sampleID, tpm)
-		if sampleID == '':
-		    #print '%s %s %s %s' % (geneID, runID, sampleID, tpm)
-		    msg = '%s: %s' % (expID, runID)
-		    if msg not in  runIdNotInAEList:
-			runIdNotInAEList.append(msg)
-		    line = fpJoined.readline()
-		    continue
-
+		sampleID = ''
+		
+	    # some join files have empty column 4
+	    if sampleID == '':
+		msg = '%s: %s' % (expID, runID)
+                if msg not in  runIdNotInAEList:
+                    runIdNotInAEList.append(msg)
+                line = fpJoined.readline()
+                continue
             # is sampleID flagged as relevant in the db? If not report/skip
 	    # we do this here rather than excluding when create the aes pp file
 	    # so we may differentiate between sample id 1) not in database and 
 	    # 2) a) not relevant b) in J:DO strain set
-            if sampleID not in relevantSampleList:
+            if sampleID not in relevantSampleSet:
 		msg = '%s: %s' % (expID, sampleID)
 		if msg not in  nonRelSkippedList:
 		    nonRelSkippedList.append(msg)
 		line = fpJoined.readline()
                 continue
-            elif sampleID in JDOSampleList:
+            elif sampleID in JDOSampleSet:
                 # Report/skip if the sampleID is in the J:DO strain set
 		msg = '%s: %s' % (expID, sampleID)
 		if msg not in JDOSkippedList:
@@ -477,7 +469,7 @@ def process():
 	#writeRnaSeq(geneDict)  - grsd-37
 
 	elapsed_time = time.time() - start_time
-        print '%sTIME: Processing Runs from the AES file %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
+        print '%sTIME: Iterating through join file %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
     return 0
 
 # end process ()--------------------------------------------
@@ -499,11 +491,11 @@ def closefiles():
 # -------------------------------------------------------------
 START_TIME = time.time()
 
-print 'Start time: %s' % time.strftime("%H:%M:%S", time.gmtime(START_TIME))
+print 'Start time: %s' %  mgi_utils.date()
 sys.stdout.flush()
 init()
 elapsed_time = time.time() - START_TIME
-print 'TIME to run init %s' %  time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+print 'TIME to run init function %s' %  time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
 sys.stdout.flush()
 
 # -------------------------------------------------------------
@@ -511,7 +503,7 @@ TIME = time.time()
 
 process()
 elapsed_time = time.time() - TIME
-print 'TIME to run process %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+print 'TIME to run process function %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
 sys.stdout.flush()
 
 # -------------------------------------------------------------
@@ -519,7 +511,7 @@ TIME = time.time()
 
 writeQC()
 elapsed_time = time.time() - TIME
-print 'TIME to run writeQC %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+print 'TIME to run writeQC function %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
 sys.stdout.flush()
 
 # -------------------------------------------------------------
@@ -527,5 +519,8 @@ sys.stdout.flush()
 closefiles()
 
 elapsed_time = time.time() - START_TIME
+
+print 'End time: %s'  % mgi_utils.date()
+
 print 'Total run time: %s' %  time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
 
