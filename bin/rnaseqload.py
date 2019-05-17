@@ -93,15 +93,31 @@ ensemblMarkerSet = set()
 # ensembl IDs assoc w/sequences
 ensemblSequenceSet = set()
 
+# ensembl IDs assoc w/ >1 marker
+multiMarkerEnsemblDict = {}
+
+# > 1 Ens IDs for a marker
+symbolToMultiEnsIdDict = {} # {symbol:[list of ensIDs], ...}
+
+# above set by ensID
+# {ensID:symbol, ...}
+multiEnsemblMarkerDict = {}
+
 #
 # QC data structures
 #
+
+# number of experiments in Connie's input file
+exptCt = 0
 
 # expIDs in File not in database
 experimentNotInDbList = []
 
 # runID not in ArrayExpress sampleID/runID file
 runIdNotInAEList = []
+
+# runIDs not in Expression Atlas geneID/runID/TPM file
+runIdNotInEAList = []
 
 # sampleID from ArrayExpress sampleID/runID file  not in database
 sampleIdNotInDbList = []
@@ -118,9 +134,22 @@ nonRelSkippedList = []
 # empty TPM values set to 0.0
 noTpmValueList = []
 
+# ensembl IDs assoc w/multi markers
+multiMarkerEnsemblList = []
+
+# markers assoc w/multi ensIDs
+multiEnsemblMarkerList = []
+
+# ensembl ID is not in MGI at all
+ensemblNotInMGIList = []
+
+# ensembl ID is only associated with a sequence (not a marker)
+ensemblIsOrphanList = []
+
 def init():
     global experimentInDbSet, sampleInDbList, JDOSampleSet
     global relevantSampleSet, ensemblMarkerSet, ensemblSequenceSet
+    global multiEnsemblMarkerDict, multiMarkerEnsemblDict, symbolToMultiEnsIdDict
 
     db.useOneConnection(1)
 
@@ -149,21 +178,79 @@ def init():
     for r in results:
         relevantSampleSet.add(string.strip(r['name']))
 
-    #results = db.sql('''select accid
-#	from ACC_Accession
-#	where _LogicalDB_key =  60
-#	and _MGIType_key = 2
-#	and preferred = 1 ''', 'auto')
-#    for r in results:
-#	ensemblMarkerSet.add(r['accid'])
+    results = db.sql('''select accid
+	from ACC_Accession
+	where _LogicalDB_key =  60
+	and _MGIType_key = 2
+	and preferred = 1 ''', 'auto')
+    for r in results:
+	ensemblMarkerSet.add(r['accid'])
 
-#    results = db.sql('''select accid
-#        from ACC_Accession
-#        where _LogicalDB_key =  60
-#        and _MGIType_key = 19
-#        and preferred = 1 ''', 'auto')
-#    for r in results:
-#        ensemblSequenceSet.add(r['accid'])
+    db.sql('''select accid
+ 	into temporary table multiEns
+        from ACC_Accession
+        where _LogicalDB_key =  60
+        and _MGIType_key = 2
+        and preferred = 1
+	group by accid having count(*) > 1 ''', None)
+
+    db.sql('''create index idx1 on multiEns(accid)''')
+
+    results = db.sql('''select a.accid, m.symbol
+	from multiEns me, ACC_Accession a, MRK_Marker m
+	where me.accid = a.accid
+	and a._LogicalDB_key =  60
+		and a._MGIType_key = 2
+		and a.preferred = 1
+	and a._Object_key = m._Marker_key''', 'auto')
+
+    for r in results:
+	ensID = r['accid']
+	symbol = r['symbol']
+	if symbol not in multiMarkerEnsemblDict:
+	    multiMarkerEnsemblDict[symbol] = []
+	multiMarkerEnsemblDict[symbol].append(ensID)
+	
+    db.sql('''select _Object_key
+	into temporary table multi
+	from ACC_Accession
+	where _MGIType_key = 2
+	and _LogicalDB_key = 60
+	group by _Object_key 
+	having count(*) > 1''', None)
+    
+    db.sql('create index idx2 on multi(_Object_key)')
+    
+    results = db.sql('''select a.accid, m.symbol
+	from ACC_Accession a, multi mm, MRK_Marker m
+	where a._MGIType_key = 2
+	and a._LogicalDB_key = 60
+	and a._Object_key = mm._Object_key
+	and a._Object_key = m._Marker_key
+	order by m.symbol''', 'auto')
+
+    for r in results:
+	ensID = r['accid']
+	symbol = r['symbol']
+	if symbol not in symbolToMultiEnsIdDict:
+	    symbolToMultiEnsIdDict[symbol] = []
+	symbolToMultiEnsIdDict[symbol].append(ensID)
+
+    # now map this by EnsID, we will lookup the ensID in this dict
+    # get its marker, then look it up in symbolToMultiEnsIdDict
+    # to get the complete set of ensembl IDs
+    for symbol in symbolToMultiEnsIdDict:
+        ensIdList = symbolToMultiEnsIdDict[symbol]
+        for ensId in ensIdList:
+            multiEnsemblMarkerDict[ensID] = symbol
+
+    results = db.sql('''select accid
+        from ACC_Accession
+        where _LogicalDB_key =  60
+        and _MGIType_key = 19
+        and preferred = 1 ''', 'auto')
+    for r in results:
+        ensemblSequenceSet.add(r['accid'])
 
     return 0
 
@@ -178,7 +265,11 @@ def mean(numList):
 
 def ppAESFile(expID):
     global noRunOrSampleColList, sampleIdNotInDbList, currentAesPPFile
-       
+    global aesRunIdSet
+
+    # run IDs in the AES set
+    aesRunIdSet = set()
+
     # path to the aes input file for this experiment
     aesFile = aesTemplate % expID
     fpAes = open(aesFile, 'r')
@@ -245,6 +336,7 @@ def ppAESFile(expID):
 	    sampleIdNotInDbList.append('Exp: %s Sample Name ID %s and Sample ENA ID %s not in the database' % (expID, ssID, enaID))
 	else:
 	    runID = string.strip(tokens[runIDX])
+	    aesRunIdSet.add(runID)
 	    line = '%s%s%s%s' % (runID, TAB, sampleID, CRT)
 	    if line not in ppList:
 		ppList.append(line)
@@ -286,17 +378,47 @@ def writeQC():
 	fpCur.write('%s%s' % (e, CRT))
     fpCur.write('Total: %s%s' % (len(sampleIdNotInDbList), CRT))
 
+    fpCur.write('%sEnsembl ID in EAE file is associated with > 1 marker in MGI%s' % (CRT, CRT))
+    fpCur.write('-------------------------------------------------%s' % CRT)
+    for e in multiMarkerEnsemblList:
+        fpCur.write('%s%s' % (e, CRT))
+    fpCur.write('Total: %s%s' % (len(multiMarkerEnsemblList), CRT))
+
+    fpCur.write('%sMultiple Ensembl IDs in EAE file are associated with the same marker in MGI%s' % (CRT, CRT))
+    fpCur.write('-------------------------------------------------%s' % CRT)
+    for e in multiEnsemblMarkerList:
+        fpCur.write('%s%s' % (e, CRT))
+    fpCur.write('Total: %s%s' % (len(multiEnsemblMarkerList), CRT))
+
+    fpCur.write('%sEnsembl ID in EAE file is not in MGI%s' % (CRT, CRT))
+    fpCur.write('-------------------------------------------------%s' % CRT)
+    for e in ensemblNotInMGIList:
+        fpCur.write('%s%s' % (e, CRT))
+    fpCur.write('Total: %s%s' % (len(ensemblNotInMGIList), CRT))
+
+    fpCur.write('%sEnsembl ID in EAE file is an orphan in MGI, only has sequence association%s' % (CRT, CRT))
+    fpCur.write('-------------------------------------------------%s' % CRT)
+    for e in ensemblIsOrphanList:
+        fpCur.write('%s%s' % (e, CRT))
+    fpCur.write('Total: %s%s' % (len(ensemblIsOrphanList), CRT))
+
     fpCur.write('%sRuns with empty TPM value set to 0.0%s' % (CRT, CRT))
     fpCur.write('-------------------------------------------------%s' % CRT)
     for e in noTpmValueList:
 	fpCur.write('%s%s' % (e, CRT))
     fpCur.write('Total: %s%s' % (len(noTpmValueList), CRT))
 
-    fpCur.write('%sRun IDs not in AE File%s' % (CRT, CRT))
+    fpCur.write('%sRun IDs not in ArrayExpress File%s' % (CRT, CRT))
     fpCur.write('-------------------------%s' % CRT)
     for e in runIdNotInAEList:
 	fpCur.write('%s%s' % (e, CRT))
     fpCur.write('Total: %s%s' % (len(runIdNotInAEList), CRT))
+
+    fpCur.write('%sRun IDs not in Expression Atlas File%s' % (CRT, CRT))
+    fpCur.write('-------------------------%s' % CRT)
+    for e in runIdNotInEAList:
+        fpCur.write('%s%s' % (e, CRT))
+    fpCur.write('Total: %s%s' % (len(runIdNotInEAList), CRT))
 
     fpCur.write('%sSamples not flagged as Relevant in the Database%s' % (CRT, CRT))
     fpCur.write('-------------------------------------------------%s' % CRT)
@@ -310,13 +432,19 @@ def writeQC():
 	fpCur.write('%s%s' % (e, CRT))
     fpCur.write('Total: %s%s' % (len(JDOSkippedList), CRT))
 
+
     return 0
 
 # end writeQC ()--------------------------------------------
 
 def ppEAEFile(expID):
 
-    global noTpmValueList, currentEaePPFile
+    global noTpmValueList, multiMarkerEnsemblList, currentEaePPFile
+    global  ensemblNotInMGIList, ensemblIsOrphanList, eaeRunIdSet
+    global multiEnsemblMarkerList
+    # we create a set here, because eaeRunIdList will have NL char
+    # after last run ID, need this later for set difference
+    eaeRunIdSet = set()
 
     start_time = time.time()
 
@@ -332,20 +460,42 @@ def ppEAEFile(expID):
     # get the runIDs from the header, we will use the index of te`e tpms
     # in each gene/tpm line to get the runID
     header = string.split(fpEae.readline(), TAB)
-    runIdList = splitOffGene(header)
-    #print 'Num runIDs: %s %s' % (len(runIdList), runIdList)
+    eaeRunIdList = splitOffGene(header)
+    #print 'Num runIDs: %s %s' % (len(eaeRunIdList), eaeRunIdList)
     sys.stdout.flush()
 
     # process each gene and it's sample tpm's
     for line in fpEae.readlines():
 	tokens = string.split(line, TAB)
-	geneID = tokens[0]
-	#if geneID not in ensemblMarkers:
-	#    report
-	#    continue
-	# elif geneID not in ensemblSequences:
-        #    report
-        #    continue
+	geneID = string.strip(tokens[0])
+	# multi markers
+	if geneID in multiMarkerEnsemblDict:
+	    ensIDs = string.join(multiMarkerEnsemblDict[geneID], ', ')
+	    msg = '%s: %s' % (geneID, ensIDs)
+	    if msg not in multiMarkerEnsemblList:
+		multiMarkerEnsemblList.append(msg)
+	    continue
+	#multiEnsemblMarkerDict
+	#symbolToMultiEnsIdDict
+	elif geneID in multiEnsemblMarkerDict:
+	    symbol = multiEnsemblMarkerDict[geneID]
+	    ensIDs = string.join(symbolToMultiEnsIdDict[symbol], ', ')
+	    msg = '%s: %s' % (symbol, ensIDs)
+	    if msg not in multiEnsemblMarkerList:
+		multiEnsemblMarkerList.append(msg)
+	    continue
+	# not in MGI
+	elif geneID not in ensemblMarkerSet and geneID not in ensemblSequenceSet:
+	    msg = '%s' % (geneID)
+	    if msg not in ensemblNotInMGIList:
+		ensemblNotInMGIList.append(msg)
+	    continue
+	 # assoc only with a sequence
+	elif geneID not in ensemblMarkerSet and geneID in ensemblSequenceSet:
+	    msg = '%s' % (geneID)
+	    if msg not in ensemblIsOrphanList:
+		ensemblIsOrphanList.append(msg)
+            continue
 
 	# list of runs for geneID
 	tpmList = splitOffGene(tokens)
@@ -353,7 +503,8 @@ def ppEAEFile(expID):
 	for idx, tpm in enumerate(tpmList):
 
 	    # get the runID that goes with this tpm value
-            runID = string.strip(runIdList[idx])
+            runID = string.strip(eaeRunIdList[idx])
+	    eaeRunIdSet.add(runID)
 	    tpm = string.strip(tpm)
 
 	    # report blank tpm values and set them to 0.0
@@ -400,12 +551,18 @@ def process():
 		    skipping file for %s''' % (rc, expID)
             continue
 
+	# check for AES runIDs not in the EAE file
+	#print 'aesRunIdSet: %s' % aesRunIdSet
+	#print 'eaeRunIdSet: %s' % eaeRunIdSet
+	diff = aesRunIdSet.difference(eaeRunIdSet)
+	if len(diff):
+	    diffString = string.join(diff, ', ')
+	    runIdNotInEAList.append('%s: %s' % (expID, diffString))
         # start of the join
 	start_time = time.time()
 
         joinedFile =  joinedPPTemplate % expID
 	cmd = "%s/run_join %s %s %s" % (binDir, currentEaePPFile, currentAesPPFile, joinedFile)
-	fpDiag.write('cmd: %s%s' % (cmd, CRT))
 	rc = os.system(cmd)
         if rc != 0:
             msg = 'join cmd failed: %s%s' % (cmd, CRT)
