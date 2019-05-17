@@ -1,4 +1,4 @@
-#!/usr/local/bin/bash
+#!/usr/bin/bash
 
 # "-a 1" print lines from file1 (eae) with runID that are not in file2 (aes)
 # "-t $'\t'" specifies the input and output file field separator (default in ' '
