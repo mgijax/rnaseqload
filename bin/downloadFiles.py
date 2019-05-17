@@ -1,5 +1,4 @@
 #!/usr/bin/python
-# /usr/bin/python
 # /usr/bin/python is 2.6.* or 2.7.* depending on server. It is required for urllib2
 # /opt/python2.7/bin/python
 ##########################################################################
@@ -38,6 +37,7 @@ import os
 import mgi_utils
 import string
 import urllib2
+import runCommand
 
 print '%s' % mgi_utils.date()
 
@@ -94,42 +94,32 @@ for line in fpInfile.readlines():
     fpAes = open(aesFile, 'w')
     aesURL = aesTemplate % (expID, expID)
     msg = ''
-    try:
-	request = urllib2.Request(aesURL)
-    except:
-	msg =  msg + ' failed request = urllib2.Request(aesURL) %s' % expID
-    try:
-	result = urllib2.urlopen(request)
-    except:
-	msg =  msg + ' failed result = urllib2.urlopen(request) %s' % expID
-    try:
-	fpAes.write(result.read())
-    except:
-	msg =  msg + ' failed fpAes.write(result.read())%s' % expID
-    try:
-	fpAes.close()
-    except:
-	msg =  msg + 'i failed to close aes file %s' % expID
-    if msg:
+    stdout, stderr, statusCode = runCommand.runCommand("curl '%s'" % aesURL)
+    #print 'statusCode: %s' % statusCode
+    #print 'stderr: %s' % stderr
+    if statusCode != 0:
+        msg = '%s stderr: %s%s' % (aesURL, stderr, CRT)
 	errorCt += 1
-	msg = '%s: %s%s' % (aesURL, msg, CRT)
-	fpDiag.write(msg)
-	fpCur.write(msg)
+        fpDiag.write(msg)
+        fpCur.write(msg)
+    else:
+	fpAes.write(stdout)
     
     # EAE
     eaeFile = eaeLocalFileTemplate % expID 
     fpEae = open(eaeFile, 'w')
     eaeURL = eaeTemplate % expID
-    try:
-	request = urllib2.Request(eaeURL)
-	result = urllib2.urlopen(request)
-	fpEae.write(result.read())
-	fpEae.close()
-    except:
+    msg = ''
+    stdout, stderr, statusCode = runCommand.runCommand("curl '%s'" % eaeURL)
+    #print 'statusCode: %s' % statusCode
+    #print 'stderr: %s' % stderr
+    if statusCode != 0:
+        msg = '%s stderr: %s%s' % (eaeURL, stderr, CRT)
 	errorCt += 1
-	msg = '%s%s' % (eaeURL, CRT)
 	fpDiag.write(msg)
-	fpCur.write(msg)
+        fpCur.write(msg)
+    else:
+        fpEae.write(stdout)
 
 fpCur.write('%sTotal: %s%s' % (CRT, errorCt, CRT))
 fpDiag.write('%sTotal files unable to be downloaded: %s%s' % (CRT, errorCt, CRT))
