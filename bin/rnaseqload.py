@@ -461,11 +461,12 @@ def ppEAEFile(expID):
     # in each gene/tpm line to get the runID
     header = string.split(fpEae.readline(), TAB)
     eaeRunIdList = splitOffGene(header)
-    #print 'Num runIDs: %s %s' % (len(eaeRunIdList), eaeRunIdList)
+    print 'Num runIDs: %s %s' % (len(eaeRunIdList), eaeRunIdList)
     sys.stdout.flush()
 
     # process each gene and it's sample tpm's
     for line in fpEae.readlines():
+	#print 'line: %s' % line
 	tokens = string.split(line, TAB)
 	geneID = string.strip(tokens[0])
 	# multi markers
@@ -501,7 +502,7 @@ def ppEAEFile(expID):
 	tpmList = splitOffGene(tokens)
 
 	for idx, tpm in enumerate(tpmList):
-
+	    #print 'idx: %s tpm: %s' % (idx, tpm)
 	    # get the runID that goes with this tpm value
             runID = string.strip(eaeRunIdList[idx])
 	    eaeRunIdSet.add(runID)

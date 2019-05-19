@@ -61,16 +61,24 @@ aesLocalFileTemplate = os.getenv('AES_LOCAL_FILE_TEMPLATE')
 eaeTemplate  = os.getenv('EAE_URL_TEMPLATE')
 eaeLocalFileTemplate = os.getenv('EAE_LOCAL_FILE_TEMPLATE')
 
-# remove all aes and eae input files; we don't want to remove Connie's
-#  published file
+# remove all aes and eae input files and joined files; 
+# we don't want to remove Connie's published file, so we do separately
 cmd = 'rm %s/*.aes.*' % inputDir
-
+print cmd
 rc = os.system(cmd)
 if rc != 0:
     msg = 'rm cmd failed: %s%s' % (cmd, CRT)
     fpDiag.write(msg)
 
 cmd = 'rm %s/*.eae.*' % inputDir
+print cmd
+rc = os.system(cmd)
+if rc != 0:
+    msg = 'rm cmd failed: %s%s' % (cmd, CRT)
+    fpDiag.write(msg)
+
+cmd = 'rm %s/*.joined.*' % inputDir
+print cmd
 rc = os.system(cmd)
 if rc != 0:
     msg = 'rm cmd failed: %s%s' % (cmd, CRT)
@@ -81,8 +89,6 @@ errorCt = 0
 
 fpCur.write('%sFiles unable to be downloaded%s' % (CRT, CRT))
 fpCur.write('------------------------------%s' % CRT)
-fpDiag.write('Files unable to be downloaded%s%s' % (CRT, CRT))
-fpDiag.write('------------------------------%s' % CRT)
 
 # parse the input file and download files for each experiment
 for line in fpInfile.readlines():
@@ -94,7 +100,10 @@ for line in fpInfile.readlines():
     fpAes = open(aesFile, 'w')
     aesURL = aesTemplate % (expID, expID)
     msg = ''
-    stdout, stderr, statusCode = runCommand.runCommand("curl '%s'" % aesURL)
+    # --retry-max-time 0, don't time out retries
+    #--max-time - max time in seconds to allow the whole operation to take.
+    # --max-time  mx time in seconds to allow the connect to the server to take
+    stdout, stderr, statusCode = runCommand.runCommand("curl -v --max-time 10 --retry 5 --retry-delay 5 --retry-max-time 0 '%s'" % aesURL)
     #print 'statusCode: %s' % statusCode
     #print 'stderr: %s' % stderr
     if statusCode != 0:
@@ -104,13 +113,13 @@ for line in fpInfile.readlines():
         fpCur.write(msg)
     else:
 	fpAes.write(stdout)
-    
+
     # EAE
     eaeFile = eaeLocalFileTemplate % expID 
     fpEae = open(eaeFile, 'w')
     eaeURL = eaeTemplate % expID
     msg = ''
-    stdout, stderr, statusCode = runCommand.runCommand("curl '%s'" % eaeURL)
+    stdout, stderr, statusCode = runCommand.runCommand("curl -v --max-time 10 --retry 5 --retry-delay 5 --retry-max-time 0 '%s'" % eaeURL)
     #print 'statusCode: %s' % statusCode
     #print 'stderr: %s' % stderr
     if statusCode != 0:
