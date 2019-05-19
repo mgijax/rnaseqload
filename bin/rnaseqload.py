@@ -272,8 +272,10 @@ def ppAESFile(expID):
 
     # path to the aes input file for this experiment
     aesFile = aesTemplate % expID
-    fpAes = open(aesFile, 'r')
-
+    try:
+	fpAes = open(aesFile, 'r')
+    except:
+	return 1 # file does not exist
     # path the aes preprocessed file for this experiment
     currentAesPPFile = aesPPTemplate %  expID
     fpCurrentPP = open(currentAesPPFile, 'w')
@@ -296,11 +298,12 @@ def ppAESFile(expID):
 	    enaSampleIDX = idx
 	elif string.find(colName, 'ENA_RUN') != -1:
 	    runIDX = idx
-
     #
     # now iterate through each gene/run/tpm in the file
     #
     for line in fpAes.readlines():
+	if line == '\n':
+	    continue 
         tokens = string.split(line, TAB)
 	sampleID = '' # The sampleID we load to the lookup
 	ssID = '' # ID from 'Source Name' column
@@ -309,7 +312,7 @@ def ppAESFile(expID):
 	if runIDX == None:
 	    # report that the READ column cannot be found
 	    noRunOrSampleColList.append('Exp: %s file has no Run column' % expID)
-	    return 1
+	    return 2
 
 	# get the sampleID from one or both of the fields
   	if sourceSampleIDX != None:
@@ -321,7 +324,7 @@ def ppAESFile(expID):
 	# report and return if we did not find either sample column
 	if not (ssID or enaID): 
 	    noRunOrSampleColList.append('Exp: %s file has neither Sample column' % expID)
-	    return 2
+	    return 3
 	# choose the ID to use: not empty and in database. Checking the database
 	# is the only way we know if we have a sampleID (and not something else)
         inDb = 0 # sample ID in the database? 0/1
@@ -448,20 +451,22 @@ def ppEAEFile(expID):
 
     start_time = time.time()
 
-    # path the aes preprocessed file for this experiment
-    currentEaePPFile = eaePPTemplate % expID
-    fpCurrentPP = open(currentEaePPFile, 'w')
-
     # create file name and open file descriptor
     #print 'expID: %s' % expID
     eaeFile = eaeTemplate % expID
-    fpEae = open(eaeFile, 'r')
+    try:
+	fpEae = open(eaeFile, 'r')
+    except:
+	return 1 # file does not exist
+    # path the aes preprocessed file for this experiment
+    currentEaePPFile = eaePPTemplate % expID
+    fpCurrentPP = open(currentEaePPFile, 'w')
 
     # get the runIDs from the header, we will use the index of te`e tpms
     # in each gene/tpm line to get the runID
     header = string.split(fpEae.readline(), TAB)
     eaeRunIdList = splitOffGene(header)
-    print 'Num runIDs: %s %s' % (len(eaeRunIdList), eaeRunIdList)
+    print 'Num runIDs for %s: %s %s' % (expID, len(eaeRunIdList), eaeRunIdList)
     sys.stdout.flush()
 
     # process each gene and it's sample tpm's
