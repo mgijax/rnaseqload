@@ -38,14 +38,15 @@ LOGDIR=${FILEDIR}/logs
 RPTDIR=${FILEDIR}/reports
 OUTPUTDIR=${FILEDIR}/output
 INPUTDIR=${FILEDIR}/input
-
+#INPUTDIR=/mgi/all/wts_projects/13000/13007/testing/epic2
 export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR
 
 # Connie's experiment ID file
-#INPUT_FILE=${INPUTDIR}/
+#INPUT_FILE=${INPUTDIR}/RNASeq_Experiments_for_QC.txt
 INPUT_FILE=/mgi/all/wts_projects/13000/13007/data/RNASeq_Experiments_from_Connie.txt
 
 export INPUT_FILE
+
 
 # Complete path name of the rnaseqload log files
 LOG_FILE=${LOGDIR}/rnaseqload.log
@@ -77,6 +78,11 @@ export EAE_URL_TEMPLATE EAE_PP_FILE_TEMPLATE EAE_LOCAL_FILE_TEMPLATE
 JOINED_PP_FILE_TEMPLATE=${INPUTDIR}/%s.joined.txt
 
 export JOINED_PP_FILE_TEMPLATE
+
+# rna-seq bcp file
+RNASEQ_BCP=${OUTPUTDIR}/rnaseq.bcp
+
+export RNASEQ_BCP
 
 #  The name of the job stream for the load
 JOBSTREAM=rnaseqload
