@@ -54,9 +54,14 @@ inputDir =  os.getenv('INPUTDIR')
 outputDir = os.getenv('OUTPUTDIR')
 binDir = '%s/bin' % os.getenv('INSTALLDIR')
 
-# curation log
+# curation and diagnostic logs
 fpCur = open (os.environ['LOG_CUR'], 'a')
 fpDiag = open (os.environ['LOG_DIAG'], 'a')
+
+# bcp file
+bcpFilePath = os.getenv('RNASEQ_BCP')
+fpRnaSeqBcp = open(bcpFilePath, 'w')
+
 # constants
 TAB = '\t'
 CRT = '\n'
@@ -207,10 +212,10 @@ def init():
     for r in results:
 	ensID = r['accid']
 	symbol = r['symbol']
-	if symbol not in multiMarkerEnsemblDict:
-	    multiMarkerEnsemblDict[symbol] = []
-	multiMarkerEnsemblDict[symbol].append(ensID)
-	
+	if ensID not in multiMarkerEnsemblDict:
+	    multiMarkerEnsemblDict[ensID] = []
+	multiMarkerEnsemblDict[ensID].append(symbol)
+
     db.sql('''select _Object_key
 	into temporary table multi
 	from ACC_Accession
@@ -235,14 +240,7 @@ def init():
 	if symbol not in symbolToMultiEnsIdDict:
 	    symbolToMultiEnsIdDict[symbol] = []
 	symbolToMultiEnsIdDict[symbol].append(ensID)
-
-    # now map this by EnsID, we will lookup the ensID in this dict
-    # get its marker, then look it up in symbolToMultiEnsIdDict
-    # to get the complete set of ensembl IDs
-    for symbol in symbolToMultiEnsIdDict:
-        ensIdList = symbolToMultiEnsIdDict[symbol]
-        for ensId in ensIdList:
-            multiEnsemblMarkerDict[ensID] = symbol
+	multiEnsemblMarkerDict[ensID] = symbol
 
     results = db.sql('''select accid
         from ACC_Accession
@@ -474,17 +472,22 @@ def ppEAEFile(expID):
 	#print 'line: %s' % line
 	tokens = string.split(line, TAB)
 	geneID = string.strip(tokens[0])
-	# multi markers
+	#print geneID
+	# multi marker per ensembl
 	if geneID in multiMarkerEnsemblDict:
-	    ensIDs = string.join(multiMarkerEnsemblDict[geneID], ', ')
-	    msg = '%s: %s' % (geneID, ensIDs)
+	    symbols = string.join(multiMarkerEnsemblDict[geneID], ', ')
+	    msg = '%s: %s' % (geneID, symbols)
 	    if msg not in multiMarkerEnsemblList:
 		multiMarkerEnsemblList.append(msg)
 	    continue
 	#multiEnsemblMarkerDict
 	#symbolToMultiEnsIdDict
+	# multi ensembl per marker
 	elif geneID in multiEnsemblMarkerDict:
+	    #if geneID in ('ENSMUSG00000113702', 'ENSMUSG00000113662', 'ENSMUSG00000113781'): # ('Gm35558', 'Gm2464'):
+		#print 'DEBUG multiEnsemblMarker: geneID: %s symbol: %s' % (geneID, multiEnsemblMarkerDict[geneID])
 	    symbol = multiEnsemblMarkerDict[geneID]
+	    #if len(symbolToMultiEnsIdDict[symbol]) > 1:
 	    ensIDs = string.join(symbolToMultiEnsIdDict[symbol], ', ')
 	    msg = '%s: %s' % (symbol, ensIDs)
 	    if msg not in multiEnsemblMarkerList:
@@ -512,7 +515,6 @@ def ppEAEFile(expID):
             runID = string.strip(eaeRunIdList[idx])
 	    eaeRunIdSet.add(runID)
 	    tpm = string.strip(tpm)
-
 	    # report blank tpm values and set them to 0.0
 	    if tpm == '':
 		tpm = 0.0
@@ -622,12 +624,17 @@ def process():
 		line = fpJoined.readline()
                 continue
 
-	    #if geneID not in geneDict:
-	#	geneDict[geneID] = {}
-	#    if sampleID not in geneDict[geneID]:
-	#	geneDict[geneID][sampleID] = []
-	#    geneDict[geneID][sampleID].append(tpm)
+	    if geneID not in geneDict:
+		geneDict[geneID] = {}
+	    if sampleID not in geneDict[geneID]:
+		geneDict[geneID][sampleID] = []
+	    geneDict[geneID][sampleID].append(tpm)
 	    line = fpJoined.readline()
+
+	for geneID in geneDict:
+	    sampleDict = geneDict[geneID]
+	    for s in sampleDict:
+		fpRnaSeqBcp.write('%s%s%s%s%s%s%s%s' % (expID, TAB, geneID, TAB, s, TAB, string.join(sampleDict[s], ', '),  CRT))
 	#calcTpm - grsd-73
 	#writeRnaSeq(geneDict)  - grsd-37
 
@@ -641,6 +648,7 @@ def closefiles():
     fpCur.close()
     fpDiag.close()
     fpInfile.close()
+    fpRnaSeqBcp.close()
     db.useOneConnection(0)
 
     return 0
