@@ -631,10 +631,11 @@ def process():
 	    geneDict[geneID][sampleID].append(tpm)
 	    line = fpJoined.readline()
 
-	for geneID in geneDict:
-	    sampleDict = geneDict[geneID]
-	    for s in sampleDict:
-		fpRnaSeqBcp.write('%s%s%s%s%s%s%s%s' % (expID, TAB, geneID, TAB, s, TAB, string.join(sampleDict[s], ', '),  CRT))
+	# for Maria
+	#for geneID in geneDict:
+	#    sampleDict = geneDict[geneID]
+	#    for s in sampleDict:
+	#	fpRnaSeqBcp.write('%s%s%s%s%s%s%s%s' % (expID, TAB, geneID, TAB, s, TAB, string.join(sampleDict[s], ', '),  CRT))
 	#calcTpm - grsd-73
 	#writeRnaSeq(geneDict)  - grsd-37
 
