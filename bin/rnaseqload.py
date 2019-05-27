@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/python
 # /usr/bin/python is 2.6.* or 2.7.* depending on server. It is required for downloadFiles.py
 ##########################################################################
 #
@@ -41,10 +41,12 @@
 
 import os
 import mgi_utils
+import loadlib
 import string
 import db
 import sys
-import time             # used for its time.time() function (for timestamps)
+import time	# used for its time.time() function (for timestamps)
+import numpy	# used for stddev	
 
 # paths to input and two output files
 inFilePath= os.getenv('INPUT_FILE')
@@ -62,9 +64,28 @@ fpDiag = open (os.environ['LOG_DIAG'], 'a')
 bcpFilePath = os.getenv('RNASEQ_BCP')
 fpRnaSeqBcp = open(bcpFilePath, 'w')
 
+# {sample:[list of lines for that sample across all genes], ...} 
+bcpLineDict = {}
+bcpLineCount = 0
+
+# {expID|sampleID:[list of all tpm aveSD for sample], ...}
+sampleAveSDDict = {}
+
+# special report for Richard
+fpStudentRpt = open('%s/studentRnaSeq.txt' % outputDir, 'w')
+
+# aveAveStdDev report
+fpAveSDAllGenes = open ('%s/aveSDAllGenes.txt' % outputDir, 'w')
+
 # constants
 TAB = '\t'
 CRT = '\n'
+
+# load date
+loaddate = loadlib.loaddate
+
+# rnaseqload MGI_User
+createdByKey = 1613
 
 # ArrayExpress Sample File Template  - name of file stored locally
 aesTemplate = '%s' % os.getenv('AES_LOCAL_FILE_TEMPLATE')
@@ -93,7 +114,15 @@ JDOSampleSet = set()
 relevantSampleSet = set()
 
 # ensembl IDs assoc w/markers
+# used to see if the ensembl ID is in the database
+# Sets are faster; lists are sequential scan
 ensemblMarkerSet = set()
+
+# ensembl IDs assoc w/markers, to get the marker Key
+# if multi markers, the last marker will be stored
+# ens assoc/multi markers will be filtered out
+# and will not be looked up in this dictionary
+ensemblMarkerDict = {}
 
 # ensembl IDs assoc w/sequences
 ensemblSequenceSet = set()
@@ -151,12 +180,19 @@ ensemblNotInMGIList = []
 # ensembl ID is only associated with a sequence (not a marker)
 ensemblIsOrphanList = []
 
+rnaSeqKey = None
+
 def init():
     global experimentInDbSet, sampleInDbList, JDOSampleSet
     global relevantSampleSet, ensemblMarkerSet, ensemblSequenceSet
     global multiEnsemblMarkerDict, multiMarkerEnsemblDict, symbolToMultiEnsIdDict
+    global rnaSeqKey, ensemblMarkerDict
 
     db.useOneConnection(1)
+
+    results = db.sql('''select nextval('gxd_htsample_rnaseq_seq') as maxKey ''', 'auto')
+    rnaSeqKey = results[0]['maxKey']
+    print 'rnaSeqKey: %s' % rnaSeqKey
 
     results = db.sql('''select accid 
         from ACC_Accession
@@ -183,14 +219,15 @@ def init():
     for r in results:
         relevantSampleSet.add(string.strip(r['name']))
 
-    results = db.sql('''select accid
+    results = db.sql('''select accid, _Object_key
 	from ACC_Accession
 	where _LogicalDB_key =  60
 	and _MGIType_key = 2
 	and preferred = 1 ''', 'auto')
     for r in results:
-	ensemblMarkerSet.add(r['accid'])
-
+	accid = r['accid']
+	ensemblMarkerSet.add(accid)
+	ensemblMarkerDict[accid] = r['_Object_key']
     db.sql('''select accid
  	into temporary table multiEns
         from ACC_Accession
@@ -254,10 +291,22 @@ def init():
 
 # end init() -------------------------------------------------
 
-def mean(numList):
-    raw =  float(sum(numList)) / max(len(numList), 1)
+def initBcp():
+    fpRnaSeqBcp = open(bcpFilePath, 'w')
+    return
 
-    return round(raw, 2)
+def closeBcp():
+    fpRnaSeqBcp.close()
+    return
+
+def calcAve(numList):
+    tSum = sum(numList)
+    tLen =  max(len(numList), 1)
+    ave = tSum / tLen
+    fAve = float(ave)
+    #raw =  float(sum(numList)) / max(len(numList), 1)
+
+    return round(fAve, 2)
 
 # end mean () -------------------------------------------------
 
@@ -484,8 +533,6 @@ def ppEAEFile(expID):
 	#symbolToMultiEnsIdDict
 	# multi ensembl per marker
 	elif geneID in multiEnsemblMarkerDict:
-	    #if geneID in ('ENSMUSG00000113702', 'ENSMUSG00000113662', 'ENSMUSG00000113781'): # ('Gm35558', 'Gm2464'):
-		#print 'DEBUG multiEnsemblMarker: geneID: %s symbol: %s' % (geneID, multiEnsemblMarkerDict[geneID])
 	    symbol = multiEnsemblMarkerDict[geneID]
 	    #if len(symbolToMultiEnsIdDict[symbol]) > 1:
 	    ensIDs = string.join(symbolToMultiEnsIdDict[symbol], ', ')
@@ -532,8 +579,11 @@ def ppEAEFile(expID):
 
 def process():
     global  experimentNotInDbList, runIdNotInAEList
-    global nonRelSkippedList, JDOSkippedList
-    
+    global nonRelSkippedList, JDOSkippedList, rnaSeqKey
+    global bcpLineCount, bcpLineDict, sampleAveSDDict
+
+    fpStudentRpt.write('expID%sgeneID%ssampleID%stechRepl%saveTpm%sstdDev%sstdDevAve%stechRepCt%s' % (TAB, TAB, TAB, TAB, TAB, TAB, TAB, CRT))
+
     # for each expID in Connie's file
     for line in fpInfile.readlines():
         expID = string.strip(string.split(line)[0])
@@ -584,6 +634,7 @@ def process():
         # now open the joined file and process
 	start_time = time.time()
 
+	# {geneID: {sampleID:[tpm1, ...], ...}, ...}
 	geneDict = {}
 	fpJoined = open(joinedFile, 'r') 
 	line = fpJoined.readline()
@@ -628,17 +679,80 @@ def process():
 		geneDict[geneID] = {}
 	    if sampleID not in geneDict[geneID]:
 		geneDict[geneID][sampleID] = []
-	    geneDict[geneID][sampleID].append(tpm)
+	    geneDict[geneID][sampleID].append(float(tpm))
 	    line = fpJoined.readline()
 
-	# for Maria
-	#for geneID in geneDict:
-	#    sampleDict = geneDict[geneID]
-	#    for s in sampleDict:
-	#	fpRnaSeqBcp.write('%s%s%s%s%s%s%s%s' % (expID, TAB, geneID, TAB, s, TAB, string.join(sampleDict[s], ', '),  CRT))
-	#calcTpm - grsd-73
-	#writeRnaSeq(geneDict)  - grsd-37
 
+	# STORY 37 for this story these are null
+	# now iterate through the gene Dict calculating aveTpm, SD of 
+	# aveTpm and average of sdAveTpm SD/aveTpm
+	rnaSeqCombKey = TAB
+	QNTpm = TAB
+	print 'writing bcp for expID: %s' % expID
+        for geneID in geneDict:
+	    sampleDict = geneDict[geneID]
+	    for s in sampleDict:
+		sampleKey = sampleInDbDict[s]
+		tpmList = sampleDict[s]
+		techReplCt = len(tpmList) 	# number of runs for the sample (1-n)
+	        aveTpm = calcAve(tpmList)
+		stdDev = round(numpy.std(tpmList), 2)
+		#print 'sample: %s tpmList: %s aveTpm: %s stdDev: %s' % (s, tpmList, aveTpm, stdDev)
+		stdDevAve = 0.0
+		if aveTpm != 0.0:
+		    stdDevAve = round(stdDev / aveTpm, 2)
+		#print 'stdDevAve: %s' % (stdDevAve)
+		#print 'stdDevAve: %s' % stdDevAve
+		#print 'tpmList: %s' % tpmList
+		markerKey = ensemblMarkerDict[geneID]
+		line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (rnaSeqKey, TAB, sampleKey, TAB, rnaSeqCombKey, markerKey, TAB, aveTpm, TAB, QNTpm, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT)
+		# collect the bcp lines by sampleID - we may need to remove some 
+		# samples later
+		if s not in bcpLineDict:
+		    bcpLineDict[s] = []
+		bcpLineDict[s].append(line)
+
+		# collect the stdDevAve of the technical replicates - we will want to 
+		# take the average of all aveSD across all genes of a sample to 
+		# determine samples to include/exclude. 
+		key = '%s|%s' % (expID, s)
+		if key not in sampleAveSDDict:
+		    sampleAveSDDict[key] = []
+		sampleAveSDDict[key].append(stdDevAve)
+
+		# this reports the run tpm's, the tpm average, the stdDev of the run 
+		# tpms and the stdDevAve (stdDev/aveTpm) as well as the count of
+		# technical replicates (number of runs per sample) 
+		# 
+		fpStudentRpt.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, geneID, TAB, s, TAB, string.join(map(str, tpmList), ', '),  TAB, aveTpm, TAB, stdDev, TAB, stdDevAve, TAB, techReplCt, CRT))
+		rnaSeqKey += 1
+
+	# Now iterate through the sampleAveSDDict and calculate the average of
+	# each aveSD. Report any above a threshold weeding out dupes.
+	keyList = sorted(sampleAveSDDict.keys()) 
+	reportList = []
+	for key in keyList:
+	    expID, sampleID = string.split(key, '|')
+	    aveAveSdAllGenes = calcAve(sampleAveSDDict[key])
+	    if aveAveSdAllGenes > 0.5 :
+		reportLine = '%s%s%s%s%s%s' % (expID, TAB, sampleID, TAB, aveAveSdAllGenes, CRT)
+		if reportLine not in reportList:
+		    reportList.append(reportLine)
+
+	# now report the distinct list
+	for reportLine in reportList:
+		fpAveSDAllGenes.write(reportLine)
+
+	# 5/24 - for now don't exclude base on aveAveSdAllGenes, just writ all, later
+	# we may exclude. I think we should bcp by sampleID for smaller chunks
+	for sID in bcpLineDict:
+	    #initBcp()
+	    for line in bcpLineDict[sID]: 
+		bcpLineCount += 1
+		fpRnaSeqBcp.write(line)
+
+	    #closeBcp()
+	print 'Num bcp lines: %s' % bcpLineCount
 	elapsed_time = time.time() - start_time
         print '%sTIME: Iterating through join file %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
     return 0
@@ -650,11 +764,22 @@ def closefiles():
     fpDiag.close()
     fpInfile.close()
     fpRnaSeqBcp.close()
+    fpStudentRpt.close()
+    fpAveSDAllGenes.close()
     db.useOneConnection(0)
 
     return 0
 
-# end closeFiles ()--------------------------------------------
+# end closefiles ()--------------------------------------------
+
+def postprocess():
+
+    db.sql(''' select setval('gxd_htsample_rnaseq_seq', (select max(_rnaseq_key) from gxd_htsample_rnaseq)) ''', None)
+    db.commit()
+
+    closefiles()
+    
+# end closefiles ()--------------------------------------------
 
 #
 # Main
@@ -688,7 +813,7 @@ sys.stdout.flush()
 
 # -------------------------------------------------------------
 
-closefiles()
+postprocess()
 
 elapsed_time = time.time() - START_TIME
 
