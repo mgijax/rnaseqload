@@ -102,8 +102,7 @@ for line in fpInfile.readlines():
     msg = ''
     # --retry-max-time 0, don't time out retries
     #--max-time - max time in seconds to allow the whole operation to take.
-    # --max-time  mx time in seconds to allow the connect to the server to take
-    stdout, stderr, statusCode = runCommand.runCommand("curl -v --max-time 10 --retry 5 --retry-delay 5 --retry-max-time 0 '%s'" % aesURL)
+    stdout, stderr, statusCode = runCommand.runCommand("curl --max-time 10 --retry 5 --retry-delay 5 --retry-max-time 0 '%s'" % aesURL)
     #print 'statusCode: %s' % statusCode
     #print 'stderr: %s' % stderr
     if statusCode != 0:
@@ -119,9 +118,10 @@ for line in fpInfile.readlines():
     fpEae = open(eaeFile, 'w')
     eaeURL = eaeTemplate % expID
     msg = ''
-    stdout, stderr, statusCode = runCommand.runCommand("curl -v --max-time 10 --retry 5 --retry-delay 5 --retry-max-time 0 '%s'" % eaeURL)
-    #print 'statusCode: %s' % statusCode
-    #print 'stderr: %s' % stderr
+    #stdout, stderr, statusCode = runCommand.runCommand("curl --compressed --max-time 20 --retry 5 --retry-delay 5 --retry-max-time 0 '%s'" % eaeURL)
+    stdout, stderr, statusCode = runCommand.runCommand("curl -v --retry 5 --retry-delay 5 '%s'" % eaeURL)
+    print '%s%s statusCode: %s%s' % (CRT, expID, statusCode, CRT)
+    print 'stderr: %s%s' % (stderr, CRT)
     if statusCode != 0:
         msg = '%s stderr: %s%s' % (eaeURL, stderr, CRT)
 	errorCt += 1
