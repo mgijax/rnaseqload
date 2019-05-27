@@ -84,7 +84,7 @@ fi
 # createArchive including OUTPUTDIR, startLog, getConfigEnv
 # sets "JOBKEY"
 
-preload ${OUTPUTDIR}
+preload 
 
 # remove files from output directory
 cleanDir ${OUTPUTDIR}
