@@ -13,11 +13,15 @@
 #		and generated intermediate files too
 #	 4. OUTPUTDIR - rnaseq bcp files
 #	 5. INSTALLDIR - for path to run_join script	 
-#	 6. AES_LOCAL_FILE_TEMPLATE - path and template for downloaded aes files
-#	 7. AES_PP_FILE_TEMPLATE - preprocessed to just runID, sampleID
-#	 8. EAE_LOCAL_FILE_TEMPLATE - path and template for downloaded eae files
-#	 9. EAE_PP_FILE_TEMPLATE - preprocessed to just geneID, runID, TPM
-#	 10. JOINED_PP_FILE_TEMPLATE - path & template for joined aes/eae files
+#	 6. LOG_FUR - curation log
+#	 7. LOG_DIAG - diagnostic log
+#	 8. RNASEQ_BCP - bcp filename suffix - we will append expID
+#	 9. PG_DBUTILS - for path to bcpin.csh script
+#	 10. AES_LOCAL_FILE_TEMPLATE - path and template for downloaded aes files
+#	 11. AES_PP_FILE_TEMPLATE - preprocessed to just runID, sampleID
+#	 12. EAE_LOCAL_FILE_TEMPLATE - path and template for downloaded eae files
+#	 13. EAE_PP_FILE_TEMPLATE - preprocessed to just geneID, runID, TPM
+#	 14. JOINED_PP_FILE_TEMPLATE - path & template for joined aes/eae files
 # Inputs:
 #	1. INPUTFILE - Connie's file of experiment IDs
 #	2. ArrayExpress files by experiment
@@ -25,8 +29,11 @@
 #	4. Configuration (see rnaseqload.config)
 #
 # Outputs:
-#	 1.  preprocessed file for each experiment aes and eae
-#	 2.  joined aes and eae file for each experiment
+#	 1. aes and eae files from source
+#	 2. preprocessed file for each experiment aes and eae
+#	 3. joined aes and eae file for each experiment
+#	 4. bcp files - one per experiment
+#	 5. curator and diagnostic log
 # 
 # Exit Codes:
 #
@@ -39,14 +46,14 @@
 #
 ###########################################################################
 
-import os
-import mgi_utils
-import loadlib
+import os	 # for system to execute bcp, getenv
+import mgi_utils # for log start/end timestamp
+import loadlib	 # for bcp friendly date/timestamp
 import string
 import db
-import sys
-import time	# used for its time.time() function (for timestamps)
-import numpy	# used for stddev	
+import sys 	 # to flush stdout
+import time	 # used for its time.time() function (for timestamps)
+import numpy	 # used for stddev	
 
 # paths to input and two output files
 inFilePath= os.getenv('INPUT_FILE')
@@ -60,22 +67,22 @@ binDir = '%s/bin' % os.getenv('INSTALLDIR')
 fpCur = open (os.environ['LOG_CUR'], 'a')
 fpDiag = open (os.environ['LOG_DIAG'], 'a')
 
-# bcp file
-bcpFilePath = os.getenv('RNASEQ_BCP')
-fpRnaSeqBcp = open(bcpFilePath, 'w')
+# bcp stuff
+bcpFile = os.getenv('RNASEQ_BCP')
+fpRnaSeqBcp = None # this will get assigned later, once per experiment
+bcpCommand = os.getenv('PG_DBUTILS') + '/bin/bcpin.csh'
+bcpCommandList = []
+rnaseqTable = 'GXD_HTSample_RNASeq'
 
-# {sample:[list of lines for that sample across all genes], ...} 
-bcpLineDict = {}
-bcpLineCount = 0
+# status stuff
+stdDevCutoff = float(os.getenv('STDDEV_CUTOFF'))
+highAveStdDevList = []
 
 # {expID|sampleID:[list of all tpm aveSD for sample], ...}
 sampleAveSDDict = {}
 
 # special report for Richard
 fpStudentRpt = open('%s/studentRnaSeq.txt' % outputDir, 'w')
-
-# aveAveStdDev report
-fpAveSDAllGenes = open ('%s/aveSDAllGenes.txt' % outputDir, 'w')
 
 # constants
 TAB = '\t'
@@ -180,6 +187,8 @@ ensemblNotInMGIList = []
 # ensembl ID is only associated with a sequence (not a marker)
 ensemblIsOrphanList = []
 
+# average SD > some threshold (0.7)
+# next available rnaSeq Key - set by init()
 rnaSeqKey = None
 
 def init():
@@ -228,6 +237,7 @@ def init():
 	accid = r['accid']
 	ensemblMarkerSet.add(accid)
 	ensemblMarkerDict[accid] = r['_Object_key']
+
     db.sql('''select accid
  	into temporary table multiEns
         from ACC_Accession
@@ -291,24 +301,33 @@ def init():
 
 # end init() -------------------------------------------------
 
-def initBcp():
-    fpRnaSeqBcp = open(bcpFilePath, 'w')
-    return
+def initBcp(bcpFile):
+    global fpRnaSeqBcp
 
-def closeBcp():
+    fpRnaSeqBcp = open(bcpFile, 'w')
+
+    return 0
+
+# end initBcp() -------------------------------------------------
+
+def closeBcp(bcpFile):
+    global fpRnaSeqBcp
+
     fpRnaSeqBcp.close()
-    return
+
+    return 0
+
+# end closeBcp() -------------------------------------------------
 
 def calcAve(numList):
     tSum = sum(numList)
     tLen =  max(len(numList), 1)
     ave = tSum / tLen
     fAve = float(ave)
-    #raw =  float(sum(numList)) / max(len(numList), 1)
 
     return round(fAve, 2)
 
-# end mean () -------------------------------------------------
+# end calcAve () -------------------------------------------------
 
 def ppAESFile(expID):
     global noRunOrSampleColList, sampleIdNotInDbList, currentAesPPFile
@@ -317,23 +336,27 @@ def ppAESFile(expID):
     # run IDs in the AES set
     aesRunIdSet = set()
 
-    # path to the aes input file for this experiment
+    # create aes input file descriptor for this experiment
+    #
     aesFile = aesTemplate % expID
     try:
 	fpAes = open(aesFile, 'r')
     except:
 	return 1 # file does not exist
+
     # path the aes preprocessed file for this experiment
+    #
     currentAesPPFile = aesPPTemplate %  expID
     fpCurrentPP = open(currentAesPPFile, 'w')
     ppList = [] # so we can wee out dupes before writing to the PP file
-    #
+    
     # process the header line
     #
     header = fpAes.readline()
     headerList = string.split(header, TAB)
 
     # find the idx of the columns we want - they are not ordered
+    #
     sourceSampleIDX = None
     enaSampleIDX = None
     runIDX = None
@@ -345,7 +368,7 @@ def ppAESFile(expID):
 	    enaSampleIDX = idx
 	elif string.find(colName, 'ENA_RUN') != -1:
 	    runIDX = idx
-    #
+    
     # now iterate through each gene/run/tpm in the file
     #
     for line in fpAes.readlines():
@@ -358,10 +381,12 @@ def ppAESFile(expID):
 	runID = '' # ID from ENA_RUN column
 	if runIDX == None:
 	    # report that the READ column cannot be found
+	    #
 	    noRunOrSampleColList.append('Exp: %s file has no Run column' % expID)
 	    return 2
 
 	# get the sampleID from one or both of the fields
+	#
   	if sourceSampleIDX != None:
 	    ssID = string.strip(tokens[sourceSampleIDX])
 
@@ -369,11 +394,13 @@ def ppAESFile(expID):
 	    enaID = string.strip(tokens[enaSampleIDX])
 
 	# report and return if we did not find either sample column
+	#
 	if not (ssID or enaID): 
 	    noRunOrSampleColList.append('Exp: %s file has neither Sample column' % expID)
 	    return 3
 	# choose the ID to use: not empty and in database. Checking the database
 	# is the only way we know if we have a sampleID (and not something else)
+	#
         inDb = 0 # sample ID in the database? 0/1
 	if ssID and ssID in sampleInDbDict:
  	    inDb = 1
@@ -390,10 +417,11 @@ def ppAESFile(expID):
 	    line = '%s%s%s%s' % (runID, TAB, sampleID, CRT)
 	    if line not in ppList:
 		ppList.append(line)
-	# we write all samples except those not in the database to the file. 
-	# We will exclude non-relevant and J:DO strain samples later so we may 
-	# differentiate btwn a)non-relevant b)J:DO c)not in the aes file 
-	# (excluding those not in the database
+    # we write all samples except those not in the database to the file. 
+    # We will exclude non-relevant and J:DO strain samples later so we may 
+    # differentiate btwn a)non-relevant b)J:DO c)not in the aes file 
+    # (excluding those not in the database
+    #
     for line in ppList:
 	fpCurrentPP.write(line)
     fpCurrentPP.close();
@@ -482,6 +510,11 @@ def writeQC():
 	fpCur.write('%s%s' % (e, CRT))
     fpCur.write('Total: %s%s' % (len(JDOSkippedList), CRT))
 
+    fpCur.write('%sSamples where average of the average TPM SD across all genes is > %s%s' % (CRT, stdDevCutoff, CRT))
+    fpCur.write('-------------------------------------------------%s' % CRT)
+    for e in highAveStdDevList:
+        fpCur.write('%s%s' % (e, CRT))
+    fpCur.write('Total: %s%s' % (len(highAveStdDevList), CRT))
 
     return 0
 
@@ -492,36 +525,41 @@ def ppEAEFile(expID):
     global noTpmValueList, multiMarkerEnsemblList, currentEaePPFile
     global  ensemblNotInMGIList, ensemblIsOrphanList, eaeRunIdSet
     global multiEnsemblMarkerList
-    # we create a set here, because eaeRunIdList will have NL char
-    # after last run ID, need this later for set difference
-    eaeRunIdSet = set()
 
     start_time = time.time()
 
-    # create file name and open file descriptor
-    #print 'expID: %s' % expID
+    # we create a set here, because eaeRunIdList will have NL char
+    # after last run ID, need this later for set difference
+    #
+    eaeRunIdSet = set()
+
+    #  create eae input file descriptor for this experiment
+    #
     eaeFile = eaeTemplate % expID
     try:
 	fpEae = open(eaeFile, 'r')
     except:
 	return 1 # file does not exist
+
     # path the aes preprocessed file for this experiment
+    #
     currentEaePPFile = eaePPTemplate % expID
     fpCurrentPP = open(currentEaePPFile, 'w')
 
     # get the runIDs from the header, we will use the index of te`e tpms
     # in each gene/tpm line to get the runID
+    #
     header = string.split(fpEae.readline(), TAB)
     eaeRunIdList = splitOffGene(header)
     print 'Num runIDs for %s: %s %s' % (expID, len(eaeRunIdList), eaeRunIdList)
     sys.stdout.flush()
 
     # process each gene and it's sample tpm's
+    #
     for line in fpEae.readlines():
-	#print 'line: %s' % line
 	tokens = string.split(line, TAB)
 	geneID = string.strip(tokens[0])
-	#print geneID
+	
 	# multi marker per ensembl
 	if geneID in multiMarkerEnsemblDict:
 	    symbols = string.join(multiMarkerEnsemblDict[geneID], ', ')
@@ -529,8 +567,7 @@ def ppEAEFile(expID):
 	    if msg not in multiMarkerEnsemblList:
 		multiMarkerEnsemblList.append(msg)
 	    continue
-	#multiEnsemblMarkerDict
-	#symbolToMultiEnsIdDict
+	
 	# multi ensembl per marker
 	elif geneID in multiEnsemblMarkerDict:
 	    symbol = multiEnsemblMarkerDict[geneID]
@@ -540,28 +577,31 @@ def ppEAEFile(expID):
 	    if msg not in multiEnsemblMarkerList:
 		multiEnsemblMarkerList.append(msg)
 	    continue
+
 	# not in MGI
 	elif geneID not in ensemblMarkerSet and geneID not in ensemblSequenceSet:
 	    msg = '%s' % (geneID)
 	    if msg not in ensemblNotInMGIList:
 		ensemblNotInMGIList.append(msg)
 	    continue
-	 # assoc only with a sequence
+
+	# assoc only with a sequence
 	elif geneID not in ensemblMarkerSet and geneID in ensemblSequenceSet:
 	    msg = '%s' % (geneID)
 	    if msg not in ensemblIsOrphanList:
 		ensemblIsOrphanList.append(msg)
             continue
 
-	# list of runs for geneID
+	# list of runs (tpm) for geneID
 	tpmList = splitOffGene(tokens)
 
 	for idx, tpm in enumerate(tpmList):
-	    #print 'idx: %s tpm: %s' % (idx, tpm)
+	    
 	    # get the runID that goes with this tpm value
             runID = string.strip(eaeRunIdList[idx])
 	    eaeRunIdSet.add(runID)
 	    tpm = string.strip(tpm)
+
 	    # report blank tpm values and set them to 0.0
 	    if tpm == '':
 		tpm = 0.0
@@ -573,27 +613,187 @@ def ppEAEFile(expID):
     fpCurrentPP.close();
     elapsed_time = time.time() - start_time
     print '%sTIME: Processing Runs from the EAE file %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT) 
+
     return 0
 
 # end ppEAEFile ()--------------------------------------------
 
-def process():
-    global  experimentNotInDbList, runIdNotInAEList
-    global nonRelSkippedList, JDOSkippedList, rnaSeqKey
-    global bcpLineCount, bcpLineDict, sampleAveSDDict
+def createJoinedFile(joinedFile):
 
+    start_time = time.time()
+    cmd = "%s/run_join %s %s %s" % (binDir, currentEaePPFile, currentAesPPFile, joinedFile)
+    rc = os.system(cmd)
+    if rc != 0:
+	msg = 'join cmd failed: %s%s' % (cmd, CRT)
+	fpDiag.write(msg)
+
+    elapsed_time = time.time() - start_time
+    print '%sTIME: Creating the join file %s %s%s' % (CRT, joinedFile, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
+    sys.stdout.flush()
+
+    return 0
+
+# end createJoinedFile ()--------------------------------------------
+
+def processJoinedFile(expID, joinedFile):
+    global runIdNotInAEList, nonRelSkippedList, JDOSkippedList
+
+    start_time = time.time()
+
+    # {geneID: {sampleID:[tpm1, ...], ...}, ...}
+    geneDict = {}
+
+    fpJoined = open(joinedFile, 'r')
+    line = fpJoined.readline()
+    while line:
+	tokens = string.split(line, TAB)
+	geneID = tokens[0]
+	runID = tokens[1]
+	tpm = tokens[2]
+	sampleID = ''
+
+	# some join files have no column 4, do a try/except
+	try:
+	    sampleID = string.strip(tokens[3])
+	except:
+	    sampleID = ''
+
+	# some join files have empty column 4
+	if sampleID == '':
+	    msg = '%s: %s' % (expID, runID)
+	    if msg not in  runIdNotInAEList:
+		runIdNotInAEList.append(msg)
+	    line = fpJoined.readline()
+	    continue
+	# is sampleID flagged as relevant in the db? If not report/skip
+	# we do this here rather than excluding when create the aes pp file
+	# so we may differentiate between sample id 1) not in database and
+	# 2) a) not relevant b) in J:DO strain set
+	if sampleID not in relevantSampleSet:
+	    msg = '%s: %s' % (expID, sampleID)
+	    if msg not in  nonRelSkippedList:
+		nonRelSkippedList.append(msg)
+	    line = fpJoined.readline()
+	    continue
+	elif sampleID in JDOSampleSet:
+	    # Report/skip if the sampleID is in the J:DO strain set
+	    msg = '%s: %s' % (expID, sampleID)
+	    if msg not in JDOSkippedList:
+		JDOSkippedList.append(msg)
+	    line = fpJoined.readline()
+	    continue
+
+	if geneID not in geneDict:
+	    geneDict[geneID] = {}
+	if sampleID not in geneDict[geneID]:
+	    geneDict[geneID][sampleID] = []
+	geneDict[geneID][sampleID].append(float(tpm))
+	line = fpJoined.readline()
+
+    elapsed_time = time.time() - start_time
+    print '%sTIME: Processing the join file %s %s%s' % (CRT, joinedFile, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
+
+    return geneDict
+
+# end processJoinedFile -----------------------------------------------------------
+
+def createBCP(expID, geneDict):
+    global rnaSeqKey, sampleAveSDDict
+
+    start_time =  time.time()
+
+    # {sample:[list of lines for that sample across all genes], ...}
+    bcpLineDict = {}
+
+    # STORY 37 for this story these are null
+    rnaSeqCombKey = TAB
+    QNTpm = TAB
+
+    print 'creating bcp for expID: %s' % expID
+    for geneID in geneDict:
+	sampleDict = geneDict[geneID]
+	for s in sampleDict:
+	    sampleKey = sampleInDbDict[s]
+	    tpmList = sampleDict[s]
+	    techReplCt = len(tpmList)       # number of runs for the sample (1-n)
+	    aveTpm = calcAve(tpmList)	    # calculate the average tpm
+	    stdDev = round(numpy.std(tpmList), 2)  # calc the SD of the tpms
+
+	    # calculate the SD average
+	    stdDevAve = 0.0
+	    if aveTpm != 0.0:
+		stdDevAve = round(stdDev / aveTpm, 2)
+
+	    markerKey = ensemblMarkerDict[geneID]
+	    line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (rnaSeqKey, TAB, sampleKey, TAB, rnaSeqCombKey, markerKey, TAB, aveTpm, TAB, QNTpm, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT)
+	    rnaSeqKey += 1
+
+	    # collect the bcp lines by sampleID - we may need to remove some
+	    # samples later
+	    #
+	    if s not in bcpLineDict:
+		bcpLineDict[s] = []
+	    bcpLineDict[s].append(line)
+
+	    # collect the stdDevAve of the technical replicates - we will want to
+	    # take the average of all aveSD across all genes of a sample to
+	    # determine samples to include/exclude.
+	    key = '%s|%s' % (expID, s)
+	    if key not in sampleAveSDDict:
+		sampleAveSDDict[key] = []
+	    sampleAveSDDict[key].append(stdDevAve)
+
+	    # this reports the run tpm's, the tpm average, the stdDev of the run
+	    # tpms and the stdDevAve (stdDev/aveTpm) as well as the count of
+	    # technical replicates (number of runs per sample)
+	    #
+	    fpStudentRpt.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, geneID, TAB, s, TAB, string.join(map(str, tpmList), ', '),  TAB, aveTpm, TAB, stdDev, TAB, stdDevAve, TAB, techReplCt, CRT))
+
+    elapsed_time = time.time() - start_time
+    print '%sTIME: createBCP %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
+
+    return bcpLineDict
+
+# end createBCP ----------------------------------------------------------------
+
+def execBCP ():
+
+    # execute all the bcp files
+    for bcpCmd in bcpCommandList:
+	fpDiag.write('%s\n' % bcpCmd)
+	os.system(bcpCmd)
+
+    # reset the rnaseq primary key sequence
+    db.sql(''' select setval('gxd_htsample_rnaseq_seq', (select max(_rnaseq_key) from gxd_htsample_rnaseq)) ''', None)
+
+    db.commit()
+
+    return 0
+
+# end execBCP --------------------------------------------------------------------
+
+def process():
+    global  experimentNotInDbList, bcpCommandList, highAveStdDevList
+
+    start_time = time.time()
+
+    # write the header to the student report up front
     fpStudentRpt.write('expID%sgeneID%ssampleID%stechRepl%saveTpm%sstdDev%sstdDevAve%stechRepCt%s' % (TAB, TAB, TAB, TAB, TAB, TAB, TAB, CRT))
 
+    
     # for each expID in Connie's file
+    #
     for line in fpInfile.readlines():
         expID = string.strip(string.split(line)[0])
 	
         # report if expID not in the database and skip
+	#
         if expID not in experimentInDbSet:
             experimentNotInDbList.append(expID)
             continue
 
         # preprocess the aes file for this expID (run, sample)
+	#
         sys.stdout.flush()
         rc = ppAESFile(expID)
         if rc != 0:
@@ -602,6 +802,7 @@ def process():
             continue
 
         # preprocess the eae file for this expID (gene, run, tpm)
+	#
         sys.stdout.flush()
         rc = ppEAEFile(expID)
         if rc != 0:
@@ -610,151 +811,76 @@ def process():
             continue
 
 	# check for AES runIDs not in the EAE file
-	#print 'aesRunIdSet: %s' % aesRunIdSet
-	#print 'eaeRunIdSet: %s' % eaeRunIdSet
+	#
 	diff = aesRunIdSet.difference(eaeRunIdSet)
 	if len(diff):
 	    diffString = string.join(diff, ', ')
 	    runIdNotInEAList.append('%s: %s' % (expID, diffString))
-        # start of the join
-	start_time = time.time()
 
+	# Create the joined file from the two preprocessed (pp) files
+	#
         joinedFile =  joinedPPTemplate % expID
-	cmd = "%s/run_join %s %s %s" % (binDir, currentEaePPFile, currentAesPPFile, joinedFile)
-	rc = os.system(cmd)
-        if rc != 0:
-            msg = 'join cmd failed: %s%s' % (cmd, CRT)
-            fpDiag.write(msg)
+	createJoinedFile(joinedFile)
 
-	# end of the join
- 	elapsed_time = time.time() - start_time
-	print '%sTIME: Creating the join file %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
-	sys.stdout.flush()
+        # process the joined file, creating dict by geneID
+        # {geneID: {sampleID:[tpm1, ...], ...}, ...}
+	#
+	geneDict = processJoinedFile(expID, joinedFile)
 
-        # now open the joined file and process
-	start_time = time.time()
+        bcpLineDict = createBCP(expID, geneDict)
 
-	# {geneID: {sampleID:[tpm1, ...], ...}, ...}
-	geneDict = {}
-	fpJoined = open(joinedFile, 'r') 
-	line = fpJoined.readline()
-	while line:
-	    tokens = string.split(line, TAB)
-	    geneID = tokens[0]
-	    runID = tokens[1]
-	    tpm = tokens[2]
-	    sampleID = ''
-	    # some join files have no column 4, do a try/except
-	    try:
-		sampleID = string.strip(tokens[3])
-	    except:
-		sampleID = ''
-		
-	    # some join files have empty column 4
-	    if sampleID == '':
-		msg = '%s: %s' % (expID, runID)
-                if msg not in  runIdNotInAEList:
-                    runIdNotInAEList.append(msg)
-                line = fpJoined.readline()
-                continue
-            # is sampleID flagged as relevant in the db? If not report/skip
-	    # we do this here rather than excluding when create the aes pp file
-	    # so we may differentiate between sample id 1) not in database and 
-	    # 2) a) not relevant b) in J:DO strain set
-            if sampleID not in relevantSampleSet:
-		msg = '%s: %s' % (expID, sampleID)
-		if msg not in  nonRelSkippedList:
-		    nonRelSkippedList.append(msg)
-		line = fpJoined.readline()
-                continue
-            elif sampleID in JDOSampleSet:
-                # Report/skip if the sampleID is in the J:DO strain set
-		msg = '%s: %s' % (expID, sampleID)
-		if msg not in JDOSkippedList:
-		    JDOSkippedList.append(msg)
-		line = fpJoined.readline()
-                continue
-
-	    if geneID not in geneDict:
-		geneDict[geneID] = {}
-	    if sampleID not in geneDict[geneID]:
-		geneDict[geneID][sampleID] = []
-	    geneDict[geneID][sampleID].append(float(tpm))
-	    line = fpJoined.readline()
-
-
-	# STORY 37 for this story these are null
-	# now iterate through the gene Dict calculating aveTpm, SD of 
-	# aveTpm and average of sdAveTpm SD/aveTpm
-	rnaSeqCombKey = TAB
-	QNTpm = TAB
-	print 'writing bcp for expID: %s' % expID
-        for geneID in geneDict:
-	    sampleDict = geneDict[geneID]
-	    for s in sampleDict:
-		sampleKey = sampleInDbDict[s]
-		tpmList = sampleDict[s]
-		techReplCt = len(tpmList) 	# number of runs for the sample (1-n)
-	        aveTpm = calcAve(tpmList)
-		stdDev = round(numpy.std(tpmList), 2)
-		#print 'sample: %s tpmList: %s aveTpm: %s stdDev: %s' % (s, tpmList, aveTpm, stdDev)
-		stdDevAve = 0.0
-		if aveTpm != 0.0:
-		    stdDevAve = round(stdDev / aveTpm, 2)
-		#print 'stdDevAve: %s' % (stdDevAve)
-		#print 'stdDevAve: %s' % stdDevAve
-		#print 'tpmList: %s' % tpmList
-		markerKey = ensemblMarkerDict[geneID]
-		line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (rnaSeqKey, TAB, sampleKey, TAB, rnaSeqCombKey, markerKey, TAB, aveTpm, TAB, QNTpm, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT)
-		# collect the bcp lines by sampleID - we may need to remove some 
-		# samples later
-		if s not in bcpLineDict:
-		    bcpLineDict[s] = []
-		bcpLineDict[s].append(line)
-
-		# collect the stdDevAve of the technical replicates - we will want to 
-		# take the average of all aveSD across all genes of a sample to 
-		# determine samples to include/exclude. 
-		key = '%s|%s' % (expID, s)
-		if key not in sampleAveSDDict:
-		    sampleAveSDDict[key] = []
-		sampleAveSDDict[key].append(stdDevAve)
-
-		# this reports the run tpm's, the tpm average, the stdDev of the run 
-		# tpms and the stdDevAve (stdDev/aveTpm) as well as the count of
-		# technical replicates (number of runs per sample) 
-		# 
-		fpStudentRpt.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, geneID, TAB, s, TAB, string.join(map(str, tpmList), ', '),  TAB, aveTpm, TAB, stdDev, TAB, stdDevAve, TAB, techReplCt, CRT))
-		rnaSeqKey += 1
-
+	# MAY REMOVE THAT AS ONLY E-GEOD-22131 HAS >0.5 ave over all samples of 
+	# a gene. 9 out of 32 samples
 	# Now iterate through the sampleAveSDDict and calculate the average of
 	# each aveSD. Report any above a threshold weeding out dupes.
+	#
 	keyList = sorted(sampleAveSDDict.keys()) 
-	reportList = []
+
 	for key in keyList:
-	    expID, sampleID = string.split(key, '|')
+	    eID, sampleID = string.split(key, '|')
 	    aveAveSdAllGenes = calcAve(sampleAveSDDict[key])
-	    if aveAveSdAllGenes > 0.5 :
-		reportLine = '%s%s%s%s%s%s' % (expID, TAB, sampleID, TAB, aveAveSdAllGenes, CRT)
-		if reportLine not in reportList:
-		    reportList.append(reportLine)
 
-	# now report the distinct list
-	for reportLine in reportList:
-		fpAveSDAllGenes.write(reportLine)
+	    # if average of the average SD across genes in > stdDevCutoff (config)
+	    # report it and remove all lines for that sample from the bcpLineDict
+	    if aveAveSdAllGenes > stdDevCutoff:
+		if sampleID in bcpLineDict:
+		    del bcpLineDict[sampleID] # remove from the dict
+		reportLine = '%s%s%s%s%s%s' % \
+		    (eID, TAB, sampleID, TAB, aveAveSdAllGenes, CRT)
+		if reportLine not in highAveStdDevList:
+		    highAveStdDevList.append(reportLine)
 
-	# 5/24 - for now don't exclude base on aveAveSdAllGenes, just writ all, later
-	# we may exclude. I think we should bcp by sampleID for smaller chunks
+	# write out to bcp file for this experiment
+	# 5/24 -for now don't exclude based on aveAveSdAllGenes, just writ all, later
+	# we may exclude. I think we should bcp by expID for smaller chunks
+	#
+	bcpLineCount = 0 # use counter as we may exclude some from bcpLineDict
+
+	currentFile = bcpFile + '.' + expID
+	bcpFilePath = '%s/%s' % (outputDir, currentFile)
+	initBcp(bcpFilePath)
 	for sID in bcpLineDict:
-	    #initBcp()
 	    for line in bcpLineDict[sID]: 
 		bcpLineCount += 1
 		fpRnaSeqBcp.write(line)
+	closeBcp(bcpFilePath)
 
-	    #closeBcp()
-	print 'Num bcp lines: %s' % bcpLineCount
+        # gather bcp commands in a List so we can execute them together at the
+	# end of processing
+	#
+	cmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % \
+        (bcpCommand, db.get_sqlServer(), db.get_sqlDatabase(), rnaseqTable, outputDir, currentFile)
+	bcpCommandList.append(cmd)
+	print 'Num bcp lines for expID %s: %s' % (expID, bcpLineCount)
+
 	elapsed_time = time.time() - start_time
         print '%sTIME: Iterating through join file %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
+
+    # Now that we have processed all of the experiment files and gathered
+    # the bcp commands, exec the bcp files
+    #
+    execBCP()
+
     return 0
 
 # end process ()--------------------------------------------
@@ -763,22 +889,11 @@ def closefiles():
     fpCur.close()
     fpDiag.close()
     fpInfile.close()
-    fpRnaSeqBcp.close()
     fpStudentRpt.close()
-    fpAveSDAllGenes.close()
     db.useOneConnection(0)
 
     return 0
 
-# end closefiles ()--------------------------------------------
-
-def postprocess():
-
-    db.sql(''' select setval('gxd_htsample_rnaseq_seq', (select max(_rnaseq_key) from gxd_htsample_rnaseq)) ''', None)
-    db.commit()
-
-    closefiles()
-    
 # end closefiles ()--------------------------------------------
 
 #
@@ -813,7 +928,7 @@ sys.stdout.flush()
 
 # -------------------------------------------------------------
 
-postprocess()
+closefiles()
 
 elapsed_time = time.time() - START_TIME
 
