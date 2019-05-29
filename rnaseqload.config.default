@@ -44,6 +44,7 @@ export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR
 # Connie's experiment ID file
 #INPUT_FILE=${INPUTDIR}/RNASeq_Experiments_for_QC.txt
 INPUT_FILE=/mgi/all/wts_projects/13000/13007/data/RNASeq_Experiments_from_Connie.txt
+#INPUT_FILE=${INPUTDIR}/RNASeq_Experiments_from_Connie.txt
 
 export INPUT_FILE
 
@@ -80,9 +81,14 @@ JOINED_PP_FILE_TEMPLATE=${INPUTDIR}/%s.joined.txt
 export JOINED_PP_FILE_TEMPLATE
 
 # rna-seq bcp file
-RNASEQ_BCP=${OUTPUTDIR}/rnaseq.bcp
+RNASEQ_BCP=rnaseq.bcp
 
 export RNASEQ_BCP
+
+# cutoff for aveStdDev - report/skip
+STDDEV_CUTOFF=0.7
+
+export STDDEV_CUTOFF
 
 #  The name of the job stream for the load
 JOBSTREAM=rnaseqload
@@ -100,7 +106,7 @@ export JOBSTREAM
 MAIL_LOADNAME="GXD RNA-Seq Load"
 
 #  Recipient list for mailing the log files (comma-separated)
-MAIL_LOG_PROC="sc"
+MAIL_LOG_PROC="mgiadmin"
 
 export MAIL_LOADNAME MAIL_LOG_PROC
 
