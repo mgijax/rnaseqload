@@ -1,6 +1,6 @@
-#!/usr/bin/python
-# /usr/bin/python is 2.6.* or 2.7.* depending on server. It is required for urllib2
-# /opt/python2.7/bin/python
+# #!/opt/python2.7/bin/python
+##!/usr/bin/python
+# This is python 2.7
 ##########################################################################
 # 
 # Purpose:
@@ -36,7 +36,6 @@
 import os
 import mgi_utils
 import string
-import urllib2
 import runCommand
 
 print '%s' % mgi_utils.date()
@@ -48,8 +47,8 @@ logDir =  os.getenv('LOGDIR')
 inputDir =  os.getenv('INPUTDIR')
 
 # curation log
-fpCur = open (os.environ['LOG_CUR'], 'a')
-fpDiag = open (os.environ['LOG_DIAG'], 'a')
+fpCur = open (os.getenv('LOG_CUR'), 'a')
+fpDiag = open (os.getenv('LOG_DIAG'), 'a')
 # constants
 CRT = '\n'
 
@@ -102,9 +101,12 @@ for line in fpInfile.readlines():
     msg = ''
     # --retry-max-time 0, don't time out retries
     #--max-time - max time in seconds to allow the whole operation to take.
-    stdout, stderr, statusCode = runCommand.runCommand("curl --max-time 10 --retry 5 --retry-delay 5 --retry-max-time 0 '%s'" % aesURL)
-    #print 'statusCode: %s' % statusCode
-    #print 'stderr: %s' % stderr
+    #  Use "-C -" to tell curl to automatically find out  where/how  to
+    #      resume  the  transfer. It then uses the given output/input files
+    #      to figure that out.
+    stdout, stderr, statusCode = runCommand.runCommand("curl -C - --max-time 10 --retry 5 --retry-delay 5 --retry-max-time 0 '%s'" % aesURL)
+    print 'aes statusCode: %s' % statusCode
+    print 'aes stderr: %s' % stderr
     if statusCode != 0:
         msg = '%s stderr: %s%s' % (aesURL, stderr, CRT)
 	errorCt += 1
@@ -119,9 +121,9 @@ for line in fpInfile.readlines():
     eaeURL = eaeTemplate % expID
     msg = ''
     #stdout, stderr, statusCode = runCommand.runCommand("curl --compressed --max-time 20 --retry 5 --retry-delay 5 --retry-max-time 0 '%s'" % eaeURL)
-    stdout, stderr, statusCode = runCommand.runCommand("curl -v --retry 5 --retry-delay 5 '%s'" % eaeURL)
-    print '%s%s statusCode: %s%s' % (CRT, expID, statusCode, CRT)
-    print 'stderr: %s%s' % (stderr, CRT)
+    stdout, stderr, statusCode = runCommand.runCommand("curl -C - --max-time 10 --retry 5 --retry-delay 5 --retry-max-time 0 '%s'" % eaeURL)
+    print '%s%s eae statusCode: %s%s' % (CRT, expID, statusCode, CRT)
+    print 'eae stderr: %s%s' % (stderr, CRT)
     if statusCode != 0:
         msg = '%s stderr: %s%s' % (eaeURL, stderr, CRT)
 	errorCt += 1
