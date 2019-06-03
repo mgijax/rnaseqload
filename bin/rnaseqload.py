@@ -1,5 +1,6 @@
-#!/usr/bin/python
-# /usr/bin/python is 2.6.* or 2.7.* depending on server. It is required for downloadFiles.py
+#!/opt/python2.7/bin/python
+##!/usr/bin/python
+# /opt/python2.7 required for pandas
 ##########################################################################
 #
 # Purpose:
@@ -54,6 +55,7 @@ import db
 import sys 	 # to flush stdout
 import time	 # used for its time.time() function (for timestamps)
 import numpy	 # used for stddev	
+import pandas	 # used for QN
 
 # paths to input and two output files
 inFilePath= os.getenv('INPUT_FILE')
@@ -697,7 +699,7 @@ def processJoinedFile(expID, joinedFile):
 
 # end processJoinedFile -----------------------------------------------------------
 
-def createBCP(expID, geneDict):
+def createRNASeqBCP(expID, geneDict):
     global rnaSeqKey, sampleAveSDDict
 
     start_time =  time.time()
@@ -750,11 +752,11 @@ def createBCP(expID, geneDict):
 	    fpStudentRpt.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, geneID, TAB, s, TAB, string.join(map(str, tpmList), ', '),  TAB, aveTpm, TAB, stdDev, TAB, stdDevAve, TAB, techReplCt, CRT))
 
     elapsed_time = time.time() - start_time
-    print '%sTIME: createBCP %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
+    print '%sTIME: createRNASeqBCP %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
 
     return bcpLineDict
 
-# end createBCP ----------------------------------------------------------------
+# end createRNASeqBCP ----------------------------------------------------------------
 
 def execBCP ():
 
@@ -780,12 +782,11 @@ def process():
     # write the header to the student report up front
     fpStudentRpt.write('expID%sgeneID%ssampleID%stechRepl%saveTpm%sstdDev%sstdDevAve%stechRepCt%s' % (TAB, TAB, TAB, TAB, TAB, TAB, TAB, CRT))
 
-    
     # for each expID in Connie's file
     #
     for line in fpInfile.readlines():
         expID = string.strip(string.split(line)[0])
-	
+
         # report if expID not in the database and skip
 	#
         if expID not in experimentInDbSet:
@@ -826,8 +827,7 @@ def process():
         # {geneID: {sampleID:[tpm1, ...], ...}, ...}
 	#
 	geneDict = processJoinedFile(expID, joinedFile)
-
-        bcpLineDict = createBCP(expID, geneDict)
+        bcpLineDict = createRNASeqBCP(expID, geneDict)
 
 	# MAY REMOVE THAT AS ONLY E-GEOD-22131 HAS >0.5 ave over all samples of 
 	# a gene. 9 out of 32 samples
