@@ -85,6 +85,12 @@ RNASEQ_BCP=rnaseq.bcp
 
 export RNASEQ_BCP
 
+# rna-seq and combined bcp files
+RNASEQ_BCP=rnaseq.bcp
+COMBINED_BCP=combined.bcp
+
+export RNASEQ_BCP COMBINED_BCP
+
 # cutoff for aveStdDev - report/skip
 STDDEV_CUTOFF=0.7
 
