@@ -1,6 +1,6 @@
 #!/opt/python2.7/bin/python
-##!/usr/bin/python
-#  this is python 2.7 with numpy and pandas compiled on bhmgiap09lt
+# above on bhmgiap09lt
+## on bhmgiapp14ld: /usr/bin/python
 ##########################################################################
 #
 # Purpose:
