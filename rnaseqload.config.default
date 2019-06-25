@@ -80,11 +80,6 @@ JOINED_PP_FILE_TEMPLATE=${INPUTDIR}/%s.joined.txt
 
 export JOINED_PP_FILE_TEMPLATE
 
-# rna-seq bcp file
-RNASEQ_BCP=rnaseq.bcp
-
-export RNASEQ_BCP
-
 # rna-seq and combined bcp files
 RNASEQ_BCP=rnaseq.bcp
 COMBINED_BCP=combined.bcp
