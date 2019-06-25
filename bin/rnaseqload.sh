@@ -77,11 +77,9 @@ fi
 # Main
 #
 #####################################
-# remove logs (if not assocload logs will be appended)
-#cleanDir ${LOGDIR}
 
 #
-# createArchive including OUTPUTDIR, startLog, getConfigEnv
+# createArchive, startLog, getConfigEnv
 # sets "JOBKEY"
 
 preload 
@@ -89,13 +87,10 @@ preload
 # remove files from output directory
 cleanDir ${OUTPUTDIR}
 
+# This cascades to GXD_HTSample_RNASeqSetMember
 date | tee -a ${LOG_DIAG}
 echo "Truncate GXD_HTSample_RNASeqSet table"  | tee -a ${LOG_DIAG}
 ${MGD_DBSCHEMADIR}/table/GXD_HTSample_RNASeqSet_truncate.object >> ${LOG_DIAG} 2>&1
-
-date | tee -a ${LOG_DIAG}
-echo "Truncate GXD_HTSample_RNASeqSetMember table"  | tee -a ${LOG_DIAG}
-${MGD_DBSCHEMADIR}/table/GXD_HTSample_RNASeqSetMember_truncate.object >> ${LOG_DIAG} 2>&1
 
 date | tee -a ${LOG_DIAG}
 echo "Loading Biological Replicates into Set tables" | tee -a ${LOG_DIAG}
@@ -103,11 +98,11 @@ ${RNASEQLOAD}/bin/loadBioReps.py
 STAT=$?
 checkStatus ${STAT} "loadBioReps.py"
 
-date | tee -a ${LOG_DIAG}
-echo "Downloading input files" | tee -a ${LOG_DIAG}
-${RNASEQLOAD}/bin/downloadFiles.py >> ${LOG_DIAG}
-STAT=$?
-checkStatus ${STAT} "downloadFiles.py"
+#date | tee -a ${LOG_DIAG}
+#echo "Downloading input files" | tee -a ${LOG_DIAG}
+#${RNASEQLOAD}/bin/downloadFiles.py >> ${LOG_DIAG}
+#STAT=$?
+#checkStatus ${STAT} "downloadFiles.py"
 
 date | tee -a ${LOG_DIAG}
 echo "Truncate GXD_HTSample_RNASeq table"  | tee -a ${LOG_DIAG}
@@ -117,10 +112,31 @@ date | tee -a ${LOG_DIAG}
 echo "Truncate GXD_HTSample_RNASeqCombined table"  | tee -a ${LOG_DIAG}
 ${MGD_DBSCHEMADIR}/table/GXD_HTSample_RNASeqCombined_truncate.object >> ${LOG_DIAG} 2>&1
 
-echo "Running rnaseqload.py" >> ${LOG_DIAG}
-${RNASEQLOAD}/bin/rnaseqload.py >> ${LOG_DIAG}
+date | tee -a ${LOG_DIAG}
+echo "Drop Indexes GXD_HTSample_RNASeq table"  | tee -a ${LOG_DIAG}
+${MGD_DBSCHEMADIR}/index/GXD_HTSample_RNASeq_drop.object >> ${LOG_DIAG} 2>&1
+
+date | tee -a ${LOG_DIAG}
+echo "Drop Indexes GXD_HTSample_RNASeqCombined table"  | tee -a ${LOG_DIAG}
+${MGD_DBSCHEMADIR}/index/GXD_HTSample_RNASeqCombined_drop.object >> ${LOG_DIAG} 2>&1
+
+date | tee -a ${LOG_DIAG}
+echo "Running rnaseqload.py" | tee -a ${LOG_DIAG}
+${RNASEQLOAD}/bin/rnaseqload.py >> ${LOG_DIAG} 2>&1
 STAT=$?
 checkStatus ${STAT} "rnaseqload.py"
+
+date | tee -a ${LOG_DIAG}
+echo "Create Indexes GXD_HTSample_RNASeq table"  | tee -a ${LOG_DIAG}
+${MGD_DBSCHEMADIR}/index/GXD_HTSample_RNASeq_create.object >> ${LOG_DIAG}  2>&1
+
+date | tee -a ${LOG_DIAG}
+echo "Create Indexes GXD_HTSample_RNASeqCombined table"  | tee -a ${LOG_DIAG}
+${MGD_DBSCHEMADIR}/index/GXD_HTSample_RNASeqCombined_create.object >> ${LOG_DIAG}  2>&1
+
+date | tee -a ${LOG_DIAG}
+echo "Grant Database Permissions" | tee -a ${LOG_DIAG}
+${PG_DBUTILS}/bin/grantPublicPerms.csh ${PG_DBSERVER} ${PG_DBNAME} >> ${LOG_DIAG} 2>&1
 
 #
 # run postload cleanup and email logs
