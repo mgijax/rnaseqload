@@ -1,3 +1,9 @@
+TAG: rnaseqload-6-0-15-9
+DATE: 06/25/2019
+STAFF: sc
+CHANGES: Tag before testing grsd-63/65 
+ QN/averaging, Pandas dataframe for QN, QN function
+
 TAG: rnaseqload-6-0-15-8
 TAG: rnaseqload-6-0-15-7
 DATE: 05/14/2019
