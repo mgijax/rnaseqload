@@ -1,6 +1,6 @@
-# #!/opt/python2.7/bin/python
-##!/usr/bin/python
-# This is python 2.7
+#!/opt/python2.7/bin/python
+## above on bhmgiap09lt
+## on bhmgiapp14ld: /usr/bin/python
 ##########################################################################
 # 
 # Purpose:
