@@ -11,8 +11,8 @@
 # Env Vars:
 #	 1. INPUT_FILE - Connie's file of experiment IDs
 #	 2. LOGDIR 
-#	 3. INPUTDIR - files are downloaded to this directory
-#		and generated intermediate files too
+#	 3a. INPUTDIR - intermediate files generated from RAW input files
+#	 3b. RAW_INPUTDIR - files downloaded from source
 #	 4. OUTPUTDIR - rnaseq bcp files
 #	 5. INSTALLDIR - for path to run_join script	 
 #	 6. LOG_FUR - curation log
@@ -67,6 +67,7 @@ inFilePath= os.getenv('INPUT_FILE')
 fpInfile = open(inFilePath, 'r')
 logDir =  os.getenv('LOGDIR')
 inputDir =  os.getenv('INPUTDIR')
+rawInputDir = os.getenv('RAW_INPUTDIR')
 outputDir = os.getenv('OUTPUTDIR')
 binDir = '%s/bin' % os.getenv('INSTALLDIR')
 
@@ -122,10 +123,6 @@ joinedPPTemplate = '%s' % os.getenv('JOINED_PP_FILE_TEMPLATE')
 # GXT HT Experiment IDs in the database
 #experimentInDbSet = set()
 experimentInDbDict = {}
-
-# GXD HT Sample name in the database
-# {sampleID:sampleKey, ...}
-sampleInDbDict = {}
 
 # samples with strain J:DO; genotypeKey = 90560 in the db
 JDOSampleSet = set()
@@ -200,12 +197,22 @@ ensemblNotInMGIList = []
 # ensembl ID is only associated with a sequence (not a marker)
 ensemblIsOrphanList = []
 
+# ambiguous expID/sampleID in the database
+ambiguousSampleInDbList = []
+
 # next available rnaSeq Key - set by init()
 rnaSeqKey = None
 
 # next available combined key - set by init()
 combinedKey = None
 
+#
+# Purpose:  create db connection, init lookups
+# Returns: 0
+# Assumes: Nothing
+# Effects: opens a database connection, queries a database
+# Throws: Nothing
+#
 def init():
     global experimentInDbDict, sampleInDbList, JDOSampleSet
     global relevantSampleSet, ensemblMarkerSet, ensemblSequenceSet
@@ -228,12 +235,6 @@ def init():
 	and preferred = 1''', 'auto')
     for r in results:
 	experimentInDbDict[r['accid']] = r['_object_key']
-
-    results = db.sql('''select name, _Sample_key
-	from GXD_HTSample''', 'auto')
-    for r in results:
-	sampleID = string.strip(r['name'])
-	sampleInDbDict[sampleID] = r['_Sample_key']
 
     results =  db.sql('''select name
         from GXD_HTSample
@@ -320,6 +321,45 @@ def init():
 
 # end init() -------------------------------------------------
 
+#
+# Purpose: loads a lookup of samples in the db for the given experiment
+#       we did this because sample names are not uniq across experiments
+# Returns: 1 if environment variable not set
+# Assumes: Nothing
+# Effects: queries a database
+# Throws: Nothing
+#
+def loadSampleInDbDict(expID):
+    # ArrayExpress (excludes GEO) GXD HT Sample names for expID in the database
+    # {sampleID:[sampleKey1, sampleKeyN], ...}
+    global sampleInDbDict
+    sampleInDbDict = {}
+
+    results = db.sql('''select hts.name, hts._Sample_key
+        from GXD_HTSample hts, ACC_Accession a
+        where hts._Experiment_key = a._Object_key
+        and a._MGIType_key = 42 -- experiment
+        and a._LogicalDB_key = 189 --ArrayExpress
+        and a.preferred = 1
+        and a.accID = '%s' ''' % expID, 'auto')
+    for r in results:
+        sampleID = string.strip(r['name'])
+        if sampleID not in sampleInDbDict:
+            sampleInDbDict[sampleID] = []
+        sampleInDbDict[sampleID].append(r['_Sample_key'])
+
+    return 0
+
+# end loadSampleInDbDict() -------------------------------------------------
+
+#
+# Purpose: Initializes the current GXD_HTSample_RNASeq bcp file descriptor
+#	There is one file per experiment
+# Returns: 0
+# Assumes: Nothing
+# Effects: creates file in filesystem
+# Throws: Nothing
+#
 def initRnaSeqBcp(bcpFile):
     global fpRnaSeqBcp
 
@@ -329,6 +369,14 @@ def initRnaSeqBcp(bcpFile):
 
 # end initRnaSeqBcp() -------------------------------------------------
 
+#
+# Purpose: Initializes the current GXD_HTSample_RNASeqCombined bcp file descriptor. 
+#       There is one file per experiment
+# Returns: 0
+# Assumes: Nothing
+# Effects: creates file in filesystem
+# Throws: Nothing
+#
 def initCombinedBcp(bcpFile):
     global fpCombinedBcp
 
@@ -338,6 +386,9 @@ def initCombinedBcp(bcpFile):
 
 # end initCombinedBcp() -------------------------------------------------
 
+#
+# Purpose: Closes the current GXD_HTSample_RNASeq bcp file descriptor.
+# 
 def closeRnaSeqBcp():
 
     fpRnaSeqBcp.close()
@@ -346,6 +397,9 @@ def closeRnaSeqBcp():
 
 # end closeRnaSeqBcp() -------------------------------------------------
 
+#
+# Purpose: Closes the current GXD_HTSample_RNASeqCombined bcp file descriptor.
+# 
 def closeCombinedBcp():
 
     fpCombinedBcp.close()
@@ -354,6 +408,10 @@ def closeCombinedBcp():
 
 # end closeCombinedBcp() -------------------------------------------------
 
+#
+# Purpose: calculates the average of numList
+# Returns: the calculated average
+# 
 def calcAve(numList):
     tSum = sum(numList)
     tLen =  max(len(numList), 1)
@@ -364,13 +422,31 @@ def calcAve(numList):
 
 # end calcAve () -------------------------------------------------
 
+#
+# Purpose: creates file descriptor and reads the ArrayExpress file pulling out 
+#	the RunID/SamplID mapping. Writes to the AES preprocessed intermediate file
+# Returns: 0 if successful, 1 if AES file does not exist, 2 if AES file is empty
+#	3 if No run column in file, 4 if no sample column in file, 5 if ambiguous
+#	expID/sampleID in database
+# Assumes: Nothing
+# Effects: creates file in filesystem
+# Throws: Nothing
+#
+
 def ppAESFile(expID):
     global noRunOrSampleColList, sampleIdNotInDbList, currentAesPPFile
-    global aesRunIdSet
+    global aesRunIdSet, ambiguousSampleInDbList
+
     print 'in ppAESFile(expID): %s' % expID
     # run IDs in the AES set
     aesRunIdSet = set()
 
+    # QC expID/sampleID pairs - if more than one sample record in database same sampleName/ExpID
+    # report and skip experiment
+    # {sampleID:dbCt, ...}
+    sampleDbCtDict = {}
+
+    # 
     # create aes input file descriptor for this experiment
     #
     aesFile = aesTemplate % expID
@@ -390,7 +466,7 @@ def ppAESFile(expID):
     #
     headerList = string.split(fpAes.readline(), TAB)
     if headerList == ['']: # means file is empty
-	return 1
+	return 2
     # find the idx of the columns we want - they are not ordered
     #
     sourceSampleIDX = None
@@ -419,7 +495,7 @@ def ppAESFile(expID):
 	    # report that the READ column cannot be found
 	    #
 	    noRunOrSampleColList.append('Exp: %s file has no Run column' % expID)
-	    return 2
+	    return 3
 
 	# get the sampleID from one or both of the fields
 	#
@@ -433,7 +509,7 @@ def ppAESFile(expID):
 	#
 	if not (ssID or enaID): 
 	    noRunOrSampleColList.append('Exp: %s file has neither Sample column' % expID)
-	    return 3
+	    return 4
 	# choose the ID to use: not empty and in database. Checking the database
 	# is the only way we know if we have a sampleID (and not something else)
 	#
@@ -444,9 +520,14 @@ def ppAESFile(expID):
 	elif enaID and enaID in sampleInDbDict:
 	    inDb = 1
 	    sampleID = enaID
+
 	if inDb == 0:
 	    # report that the ID is not in the database
 	    sampleIdNotInDbList.append('Exp: %s Sample Name ID %s and Sample ENA ID %s not in the database' % (expID, ssID, enaID))
+	elif len(sampleInDbDict[sampleID]) > 1: 
+	    # report ambiguous expID/sampleID in database
+	    ambiguousSampleInDbList.append('Exp: %s Sample ID: %s' % (expID, sampleID))
+	    return 5
 	else:
 	    runID = string.strip(tokens[runIDX])
 	    aesRunIdSet.add(runID)
@@ -466,12 +547,28 @@ def ppAESFile(expID):
 
 # end ppAESFile ()---------------------------------------------------
 
+#
+# Purpose: Removes the first token of a set of tokens. Used to strip the
+#	Gene ID column from the header and the gene lines so the Run IDs 
+#	can be more easily processed
+# Returns: incoming tokens with first one removed
+# 
+
 def splitOffGene(tokens):
     del tokens[0] # remove 'Gene ID' 
 
     return tokens
 
 # end splitOffGene ()--------------------------------------------
+
+#
+# Purpose: writes all QC in various data structures to the curation log with proper
+#       header and total count
+# Returns: 0
+# Assumes: Nothing
+# Effects: writes to a file in filesystem
+# Throws: Nothing
+#
 
 def writeQC():
     fpCur.write("%sExperimentIDs From Experiment Input File Not in the Database%s" % (CRT, CRT))
@@ -516,6 +613,12 @@ def writeQC():
         fpCur.write('%s%s' % (e, CRT))
     fpCur.write('Total: %s%s' % (len(ensemblIsOrphanList), CRT))
 
+    fpCur.write('%sAmbiguous expID/sampleID in database%s' % (CRT, CRT))
+    fpCur.write('-------------------------------------------------%s' % CRT)
+    for e in ambiguousSampleInDbList:
+        fpCur.write('%s%s' % (e, CRT))
+    fpCur.write('Total: %s%s' % (len(ambiguousSampleInDbList), CRT))
+    
     fpCur.write('%sRuns with empty TPM value set to 0.0%s' % (CRT, CRT))
     fpCur.write('-------------------------------------------------%s' % CRT)
     for e in noTpmValueList:
@@ -556,6 +659,18 @@ def writeQC():
 
 # end writeQC ()--------------------------------------------
 
+#
+# Purpose: creates file descriptors and reads the Expression Atlas file pulling out
+#       the Gene ID, Run ID and TPM. Writes to the EAE preprocessed intermediate file
+# Returns: 0 if successful, 1 if EAE file does not exist, 2 if AES file is empty
+#       3 if and additional header is found within the file. This indicates a bad download
+#	Once we decouple and augment the download of these files, this error should not
+#	happen
+# Assumes: Nothing
+# Effects: creates file in filesystem
+# Throws: Nothing
+#
+
 def ppEAEFile(expID):
 
     global noTpmValueList, multiMarkerEnsemblList, currentEaePPFile
@@ -587,11 +702,10 @@ def ppEAEFile(expID):
     # get the runIDs from the header, we will use the index of te`e tpms
     # in each gene/tpm line to get the runID
     #
-    print 'getting headerList'
     headerList = string.split(fpEae.readline(), TAB)
     print 'headerList: %s' % headerList
     if headerList == ['']: # means file is empty
-	return 1
+	return 2
     eaeRunIdList = splitOffGene(headerList)
     print 'Num runIDs for %s: %s %s' % (expID, len(eaeRunIdList), eaeRunIdList)
     sys.stdout.flush()
@@ -643,7 +757,7 @@ def ppEAEFile(expID):
 		runID = string.strip(eaeRunIdList[idx])
 	    except:
 		print 'Multi header record. idx: %s tpm: %s' % (idx, tpm)
-		return 1
+		return 3
 	    eaeRunIdSet.add(runID)
 	    tpm = string.strip(tpm)
 
@@ -663,6 +777,16 @@ def ppEAEFile(expID):
 
 # end ppEAEFile ()--------------------------------------------
 
+#
+# Purpose: joins the preprocessed ArrayExpress and Expression Atlas file 
+#	on runID. This is how we get the sampleID for each run
+#	calls the product script 'join_files' which uses unix join
+# Returns: 0 if successful
+# Assumes: Nothing
+# Effects: creates file in filesystem
+# Throws: Nothing
+#
+
 def createJoinedFile(joinedFile):
 
     start_time = time.time()
@@ -680,11 +804,23 @@ def createJoinedFile(joinedFile):
 
 # end createJoinedFile ()--------------------------------------------
 
+#
+# Purpose: processes the joined file, doing QC and creating the geneDict 
+# dictionary for those records that pass QC
+# 'geneDict' maps the ensemblGeneID to a dictionary of sampleIDs mapped to
+#	their raw TPM values
+# Returns: 0 if successful
+# Assumes: Nothing
+# Effects: reads a file in the file system
+# Throws: Nothing
+#
+
 def processJoinedFile(expID, joinedFile):
     global runIdNotInAEList, nonRelSkippedList, JDOSkippedList
 
     start_time = time.time()
 
+    print 'joinedFile: %s ' % joinedFile
     # {geneID: {sampleID:[tpm1, ...], ...}, ...}
     geneDict = {}
 
@@ -742,6 +878,15 @@ def processJoinedFile(expID, joinedFile):
 
 # end processJoinedFile -----------------------------------------------------------
 
+#
+# Purpose: creates RNASeq and Combined bcp files from a list of matrices (2-dimensional
+#       arrays) created by another function
+# Returns: 0 if successful
+# Assumes: Nothing
+# Effects: creates files in filesystem
+# Throws: Nothing
+#
+
 def writeBCP(expID, matrixList):
     global rnaSeqKey, combinedKey, bcpCommandList
 
@@ -764,7 +909,7 @@ def writeBCP(expID, matrixList):
 
     for matrix in matrixList:
 	for row in matrix:
-	    print row
+	    #print row
 	    rowLen = len(row)
 	    # position 0 is always markerKey
             # position rowLen -1 is # Biological Replicates
@@ -773,17 +918,17 @@ def writeBCP(expID, matrixList):
 	    numBioRepl = row[-1]
 	    aveQnTpm = row[-2]
 	    line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (combinedKey, TAB, markerKey, TAB, levelKey, TAB, numBioRepl, TAB, aveQnTpm, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT)
-	    print 'combined: %s' %line
+	    #print 'combined: %s' %line
 	    fpCombinedBcp.write(line)
 	    combinedLineCt += 1
 
 	    # positions 1 to rowLen-2 are samples: sampleKey|aveTPM|qnTpm
 	    # to get samples we iterate over rowLen-3 starting with i+1 
 	    for i in range(rowLen-3):
-		print 'next sample: %s' % row[i+1]
+		#print 'next sample: %s' % row[i+1]
 		sampleKey, aveTpm, qnTpm = string.split(row[i+1], PIPE)
 		line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (rnaSeqKey, TAB, sampleKey, TAB, combinedKey, TAB, markerKey, TAB, aveTpm, TAB, qnTpm, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT)
-		print 'rnaseq: %s' % line
+		#print 'rnaseq: %s' % line
 		fpRnaSeqBcp.write(line)
 		rnaSeqLineCt += 1
 		rnaSeqKey += 1
@@ -813,6 +958,16 @@ def writeBCP(expID, matrixList):
 
 # end writeBCP ----------------------------------------------------------------
 
+#
+# Purpose: calculates the aveTPM and Std Dev and ave Std Dev for all samples of the gene 
+# Returns: dictionary of average TPM values (by gene) for each sample of the gene
+# This is the format needed for input to the quantile normalize function
+# {sampleKey:{markerKey:aveTPM, ...}, sampleKey2:{markerKey:aveTPM, ...}, ...}
+# Assumes: Nothing
+# Effects: 
+# Throws: Nothing
+#
+
 def calcTPMAveSD(expID, geneDict):
     global sampleAveSDDict, highAveStdDevList
 
@@ -825,9 +980,11 @@ def calcTPMAveSD(expID, geneDict):
     print 'calculating TPM AVE and SD for expID: %s' % expID
     for geneID in geneDict:
         sampleDict = geneDict[geneID]
-        for s in sampleDict:
-            sampleKey = sampleInDbDict[s]
-            tpmList = sampleDict[s]
+        for sampleID in sampleDict:
+	    # dupe samples for current expID have already been QC, if exist this expID is
+	    # skipped. we can assume only one sampleID in the list
+            sampleKey = sampleInDbDict[sampleID][0]
+            tpmList = sampleDict[sampleID]
             techReplCt = len(tpmList)       # number of runs for the sample (1-n)
             aveTpm = calcAve(tpmList)       # calculate the average tpm
             stdDev = round(np.std(tpmList), 2)  # calc the SD of the tpms
@@ -842,12 +999,13 @@ def calcTPMAveSD(expID, geneDict):
 	    # load the QN input dictionary 
 	    if sampleKey not in aveTPMDict:
 		aveTPMDict[sampleKey] = {}
+		print 'calcTPMAveSD sampleID; %s sampleKey: %s' % (sampleID, sampleKey)
 	    aveTPMDict[sampleKey][markerKey] = aveTpm
 
             # collect the stdDevAve of the technical replicates - we will want to
             # take the average of all aveSD across all genes of a sample to
             # determine samples to include/exclude.
-            key = '%s%s%s%s%s' % (expID, PIPE, s, PIPE, sampleKey)
+            key = '%s%s%s%s%s' % (expID, PIPE, sampleID, PIPE, sampleKey)
             if key not in sampleAveSDDict:
                 sampleAveSDDict[key] = []
             sampleAveSDDict[key].append(stdDevAve)
@@ -856,7 +1014,7 @@ def calcTPMAveSD(expID, geneDict):
             # tpms and the stdDevAve (stdDev/aveTpm) as well as the count of
             # technical replicates (number of runs per sample)
             #
-            fpStudentRpt.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, geneID, TAB, s, TAB, string.join(map(str, tpmList), ', '),  TAB, aveTpm, TAB, stdDev, TAB, stdDevAve, TAB, techReplCt, CRT))
+            fpStudentRpt.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, geneID, TAB, sampleID, TAB, string.join(map(str, tpmList), ', '),  TAB, aveTpm, TAB, stdDev, TAB, stdDevAve, TAB, techReplCt, CRT))
 
     # Now iterate through the sampleAveSDDict and calculate the average of
     # each aveSD. Report any above a threshold weeding out dupes.
@@ -877,11 +1035,20 @@ def calcTPMAveSD(expID, geneDict):
 		highAveStdDevList.append(reportLine)
 
     elapsed_time = time.time() - start_time
-    print '%sTIME: calcTPMAveSC %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
+    print '%sTIME: calcTPMAveSD %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
 
     return  aveTPMDict
 
 # end calcTPMAveSD -------------------------------------------------------------
+
+#
+# Purpose: executes all bcp commands for RNASeq tables and sets their primary 
+#	key sequence
+# Returns: 0 if successful
+# Assumes: Nothing
+# Effects: creates records in the database, writes to the diagnostic log
+# Throws: Nothing
+#
 
 def execBCP ():
 
@@ -901,6 +1068,15 @@ def execBCP ():
     return 0
 
 # end execBCP ------------------------------------------------------------------
+
+#
+# Purpose: Query the RNASeq set/setmembers and find biological replicates
+# 	and their list of samples
+# Returns: dictionary mapping biological replicate key to its set of samples
+# Assumes: Nothing
+# Effects:
+# Throws: Nothing
+#
 
 def getBioReplicates(expID):
     expKey = experimentInDbDict[expID]
@@ -936,11 +1112,20 @@ def getBioReplicates(expID):
     return replisetDict
 # end getBioReplicates ------------------------------------------------------------------
 
+#
+# Purpose: main processing function. Reads the experiment file and processes experiments
+#	one by one. Does some QC
+# Returns: 0 if successful; handles return codes from all functions it calls 
+# Assumes: Nothing
+# Effects:
+# Throws: Nothing
+#
+
 def process():
     global  experimentNotInDbList, highAveStdDevList
 
     start_time = time.time()
-
+    
     # write the header to the student report up front
     fpStudentRpt.write('expID%sgeneID%ssampleID%stechRepl%saveTpm%sstdDev%sstdDevAve%stechRepCt%s' % (TAB, TAB, TAB, TAB, TAB, TAB, TAB, CRT))
 
@@ -948,6 +1133,10 @@ def process():
     #
     for line in fpInfile.readlines():
         expID = string.strip(string.split(line)[0])
+
+	# load the list of sampleIDS and their keys from the database for current experiment
+	# there can be > 1
+	loadSampleInDbDict(expID)
 
 	# the list of matrices for this experiment, one per repliset
 	matrixList = []
@@ -962,7 +1151,7 @@ def process():
         sys.stdout.flush()
         rc = ppAESFile(expID)
         if rc != 0:
-            print '''preprocessing AES file failed with rc%s, 
+            print '''preprocessing AES file returned rc%s, 
 			skipping file for %s''' % (rc, expID)
             continue
 
@@ -991,12 +1180,13 @@ def process():
         # {geneID: {sampleID:[tpm1, ...], ...}, ...}
 	#
 	geneDict = processJoinedFile(expID, joinedFile)
-
+	#print 'length geneDict: %s' % len(geneDict)
 	# {sampleKey:{markerKey:aveTPM, ...}, 
 	#	sampleKey2:{markerKey:aveTPM, ...}, ...}
 	aveTPMDict = calcTPMAveSD(expID, geneDict)
-	print 'aveTPMDict: %s' % aveTPMDict
-
+	print 'aveTPMDict keys: %s' % aveTPMDict.keys()
+	if not aveTPMDict: # nothing to normalize
+	    continue
 	# create a DataFrame from the dictionary and QuantileNormalize/
 	qnInput =  pd.DataFrame(aveTPMDict) 
 	qnOutput = quantileNormalize.qn(qnInput, aveTPMDict.keys())
@@ -1008,7 +1198,7 @@ def process():
 
 	# {attributeKey:set(sampleKeys), ...}
 	replisetDict = getBioReplicates(expID)
-
+	#print 'replisetDict: %s' % replisetDict
 	# number of genes
 	numRows = 0 # set this later when we know!
 
@@ -1016,9 +1206,9 @@ def process():
 	# a) remove samples in the db not in input
 	# b) # samples is  used to determine # columns in the matrix
 	for key in replisetDict:
-	    print 'preprocess replisetDict key: %s' % key
+	    #print 'preprocess replisetDict key: %s' % key
 	    sampleSet = replisetDict[key]
-	    print 'preprocess replisetDict sampleSet: %s' % sampleSet
+	    #print 'preprocess replisetDict sampleSet: %s' % sampleSet
 	    newSet = set()	
 	    for sampleKey in sampleSet:
 		# if we find samples in DB not in aveTPMDict we need to 
@@ -1028,7 +1218,7 @@ def process():
 		# to check it too
 		if sampleKey not in aveTPMDict:
                     print 'sampleKey: %s for expID: %s not in aveTPMDict' % \
-                        (expID, sampleKey)
+                        (sampleKey, expID)
 		    #sampleSet.remove(sampleKey) # can't do this get 
 			# RuntimeError: Set changed size during iteration
 			# Create a new set
@@ -1076,8 +1266,8 @@ def process():
 	    #  create an empty matrix with string data type
 	    matrix = np.empty((numRows, numColumns), dtype='object')
 
-	    # now we pull everything into a 2-D matrix from aveTPMDict, qnOutputDict
-	    # for each biological replicate set
+	    # now we pull everything into a 2-D matrix from aveTPMDict and qnOutputDict
+	    # for each biological replicate set for easy bcp file creation
 	    currentColumnNum = 1    # The first sample column
 	    currentRowNum = 0       # the first row
 	    
@@ -1096,8 +1286,6 @@ def process():
 		    # add number of replicates to dict by row number (gene )
 		    numBioReplDict[currentRowNum] = totalSamples
 
-		    #print 'currentRowNum: %s' % currentRowNum
-		    #print 'currentColumnNum: %s' % currentColumnNum
 		    aveTPM = aveTpmByGeneDict[mKey]
 		    qnTPM = round(qnTpmByGeneDict[mKey], 1)
 		    sampleValues = '%s%s%s%s%s' % (sampleKey, PIPE, aveTPM, PIPE, qnTPM)
@@ -1142,6 +1330,11 @@ def process():
     return 0
 
 # end process ()--------------------------------------------
+
+#
+# Purpose: closes all file descriptors that remain open 
+# 	across all experiments
+#
 
 def closefiles():
     fpCur.close()
