@@ -38,8 +38,9 @@ LOGDIR=${FILEDIR}/logs
 RPTDIR=${FILEDIR}/reports
 OUTPUTDIR=${FILEDIR}/output
 INPUTDIR=${FILEDIR}/input
-#INPUTDIR=/mgi/all/wts_projects/13000/13007/testing/epic2
-export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR
+RAW_INPUTDIR=${FILEDIR}/raw_input
+
+export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR RAW_INPUTDIR
 
 # Connie's experiment ID file
 #INPUT_FILE=${INPUTDIR}/RNASeq_Experiments_for_QC.txt
@@ -61,14 +62,14 @@ export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL
 # Array Express Sample File Templates
 AES_URL_TEMPLATE="https://www.ebi.ac.uk/arrayexpress/files/%s/%s.sdrf.txt"
 # Name of local file fetched from URL 
-AES_LOCAL_FILE_TEMPLATE=${INPUTDIR}/%s.aes.txt
+AES_LOCAL_FILE_TEMPLATE=${RAW_INPUTDIR}/%s.aes.txt
 # Name of pre-processed local file
 AES_PP_FILE_TEMPLATE=${INPUTDIR}/%s.aes.pp.txt
 
 # Expression Atlas Experiment File Templates
 EAE_URL_TEMPLATE="ftp://ftp.ebi.ac.uk/pub/databases/arrayexpress/data/atlas/rnaseq/studies/arrayexpress/%s/mus_musculus/genes.tpm.htseq2.tsv"
 # Name of local file fetched from URL
-EAE_LOCAL_FILE_TEMPLATE=${INPUTDIR}/%s.eae.txt
+EAE_LOCAL_FILE_TEMPLATE=${RAW_INPUTDIR}/%s.eae.txt
 # Name of pre-processed local file
 EAE_PP_FILE_TEMPLATE=${INPUTDIR}/%s.eae.pp.txt
 
