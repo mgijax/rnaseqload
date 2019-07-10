@@ -155,6 +155,14 @@ symbolToMultiEnsIdDict = {} # {symbol:[list of ensIDs], ...}
 multiEnsemblMarkerDict = {}
 
 #
+# Level bins
+#
+HIGH = 50430889
+MED = 50430890
+LOW = 50430891
+BELOW_CUTOFF = 50430892
+ 
+#
 # QC data structures
 #
 
@@ -412,13 +420,13 @@ def closeCombinedBcp():
 # Purpose: calculates the average of numList
 # Returns: the calculated average
 # 
-def calcAve(numList):
+def calcAve(numList, precision):
     tSum = sum(numList)
     tLen =  max(len(numList), 1)
     ave = tSum / tLen
     fAve = float(ave)
 
-    return round(fAve, 2)
+    return round(fAve, precision)
 
 # end calcAve () -------------------------------------------------
 
@@ -703,11 +711,11 @@ def ppEAEFile(expID):
     # in each gene/tpm line to get the runID
     #
     headerList = string.split(fpEae.readline(), TAB)
-    print 'headerList: %s' % headerList
+    #print 'headerList: %s' % headerList
     if headerList == ['']: # means file is empty
 	return 2
     eaeRunIdList = splitOffGene(headerList)
-    print 'Num runIDs for %s: %s %s' % (expID, len(eaeRunIdList), eaeRunIdList)
+    #print 'Num runIDs for %s: %s %s' % (expID, len(eaeRunIdList), eaeRunIdList)
     sys.stdout.flush()
 
     # process each gene and it's sample tpm's
@@ -756,6 +764,7 @@ def ppEAEFile(expID):
 	    try:
 		runID = string.strip(eaeRunIdList[idx])
 	    except:
+		# this shouldn't happen once we finish the file download script
 		print 'Multi header record. idx: %s tpm: %s' % (idx, tpm)
 		return 3
 	    eaeRunIdSet.add(runID)
@@ -879,6 +888,27 @@ def processJoinedFile(expID, joinedFile):
 # end processJoinedFile -----------------------------------------------------------
 
 #
+# Purpose: calculate the level for the average QN TPM
+# Returns: proper level key for aveQnTpm
+# Assumes: Nothing
+# Effects: 
+# Throws: Nothing
+#
+def calcLevel(aveQnTpm):
+    level = None
+    if aveQnTpm < 0.5:	
+    	level = BELOW_CUTOFF 
+    elif aveQnTpm >=  0.5 and aveQnTpm <= 10:
+	level = LOW
+    elif aveQnTpm >=  11 and aveQnTpm <= 1000:
+	level = MED
+    else:  # aveQnTpm > 1000:
+	level = HIGH
+
+    return  level
+# end calcLevel ------------------------------------------------------------------
+	
+#
 # Purpose: creates RNASeq and Combined bcp files from a list of matrices (2-dimensional
 #       arrays) created by another function
 # Returns: 0 if successful
@@ -886,7 +916,6 @@ def processJoinedFile(expID, joinedFile):
 # Effects: creates files in filesystem
 # Throws: Nothing
 #
-
 def writeBCP(expID, matrixList):
     global rnaSeqKey, combinedKey, bcpCommandList
 
@@ -905,8 +934,6 @@ def writeBCP(expID, matrixList):
     combinedLineCt = 0
     rnaSeqLineCt = 0 
 
-    levelKey = 50430890  # medium for now
-
     for matrix in matrixList:
 	for row in matrix:
 	    #print row
@@ -917,6 +944,9 @@ def writeBCP(expID, matrixList):
 	    markerKey =  row[0] 
 	    numBioRepl = row[-1]
 	    aveQnTpm = row[-2]
+	    #print 'avQnTpm: %s' % aveQnTpm
+	    levelKey = calcLevel(aveQnTpm)
+	    #print 'levelKey: %s' % levelKey
 	    line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (combinedKey, TAB, markerKey, TAB, levelKey, TAB, numBioRepl, TAB, aveQnTpm, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT)
 	    #print 'combined: %s' %line
 	    fpCombinedBcp.write(line)
@@ -986,7 +1016,7 @@ def calcTPMAveSD(expID, geneDict):
             sampleKey = sampleInDbDict[sampleID][0]
             tpmList = sampleDict[sampleID]
             techReplCt = len(tpmList)       # number of runs for the sample (1-n)
-            aveTpm = calcAve(tpmList)       # calculate the average tpm
+            aveTpm = calcAve(tpmList, 2)       # calculate the average tpm
             stdDev = round(np.std(tpmList), 2)  # calc the SD of the tpms
             # calculate the SD average
             stdDevAve = 0.0
@@ -1023,7 +1053,7 @@ def calcTPMAveSD(expID, geneDict):
 
     for key in keyList:
 	eID, sampleID, sampleKey = string.split(key, PIPE)
-	aveAveSdAllGenes = calcAve(sampleAveSDDict[key])
+	aveAveSdAllGenes = calcAve(sampleAveSDDict[key], 2)
 
 	# if average of the average SD across genes in > stdDevCutoff (config)
 	# report it and remove all genes for that sample from the aveTPMDict
@@ -1134,8 +1164,8 @@ def process():
     for line in fpInfile.readlines():
         expID = string.strip(string.split(line)[0])
 
-	# load the list of sampleIDS and their keys from the database for current experiment
-	# there can be > 1
+	# load the list of sampleIDS and their keys from the database 
+	# for current experiment there can be > 1
 	loadSampleInDbDict(expID)
 
 	# the list of matrices for this experiment, one per repliset
@@ -1180,25 +1210,16 @@ def process():
         # {geneID: {sampleID:[tpm1, ...], ...}, ...}
 	#
 	geneDict = processJoinedFile(expID, joinedFile)
-	#print 'length geneDict: %s' % len(geneDict)
+	
 	# {sampleKey:{markerKey:aveTPM, ...}, 
 	#	sampleKey2:{markerKey:aveTPM, ...}, ...}
 	aveTPMDict = calcTPMAveSD(expID, geneDict)
-	print 'aveTPMDict keys: %s' % aveTPMDict.keys()
+	#print 'aveTPMDict keys: %s' % aveTPMDict.keys()
 	if not aveTPMDict: # nothing to normalize
 	    continue
-	# create a DataFrame from the dictionary and QuantileNormalize/
-	qnInput =  pd.DataFrame(aveTPMDict) 
-	qnOutput = quantileNormalize.qn(qnInput, aveTPMDict.keys())
-	#print qnOutput.to_dict()
-
-	# {sampleKey:{markerKey:qnAveTPM, ...}, 
-	#	sampleKey2:{markerKey:qnAveTPM, ...}, ...}
-	qnOutputDict = qnOutput.to_dict()
 
 	# {attributeKey:set(sampleKeys), ...}
 	replisetDict = getBioReplicates(expID)
-	#print 'replisetDict: %s' % replisetDict
 	# number of genes
 	numRows = 0 # set this later when we know!
 
@@ -1206,9 +1227,7 @@ def process():
 	# a) remove samples in the db not in input
 	# b) # samples is  used to determine # columns in the matrix
 	for key in replisetDict:
-	    #print 'preprocess replisetDict key: %s' % key
 	    sampleSet = replisetDict[key]
-	    #print 'preprocess replisetDict sampleSet: %s' % sampleSet
 	    newSet = set()	
 	    for sampleKey in sampleSet:
 		# if we find samples in DB not in aveTPMDict we need to 
@@ -1228,28 +1247,44 @@ def process():
 		# set this only once, all samples have same number of genes
 		if numRows == 0: 
 		    numRows = len(aveTPMDict[sampleKey])
-
 	    # in case we changed the sampleSet, reset the new set in the Dict
-	    print 'Adding newSet to replisetDict: %s' % newSet
+	    #print 'Adding newSet %s to replisetDict key: %s' % (newSet, key)
 	    replisetDict[key] = newSet
 
+	# now we have removed any kicked out samples from replisetDict
+	# recall 'key' is our compound key of all attributes
         for key in replisetDict:
-	    print 'process replisetDict key: %s' % key
+	    #print 'process replisetDict key: %s' % key
 	    # gather all the numBioReplicates by rowNum
 	    #  {rowNum:numBioReplicates, ...}
 	    numBioReplDict = {}
 	   
 	    sampleSet = replisetDict[key]
-	    print 'process replisetDict sampleSet: %s' % sampleSet
+
+	    # if the sample set is empty then we skip this repliset
+            if not sampleSet:
+                print 'no samples for this repliset'
+                continue
+
+	    #print 'process replisetDict sampleSet: %s' % sampleSet
 	    totalSamples = len(sampleSet)
-	    
+
+	    #
+	    # get the aveTPMs for this repliset so we may QN them
+	    #
+	    replisetAveTpmDict = {}
+	    for sampleKey in sampleSet:
+		replisetAveTpmDict[sampleKey] = aveTPMDict[sampleKey]
+	    # Now QN them
+	    qnInput =  pd.DataFrame(replisetAveTpmDict)
+	    qnOutput = quantileNormalize.qn(qnInput, replisetAveTpmDict.keys())
+
+	    # {sampleKey:{markerKey:qnAveTPM, ...},
+	    #       sampleKey2:{markerKey:qnAveTPM, ...}, ...}
+	    qnOutputDict = qnOutput.to_dict()
+
             print 'process replisetDict key: %s samples: %s numBioReplicates: %s' % (key, sampleSet, len(sampleSet))
 	    
-	    # if the sample set is empty then we skip this repliset
-	    if not sampleSet:
-		print 'no samples for this repliset'
-		continue
- 
 	    # gather all the QN TPMs for averaging across all samples of a gene
 	    # rowNum = gene, we use number so we can sort the dict keys to 
 	    # assign the proper aveQNTPM to the proper gene (note python 3.* has
@@ -1266,8 +1301,9 @@ def process():
 	    #  create an empty matrix with string data type
 	    matrix = np.empty((numRows, numColumns), dtype='object')
 
-	    # now we pull everything into a 2-D matrix from aveTPMDict and qnOutputDict
-	    # for each biological replicate set for easy bcp file creation
+	    # now we pull everything into a 2-D matrix from aveTPMDict 
+	    # and qnOutputDict for each biological replicate set for easy bcp 
+	    # file creation
 	    currentColumnNum = 1    # The first sample column
 	    currentRowNum = 0       # the first row
 	    
@@ -1277,6 +1313,8 @@ def process():
 		    # {markerKey:aveTPM, ...}
 		    aveTpmByGeneDict = aveTPMDict[sampleKey]
 		except:
+		    # this shouldn't happend because we synced things up
+		    # above
 		    'sampleKey %s not in aveTPMDict' % sampleKey
 
 		# {markerKey:qnAveTPM, ...}
@@ -1287,7 +1325,7 @@ def process():
 		    numBioReplDict[currentRowNum] = totalSamples
 
 		    aveTPM = aveTpmByGeneDict[mKey]
-		    qnTPM = round(qnTpmByGeneDict[mKey], 1)
+		    qnTPM = round(qnTpmByGeneDict[mKey], 2)
 		    sampleValues = '%s%s%s%s%s' % (sampleKey, PIPE, aveTPM, PIPE, qnTPM)
 		    # create/add to the list of qnTPM for the gene that will
 		    # will be processed later after we have built up the matrix
@@ -1296,7 +1334,6 @@ def process():
 			aveQNTpmDict[currentRowNum] = []
 		    aveQNTpmDict[currentRowNum].append(qnTPM)
 		    matrix[currentRowNum][0] = mKey
-		    #print 'matrix[%s][%s]: %s' % (currentRowNum, 0, matrix[currentRowNum][0])
 		    matrix[currentRowNum][currentColumnNum] = sampleValues
 		    #print 'matrix[%s][%s]: %s' % (currentRowNum, currentColumnNum, matrix[currentRowNum][currentColumnNum])
 		    currentRowNum += 1
@@ -1305,7 +1342,10 @@ def process():
 
 	    # add the ave QN to the matrix for each gene
 	    for rowNum in aveQNTpmDict:
-		 matrix[rowNum][numColumns - 2] = calcAve(aveQNTpmDict[rowNum])
+		ave = calcAve(aveQNTpmDict[rowNum], 1)
+		if ave >= 1:
+		    ave = int(round(ave, 0)) # if >1 round then truncate decimal
+		matrix[rowNum][numColumns - 2] = ave
 
 	    # add the number of bio  replicates to matrix for each gene
 	    for rowNum in numBioReplDict:
