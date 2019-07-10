@@ -56,8 +56,9 @@ LOG_PROC=${LOGDIR}/rnaseqload.proc.log
 LOG_DIAG=${LOGDIR}/rnaseqload.diag.log
 LOG_CUR=${LOGDIR}/rnaseqload.cur.log
 LOG_VAL=${LOGDIR}/rnaseqload.val.log
+LOG_DOWNLOAD=${LOGDIR}/filedownload.log
 
-export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL
+export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL LOG_DOWNLOAD
 
 # Array Express Sample File Templates
 AES_URL_TEMPLATE="https://www.ebi.ac.uk/arrayexpress/files/%s/%s.sdrf.txt"
