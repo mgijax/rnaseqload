@@ -43,9 +43,8 @@ RAW_INPUTDIR=${FILEDIR}/raw_input
 export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR RAW_INPUTDIR
 
 # Connie's experiment ID file
-INPUT_FILE=${INPUTDIR}/RNASeq_Experiments_from_Connie.txt
-
-export INPUT_FILE
+INPUT_FILE_DEFAULT=${INPUTDIR}/rnaseqload.txt
+export INPUT_FILE_DEFAULT
 
 # Complete path name of the rnaseqload log files
 LOG_FILE=${LOGDIR}/rnaseqload.log
@@ -56,6 +55,22 @@ LOG_VAL=${LOGDIR}/rnaseqload.val.log
 LOG_DOWNLOAD=${LOGDIR}/downloadFiles.log
 
 export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL LOG_DOWNLOAD
+
+# Full path to the sanity/QC reports.
+#
+SANITY_RPT=${RPTDIR}/sanity.rpt
+QC_RPT=${RPTDIR}/qc.rpt
+QC_LOGFILE=${LOGDIR}/rnaseqQC.log
+
+export SANITY_RPT QC_RPT QC_LOGFILE
+
+# Number of columns expected for the input file (for sanity check).
+NUM_COLUMNS=1
+
+# minimum # lines in input (including header)
+MIN_LINES=2
+
+export NUM_COLUMNS MIN_LINES
 
 # Array Express Sample File Templates
 AES_URL_TEMPLATE="https://www.ebi.ac.uk/arrayexpress/files/%s/%s.sdrf.txt"
@@ -111,7 +126,7 @@ export JOBSTREAM
 MAIL_LOADNAME="GXD RNA-Seq Load"
 
 #  Recipient list for mailing the log files (comma-separated)
-MAIL_LOG_PROC="mgiadmin"
+#MAIL_LOG_PROC="mgiadmin"
 
 export MAIL_LOADNAME MAIL_LOG_PROC
 
