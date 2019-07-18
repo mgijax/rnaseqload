@@ -8,7 +8,7 @@
 #
 # Usage: downloadFiles.py
 # Env Vars:
-#	 1. INPUT_FILE - Connie's file of experiment IDs
+#	 1. INPUT_FILE_DEFAULT - Connie's file of experiment IDs
 #	 2. LOGDIR 
 #	 3. RAW_INPUTDIR - files are downloaded to this directory
 #	 4a. AES_URL_TEMPLATE - url template for Array Express
@@ -44,7 +44,7 @@ import sys
 print '%s' % mgi_utils.date()
 
 # paths to input and two output files
-inFilePath= os.getenv('INPUT_FILE')
+inFilePath= os.getenv('INPUT_FILE_DEFAULT')
 fpInfile = open(inFilePath, 'r')
 logDir =  os.getenv('LOGDIR')
 rawInputDir =  os.getenv('RAW_INPUTDIR')
