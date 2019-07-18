@@ -8,7 +8,7 @@
 #
 # Usage: 
 # Env Vars:
-#	 1. INPUT_FILE - Connie's file of experiment IDs
+#	 1. INPUT_FILE_DEFAULT - Connie's file of experiment IDs
 # Inputs:
 #	1. INPUTFILE - Connie's file of experiment IDs
 #	2. Configuration (see rnaseqload.config)
@@ -37,7 +37,7 @@ import time	 # used for its time.time() function (for timestamps)
 import Set
 
 # paths to input and two output files
-inFilePath= os.getenv('INPUT_FILE')
+inFilePath= os.getenv('INPUT_FILE_DEFAULT')
 fpInfile = open(inFilePath, 'r')
 logDir =  os.getenv('LOGDIR')
 inputDir =  os.getenv('INPUTDIR')
