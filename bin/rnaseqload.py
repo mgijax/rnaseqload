@@ -9,7 +9,7 @@
 #
 # Usage: rnaseqload.py
 # Env Vars:
-#	 1. INPUT_FILE - Connie's file of experiment IDs
+#	 1. INPUT_FILE_DEFAULT - Connie's file of experiment IDs
 #	 2. LOGDIR 
 #	 3a. INPUTDIR - intermediate files generated from RAW input files
 #	 3b. RAW_INPUTDIR - files downloaded from source
@@ -63,7 +63,7 @@ import pandas as pd	# used for QN
 import quantileNormalize # module within this product
 
 # paths to input and two output files
-inFilePath= os.getenv('INPUT_FILE')
+inFilePath= os.getenv('INPUT_FILE_DEFAULT')
 fpInfile = open(inFilePath, 'r')
 logDir =  os.getenv('LOGDIR')
 inputDir =  os.getenv('INPUTDIR')
