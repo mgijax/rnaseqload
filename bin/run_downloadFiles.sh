@@ -59,6 +59,7 @@ then
     touch ${LOG_DOWNLOAD}
 fi
 
+# check the lastrun file, exit if input file not updated
 LASTRUN_FILE=${INPUTDIR}/lastrun
 if [ -f ${LASTRUN_FILE} ]
 then
@@ -70,6 +71,13 @@ then
     fi
 fi
 
+# file updated; rm the download_ok file if it exists
+echo "DOWNLOAD_OK: ${DOWNLOAD_OK}"
+if [ -f ${DOWNLOAD_OK} ]
+then
+	rm ${DOWNLOAD_OK}
+fi
+
 #####################################
 #
 # Main
@@ -77,12 +85,13 @@ fi
 #####################################
 
 date 
+
 echo "Downloading input files" 
 ${RNASEQLOAD}/bin/downloadFiles.py #>> ${LOG_DOWNLOAD} 2>&1
 STAT=$?
 
 #
-# Touch the "lastrun" file to note when the load was run.
+# Touch the "download_ok" file if all downloads successful
 #
 if [ ${STAT} = 0 ]
 then
