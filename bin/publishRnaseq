@@ -21,8 +21,8 @@ usage ()
 
 CURRENT_DIR=`pwd`
 
-#LOADDIR=/usr/local/mgi/live/dataload/rnaseqload
-LOADDIR=/home/sc/work/dataload/rnaseqload
+LOADDIR=/usr/local/mgi/live/dataload/rnaseqload
+#LOADDIR=/home/sc/work/dataload/rnaseqload
 CONFIG=${LOADDIR}/rnaseqload.config
 
 #

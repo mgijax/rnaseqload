@@ -19,8 +19,8 @@ usage ()
     exit 1
 }
 
-#LOADDIR=/usr/local/mgi/live/dataload/rnaseqload
-LOADDIR=/home/sc/work/dataload/rnaseqload
+LOADDIR=/usr/local/mgi/live/dataload/rnaseqload
+#LOADDIR=/home/sc/work/dataload/rnaseqload
 
 WRAPPER=${LOADDIR}/bin/rnaseqQC.sh
 
