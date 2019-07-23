@@ -80,9 +80,9 @@ AES_LOCAL_FILE_TEMPLATE=${RAW_INPUTDIR}/%s.aes.txt
 AES_PP_FILE_TEMPLATE=${INPUTDIR}/%s.aes.pp.txt
 
 # if this file exists then there is a full data set
-FILE_DOWNLOAD_OK=${RAW_INPUTDIR}/downloadok
+DOWNLOAD_OK=${RAW_INPUTDIR}/download_ok
 
-export FILE_DOWNLOAD_OK
+export DOWNLOAD_OK
 
 # Expression Atlas Experiment File Templates
 EAE_URL_TEMPLATE="ftp://ftp.ebi.ac.uk/pub/databases/arrayexpress/data/atlas/rnaseq/studies/arrayexpress/%s/mus_musculus/genes.tpm.htseq2.tsv"
