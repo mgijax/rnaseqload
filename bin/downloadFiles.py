@@ -15,7 +15,7 @@
 #	 4b. AES_LOCAL_FILE_TEMPLATE - full path to the local file
 #	 5a. EAE_URL_TEMPLATE - url template for Expression Atlas
 #	 5b. EAE_LOCAL_FILE_TEMPLATE - full path to the local file
-#	 6. FILE_DOWNLOAD_OK - if exists then error-free download
+#	 6. DOWNLOAD_OK - if exists then error-free download
 #
 # Inputs:
 #	1. INPUTFILE - Connie's file of experiment IDs
@@ -64,7 +64,7 @@ eaeTemplate  = os.getenv('EAE_URL_TEMPLATE')
 eaeLocalFileTemplate = os.getenv('EAE_LOCAL_FILE_TEMPLATE')
 
 # flag set if the file download is successful
-downloadOK = os.getenv('FILE_DOWNLOAD_OK')
+downloadOK = os.getenv('DOWNLOAD_OK')
 
 # number of files unable to be downloaded
 errorCt = 0
