@@ -78,16 +78,14 @@ LIVE_RUN=0; export LIVE_RUN
 #
 if [ $# -eq 1 ]
 then
-    INPUT_FILE_DEFAULT=$1
+    INPUT_FILE=$1
 elif [ $# -eq 2 -a "$2" = "live" ]
 then
-    INPUT_FILE_DEFAULT=$1
+    INPUT_FILE=$1
     LIVE_RUN=1
 else
     echo ${USAGE}; exit 1
 fi
-
-#echo "INPUT_FILE_DEFAULT: ${INPUT_FILE_DEFAULT}"
 
 #
 # Make sure the configuration file exists and source it.
@@ -133,7 +131,7 @@ touch ${LOG}
 # Convert the input file into a QC-ready version that can be used to run
 # the sanity/QC reports against.
 #
-dos2unix ${INPUT_FILE_DEFAULT} ${INPUT_FILE_DEFAULT} 2>/dev/null
+dos2unix ${INPUT_FILE} ${INPUT_FILE} 2>/dev/null
 
 #
 # FUNCTION: Check for lines with missing columns in input file and
@@ -147,6 +145,7 @@ checkColumns ()
     echo "" >> ${REPORT}
     echo "Lines With Missing Columns or Data" >> ${REPORT}
     echo "-----------------------------------" >> ${REPORT}
+    echo " ${RNASEQLOAD}/bin/checkColumns.py ${FILE} ${NUM_COLUMNS} > ${TMP_FILE}"
     ${RNASEQLOAD}/bin/checkColumns.py ${FILE} ${NUM_COLUMNS} > ${TMP_FILE}
     cat ${TMP_FILE} >> ${REPORT}
     if [ `cat ${TMP_FILE} | wc -l` -eq 0 ]
@@ -222,30 +221,32 @@ SANITY_ERROR=0
 #
 # Make sure the input files exist (regular file or symbolic link).
 #
-if [ "`ls -L ${INPUT_FILE_DEFAULT} 2>/dev/null`" = "" ]
+echo "input file exists INPUT_FILE: ${INPUT_FILE}"
+if [ "`ls -L ${INPUT_FILE} 2>/dev/null`" = "" ]
 then
     echo "" | tee -a ${LOG}
-    echo "Input file does not exist: ${INPUT_FILE_DEFAULT}" | tee -a ${LOG}
+    echo "Input file does not exist: ${INPUT_FILE}" | tee -a ${LOG}
     echo "" | tee -a ${LOG}
     exit 1
 fi
 
-checkLineCount ${INPUT_FILE_DEFAULT} ${SANITY_RPT} ${MIN_LINES}
+checkLineCount ${INPUT_FILE} ${SANITY_RPT} ${MIN_LINES}
+
 if [ $? -ne 0 ]
 then
     echo "" | tee -a ${LOG}
-    echo "Input file has less than min number lines:  ${MIN_LINES} ${INPUT_FILE_DEFAULT}" | tee -a ${LOG}
+    echo "Input file has less than min number lines:  ${MIN_LINES} ${INPUT_FILE}" | tee -a ${LOG}
     echo "" | tee -a ${LOG}
     exit 1
 fi
 
-checkColumns ${INPUT_FILE_DEFAULT} ${SANITY_RPT} ${NUM_COLUMNS}
+checkColumns ${INPUT_FILE} ${SANITY_RPT} ${NUM_COLUMNS}
 if [ $? -ne 0 ]
 then
     SANITY_ERROR=1
 fi
 
-checkDupLines ${INPUT_FILE_DEFAULT} ${SANITY_RPT}
+checkDupLines ${INPUT_FILE} ${SANITY_RPT}
 if [ $? -ne 0 ]
 then
     SANITY_ERROR=1
@@ -267,7 +268,8 @@ fi
 echo "" >> ${LOG}
 date >> ${LOG}
 echo "Generate the QC reports" >> ${LOG}
-{ ${RNASEQLOAD}/bin/rnaseqQC.py ${INPUT_FILE_DEFAULT} 2>&1; echo $? > ${TMP_FILE}; } >> ${LOG}
+echo "rnaseqQC.py  INPUT_FILE: ${INPUT_FILE}"
+{ ${RNASEQLOAD}/bin/rnaseqQC.py ${INPUT_FILE} 2>&1; echo $? > ${TMP_FILE}; } >> ${LOG}
 
 if [ `cat ${TMP_FILE}` -eq 1 ]
 then
