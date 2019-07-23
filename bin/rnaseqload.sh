@@ -92,21 +92,33 @@ cleanDir ${OUTPUTDIR}
 # the last time the load was run for this input file. If this file exists
 # and is more recent than the input file, the load does not need to be run.
 #
-echo "${INPUT_FILE}"
+echo "${INPUT_FILE_DEFAULT}"
 
 LASTRUN_FILE=${INPUTDIR}/lastrun
 echo "${LASTRUN_FILE}"
-if [ -f ${LASTRUN_FILE} -a -f ${FILE_DOWNLOAD_OK} ]
-then
-    if test ${LASTRUN_FILE} -nt ${INPUT_FILE} 
-    then
 
-        echo "Input file has not been updated - skipping load" | tee -a ${LOG_PROC}
-        # set STAT for shutdown
-        STAT=0
-        echo 'shutting down'
-        shutDown
-        exit 0
+if [ -f ${LASTRUN_FILE} ]
+then
+    echo "last run is a file"
+    if test ${LASTRUN_FILE} -nt ${INPUT_FILE_DEFAULT}
+    then
+	echo "Input file has not been updated - skipping load" | tee -a ${LOG_PROC}
+	STAT=0
+	checkStatus ${STAT} 'Checking input and download_ok files'
+	shutDown
+	exit 0
+    else 
+	if [ -f ${DOWNLOAD_OK} ]
+        then
+            echo "Download is OK, running load"
+	else
+	    echo "Input file has been updated but files not successfully downloaded - skipping load" | tee -a ${LOG_PROC}
+	    STAT=0
+	    checkStatus ${STAT} 'Checking input and download_ok files'
+	    shutDown
+	    exit 0
+
+	fi
     fi
 fi
 
