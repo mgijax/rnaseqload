@@ -220,7 +220,6 @@ SANITY_ERROR=0
 #
 # Make sure the input files exist (regular file or symbolic link).
 #
-echo "input file exists INPUT_FILE: ${INPUT_FILE}"
 if [ "`ls -L ${INPUT_FILE} 2>/dev/null`" = "" ]
 then
     echo "" | tee -a ${LOG}
@@ -267,7 +266,6 @@ fi
 echo "" >> ${LOG}
 date >> ${LOG}
 echo "Generate the QC reports" >> ${LOG}
-echo "rnaseqQC.py  INPUT_FILE: ${INPUT_FILE}"
 { ${RNASEQLOAD}/bin/rnaseqQC.py ${INPUT_FILE} 2>&1; echo $? > ${TMP_FILE}; } >> ${LOG}
 
 if [ `cat ${TMP_FILE}` -eq 1 ]
