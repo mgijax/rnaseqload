@@ -56,6 +56,14 @@ LOG_DOWNLOAD=${LOGDIR}/downloadFiles.log
 
 export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL LOG_DOWNLOAD
 
+# Full path to QC/sanity scripts.
+#
+RNASEQLOAD_QC=${RNASEQLOAD}/bin/rnaseqQC.py
+RNASEQLOAD_QC_SH=${RNASEQLOAD}/bin/rnaseqQC.sh
+
+export RNASEQLOAD_QC RNASEQLOAD_QC_SC
+
+#
 # Full path to the sanity/QC reports.
 #
 SANITY_RPT=${RPTDIR}/sanity.rpt
