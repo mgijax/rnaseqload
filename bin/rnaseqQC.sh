@@ -238,11 +238,11 @@ then
     exit 1
 fi
 
-checkColumns ${INPUT_FILE} ${SANITY_RPT} ${NUM_COLUMNS}
-if [ $? -ne 0 ]
-then
-    SANITY_ERROR=1
-fi
+#checkColumns ${INPUT_FILE} ${SANITY_RPT} ${NUM_COLUMNS}
+#if [ $? -ne 0 ]
+#then
+#    SANITY_ERROR=1
+#fi
 
 checkDupLines ${INPUT_FILE} ${SANITY_RPT}
 if [ $? -ne 0 ]
