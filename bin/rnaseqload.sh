@@ -120,6 +120,18 @@ then
 
 	fi
     fi
+else
+    if [ -f ${DOWNLOAD_OK} ]
+    then
+	echo "Download is OK, running load"
+    else
+	echo "Input file has been updated but files not successfully downloaded - skipping load" | tee -a ${LOG_PROC}
+	STAT=0
+	checkStatus ${STAT} 'Checking input and download_ok files'
+	shutDown
+	exit 0
+
+    fi
 fi
 
 # This cascades to GXD_HTSample_RNASeqSetMember
