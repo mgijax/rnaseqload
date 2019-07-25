@@ -73,9 +73,9 @@ then
 fi
 
 # placeholder so rm in download script doesn't report error
-touch ${INPUTDIR}/temp.aes.txt
-touch  ${INPUTDIR}/temp.eae.txt
-touch  ${INPUTDIR}/temp.joined.txt
+touch ${RAW_INPUTDIR}/temp.aes.txt
+touch  ${RAW_INPUTDIR}/temp.eae.txt
+touch  ${RAW_INPUTDIR}/temp.joined.txt
 
 #
 # For any server, if the input file
