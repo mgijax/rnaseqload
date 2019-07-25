@@ -144,7 +144,7 @@ def process():
 	    t4.note 
 	from temp2 t2 
 	left outer join temp4 t4 on (t2._sample_key = t4._sample_key)''', 'auto')
-    print 'len results: %s' % len(results)
+    #print 'len results: %s' % len(results)
     repliconDict = {}
 
     # iterate through results and map the replicate to its set of sample keys	

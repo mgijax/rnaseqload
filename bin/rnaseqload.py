@@ -229,11 +229,11 @@ def init():
 
     results = db.sql('''select nextval('gxd_htsample_rnaseq_seq') as maxKey ''', 'auto')
     rnaSeqKey = results[0]['maxKey']
-    print 'rnaSeqKey: %s' % rnaSeqKey
+    #print 'rnaSeqKey: %s' % rnaSeqKey
 
     results = db.sql('''select nextval('gxd_htsample_rnaseqcombined_seq') as maxKey ''', 'auto')
     combinedKey = results[0]['maxKey']
-    print 'combinedKey: %s' % combinedKey
+    #print 'combinedKey: %s' % combinedKey
 
     results = db.sql('''select accid, _object_key
         from ACC_Accession
@@ -443,7 +443,7 @@ def ppAESFile(expID):
     global noRunOrSampleColList, sampleIdNotInDbList, currentAesPPFile
     global aesRunIdSet, ambiguousSampleInDbList
 
-    print 'in ppAESFile(expID): %s' % expID
+    #print 'in ppAESFile(expID): %s' % expID
     # run IDs in the AES set
     aesRunIdSet = set()
 
@@ -456,7 +456,7 @@ def ppAESFile(expID):
     # create aes input file descriptor for this experiment
     #
     aesFile = aesTemplate % expID
-    print 'aesFile: %s' % aesFile
+    #print 'aesFile: %s' % aesFile
     try:
 	fpAes = open(aesFile, 'r')
     except:
@@ -683,7 +683,7 @@ def ppEAEFile(expID):
     global  ensemblNotInMGIList, ensemblIsOrphanList, eaeRunIdSet
     global multiEnsemblMarkerList
 
-    print 'in ppEAEFile(expID): %s' % expID
+    #print 'in ppEAEFile(expID): %s' % expID
     start_time = time.time()
 
     # we create a set here, because eaeRunIdList will have NL char
@@ -694,7 +694,7 @@ def ppEAEFile(expID):
     #  create eae input file descriptor for this experiment
     #
     eaeFile = eaeTemplate % expID
-    print 'eaeFile: %s' % eaeFile
+    #print 'eaeFile: %s' % eaeFile
     try:
 	fpEae = open(eaeFile, 'r')
     except:
@@ -827,7 +827,7 @@ def processJoinedFile(expID, joinedFile):
 
     start_time = time.time()
 
-    print 'joinedFile: %s ' % joinedFile
+    #print 'joinedFile: %s ' % joinedFile
     # {geneID: {sampleID:[tpm1, ...], ...}, ...}
     geneDict = {}
 
@@ -917,7 +917,7 @@ def calcLevel(aveQnTpm):
 def writeBCP(expID, matrixList):
     global rnaSeqKey, combinedKey, bcpCommandList
 
-    print 'creating bcp files for expID: %s' % expID
+    #print 'creating bcp files for expID: %s' % expID
     start_time =  time.time()
 
     combinedFile = '%s.%s' % (combinedBcpFile, expID)
@@ -971,12 +971,12 @@ def writeBCP(expID, matrixList):
     cmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % \
     (bcpCommand, db.get_sqlServer(), db.get_sqlDatabase(), combinedTable, outputDir, combinedFile)
     bcpCommandList.append(cmd)
-    print 'Num combined bcp lines for expID %s: %s' % (expID, combinedLineCt)
+    #print 'Num combined bcp lines for expID %s: %s' % (expID, combinedLineCt)
 
     cmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % \
     (bcpCommand, db.get_sqlServer(), db.get_sqlDatabase(), rnaSeqTable, outputDir, rnaSeqFile)
     bcpCommandList.append(cmd)
-    print 'Num rnaSeq bcp lines for expID %s: %s' % (expID, rnaSeqLineCt)
+    #print 'Num rnaSeq bcp lines for expID %s: %s' % (expID, rnaSeqLineCt)
 
     elapsed_time = time.time() - start_time
     elapsed_time = time.time() - start_time
@@ -1005,7 +1005,7 @@ def calcTPMAveSD(expID, geneDict):
     # input to QN
     aveTPMDict = {}
 
-    print 'calculating TPM AVE and SD for expID: %s' % expID
+    #print 'calculating TPM AVE and SD for expID: %s' % expID
     for geneID in geneDict:
         sampleDict = geneDict[geneID]
         for sampleID in sampleDict:
@@ -1027,7 +1027,7 @@ def calcTPMAveSD(expID, geneDict):
 	    # load the QN input dictionary 
 	    if sampleKey not in aveTPMDict:
 		aveTPMDict[sampleKey] = {}
-		print 'calcTPMAveSD sampleID; %s sampleKey: %s' % (sampleID, sampleKey)
+		#print 'calcTPMAveSD sampleID; %s sampleKey: %s' % (sampleID, sampleKey)
 	    aveTPMDict[sampleKey][markerKey] = aveTpm
 
             # collect the stdDevAve of the technical replicates - we will want to
@@ -1113,7 +1113,7 @@ def getBioReplicates(expID):
 	GXD_HTSample_RNASeqSetMember sm
 	where s._experiment_key = %s
 	and s._rnaSeqSet_key = sm._rnaSeqSet_key''' % expKey, 'auto')
-    print 'len bio replicates results: %s' % len(results)
+    #print 'len bio replicates results: %s' % len(results)
 
     # {attributeKey:set(sampleKeys), ...}
     replisetDict = {}
@@ -1234,12 +1234,12 @@ def process():
 		# qnOutputDict is produced from aveTPMDict so don't need
 		# to check it too
 		if sampleKey not in aveTPMDict:
-                    print 'sampleKey: %s for expID: %s not in aveTPMDict' % \
+                    #print 'sampleKey: %s for expID: %s not in aveTPMDict' % \
                         (sampleKey, expID)
 		    #sampleSet.remove(sampleKey) # can't do this get 
 			# RuntimeError: Set changed size during iteration
 			# Create a new set
-		    print 'removing %s from sampleSet' % sampleKey
+		    #print 'removing %s from sampleSet' % sampleKey
                     continue
 		newSet.add(sampleKey)
 		# set this only once, all samples have same number of genes
@@ -1261,7 +1261,7 @@ def process():
 
 	    # if the sample set is empty then we skip this repliset
             if not sampleSet:
-                print 'no samples for this repliset'
+                #print 'no samples for this repliset'
                 continue
 
 	    #print 'process replisetDict sampleSet: %s' % sampleSet
@@ -1281,7 +1281,7 @@ def process():
 	    #       sampleKey2:{markerKey:qnAveTPM, ...}, ...}
 	    qnOutputDict = qnOutput.to_dict()
 
-            print 'process replisetDict key: %s samples: %s numBioReplicates: %s' % (key, sampleSet, len(sampleSet))
+            #print 'process replisetDict key: %s samples: %s numBioReplicates: %s' % (key, sampleSet, len(sampleSet))
 	    
 	    # gather all the QN TPMs for averaging across all samples of a gene
 	    # rowNum = gene, we use number so we can sort the dict keys to 
@@ -1351,14 +1351,14 @@ def process():
 	    # Now matrix is complete
 	    matrixList.append(matrix)
 
-	    print 'Row 1 of matrix:'
-	    print  matrix[0]
+	    #print 'Row 1 of matrix:'
+	    #print  matrix[0]
 
-	    print '\nRow 2 of matrix'
-	    print matrix[1]
+	    #print '\nRow 2 of matrix'
+	    #print matrix[1]
 	    
-	    print '\nRow 3 of matrix'
-            print matrix[2]
+	    #print '\nRow 3 of matrix'
+            #print matrix[2]
 
 	# write out bcp for all replisets of this experiment
 	writeBCP(expID, matrixList)

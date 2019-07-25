@@ -23,8 +23,8 @@ import pandas as pd
 #   is columns
 
 def qn(dataframe, cols):
-    print 'quantileNormalize.py dataframe.to_dict(): %s' % dataframe.to_dict()
-    print 'quantileNormalize.py cols: %s' % cols
+    #print 'quantileNormalize.py dataframe.to_dict(): %s' % dataframe.to_dict()
+    #print 'quantileNormalize.py cols: %s' % cols
 
     df = dataframe.copy().filter(items=cols)
 
