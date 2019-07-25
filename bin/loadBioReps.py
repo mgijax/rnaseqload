@@ -137,16 +137,8 @@ def process():
     results = db.sql('''select distinct  t2._experiment_key, t2._sample_key, t2.age,
 	    t2._organism_key, t2._sex_key, t2._stage_key, t2._emapa_key, t2._genotype_key, 
 	    t4.note 
-	--into temporary table temp5 
 	from temp2 t2 
 	left outer join temp4 t4 on (t2._sample_key = t4._sample_key)''', 'auto')
-    #db.sql('''create index idx5 on temp5(exp_id, _experiment_key, _sample_key, 
-#	age, _organism_key, _sex_key, _stage_key, _genotype_key, _emapa_key, note)''', None)
-#    results = db.sql('''select distinct  _experiment_key, _sample_key, age, 
-#	    _organism_key, _sex_key, _stage_key, _emapa_key, _genotype_key, note
-#	from temp5 
-#	group by _experiment_key, _sample_key, age, _organism_key, _sex_key, 
-#	    _stage_key, _emapa_key, _genotype_key, note''', 'auto')
     print 'len results: %s' % len(results)
     repliconDict = {}
 
