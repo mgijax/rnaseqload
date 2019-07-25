@@ -1235,7 +1235,7 @@ def process():
 		# to check it too
 		if sampleKey not in aveTPMDict:
                     #print 'sampleKey: %s for expID: %s not in aveTPMDict' % \
-                        (sampleKey, expID)
+                    #    (sampleKey, expID)
 		    #sampleSet.remove(sampleKey) # can't do this get 
 			# RuntimeError: Set changed size during iteration
 			# Create a new set
