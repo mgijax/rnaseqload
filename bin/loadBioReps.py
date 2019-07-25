@@ -1,14 +1,20 @@
-#!/opt/python2.7/bin/python
-# above on bhmgiap09lt
-## on bhmgiapp14ld: /usr/bin/python
+#!/opt/python/bin/python
 ##########################################################################
 #
 # Purpose:
-#       
+# Load the GXD_HTSample_RNASeqSet and GXD_HTSample_RNASeqSetMember
+# with the biological replicates       
 #
 # Usage: 
 # Env Vars:
-#	 1. INPUT_FILE_DEFAULT - Connie's file of experiment IDs
+#      1. INPUT_FILE_DEFAULT - Connie's file of experiment IDs
+#      2. LOGDIR
+#      3. INPUTDIR
+#      4. OUTPUTDIR
+#      4. LOG_CUR
+#      5. LOG_DIAG
+#      6. PG_DBUTILS
+#
 # Inputs:
 #	1. INPUTFILE - Connie's file of experiment IDs
 #	2. Configuration (see rnaseqload.config)
@@ -34,7 +40,6 @@ import string
 import db
 import sys 	 # to flush stdout
 import time	 # used for its time.time() function (for timestamps)
-import Set
 
 # paths to input and two output files
 inFilePath= os.getenv('INPUT_FILE_DEFAULT')
@@ -44,8 +49,8 @@ inputDir =  os.getenv('INPUTDIR')
 outputDir = os.getenv('OUTPUTDIR')
 
 # curation and diagnostic logs
-fpCur = open (os.environ['LOG_CUR'], 'a')
-fpDiag = open (os.environ['LOG_DIAG'], 'a')
+fpCur = open (os.getenv('LOG_CUR'), 'a')
+fpDiag = open (os.getenv('LOG_DIAG'), 'a')
 
 # bcp stuff
 bcpCommand = os.getenv('PG_DBUTILS') + '/bin/bcpin.csh'
