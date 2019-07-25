@@ -1,6 +1,4 @@
-#!/opt/python2.7/bin/python
-# above on bhmgiap09lt
-## on bhmgiapp14ld: /usr/bin/python
+#!/opt/python/bin/python
 # python2.7 required for pandas
 ##########################################################################
 #
@@ -72,8 +70,8 @@ outputDir = os.getenv('OUTPUTDIR')
 binDir = '%s/bin' % os.getenv('INSTALLDIR')
 
 # curation and diagnostic logs
-fpCur = open (os.environ['LOG_CUR'], 'a')
-fpDiag = open (os.environ['LOG_DIAG'], 'a')
+fpCur = open (os.getenv('LOG_CUR'), 'a')
+fpDiag = open (os.getenv('LOG_DIAG'), 'a')
 
 # bcp stuff
 rnaSeqBcpFile = os.getenv('RNASEQ_BCP')

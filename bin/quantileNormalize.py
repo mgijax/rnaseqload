@@ -1,6 +1,5 @@
-#!/opt/python2.7/bin/python
-# above on bhmgiap09lt
-## on bhmgiapp14ld: /usr/bin/python
+#!/opt/python/bin/python
+# python 2.7 required for numpy and pandas
 
 import numpy as np
 import pandas as pd
