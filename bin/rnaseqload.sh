@@ -133,12 +133,6 @@ ${RNASEQLOAD}/bin/loadBioReps.py
 STAT=$?
 checkStatus ${STAT} "loadBioReps.py"
 
-#date | tee -a ${LOG_DIAG}
-#echo "Downloading input files" | tee -a ${LOG_DIAG}
-#${RNASEQLOAD}/bin/downloadFiles.py >> ${LOG_DIAG}
-#STAT=$?
-#checkStatus ${STAT} "downloadFiles.py"
-
 date | tee -a ${LOG_DIAG}
 echo "Truncate GXD_HTSample_RNASeq table"  | tee -a ${LOG_DIAG}
 ${MGD_DBSCHEMADIR}/table/GXD_HTSample_RNASeq_truncate.object >> ${LOG_DIAG} 2>&1
