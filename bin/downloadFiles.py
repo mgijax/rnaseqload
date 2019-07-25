@@ -79,8 +79,7 @@ def init():
     fpLog = open (os.getenv('LOG_DOWNLOAD'), 'w')
 
 
-    # remove all aes and eae input files and joined files; 
-    # we don't want to remove Connie's published file, so we do separately
+    # remove all aes and eae input files a
     cmd = 'rm %s/*.aes.*' % rawInputDir
     rc = os.system(cmd)
     if rc != 0:
