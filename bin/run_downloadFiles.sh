@@ -59,19 +59,24 @@ then
     touch ${LOG_DOWNLOAD}
 fi
 
-# check the lastrun file, exit if input file not updated
-LASTRUN_FILE=${INPUTDIR}/lastrun
-if [ -f ${LASTRUN_FILE} ]
+# check the database for changes. If the RNA-Seq MGI_Set is different than 
+# the RNA-Seq experiments loaded, then run the download
+./checkSet.py
+rc=$?
+echo "rc: $rc"
+if [ $rc = 2 ]
 then
-    if test ${LASTRUN_FILE} -nt ${INPUT_FILE_DEFAULT}
-    then
-
-        echo "Input file has not been updated - skipping file download" | tee -a ${LOG_DOWNLOAD}
-        exit 0
-    fi
+    echo "WARNING: RNA Seq Experiment Set is empty - skipping file download" | tee -a ${LOG_DOWNLOAD}
+    exit 0
 fi
 
-# file updated; rm the download_ok file if it exists
+if [ $rc = 0 ]
+then
+    echo "RNA Seq Experiment Set not updated - skipping file download" | tee -a ${LOG_DOWNLOAD}
+    exit 0
+fi
+
+# RNA Seq Experiment set updated; rm the download_ok file if it exists
 echo "DOWNLOAD_OK: ${DOWNLOAD_OK}"
 if [ -f ${DOWNLOAD_OK} ]
 then
@@ -84,10 +89,10 @@ fi
 #
 #####################################
 
-date 
+date  >>  ${LOG_DOWNLOAD}
 
 echo "Downloading input files" 
-${RNASEQLOAD}/bin/downloadFiles.py #>> ${LOG_DOWNLOAD} 2>&1
+${RNASEQLOAD}/bin/downloadFiles.py >> ${LOG_DOWNLOAD} 2>&1
 STAT=$?
 
 #
@@ -98,3 +103,4 @@ then
     touch ${DOWNLOAD_OK}
 fi
 
+date  >>  ${LOG_DOWNLOAD}

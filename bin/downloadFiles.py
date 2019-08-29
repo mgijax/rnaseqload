@@ -7,17 +7,17 @@
 #
 # Usage: downloadFiles.py
 # Env Vars:
-#	 1. INPUT_FILE_DEFAULT - Connie's file of experiment IDs
-#	 2. LOGDIR 
-#	 3. RAW_INPUTDIR - files are downloaded to this directory
-#	 4a. AES_URL_TEMPLATE - url template for Array Express
-#	 4b. AES_LOCAL_FILE_TEMPLATE - full path to the local file
-#	 5a. EAE_URL_TEMPLATE - url template for Expression Atlas
-#	 5b. EAE_LOCAL_FILE_TEMPLATE - full path to the local file
-#	 6. DOWNLOAD_OK - if exists then error-free download
+#	 1. LOGDIR 
+#	 2. RAW_INPUTDIR - files are downloaded to this directory
+#	 3a. AES_URL_TEMPLATE - url template for Array Express
+#	 3b. AES_LOCAL_FILE_TEMPLATE - full path to the local file
+#	 4a. EAE_URL_TEMPLATE - url template for Expression Atlas
+#	 4b. EAE_LOCAL_FILE_TEMPLATE - full path to the local file
+#	 5. DOWNLOAD_OK - if exists then error-free download
 #
 # Inputs:
-#	1. INPUTFILE - Connie's file of experiment IDs
+#	1. Database - the experiments in the 'RNA Seq Load Experiment' Set
+#		and the experiments loaded 
 #	2. Configuration (see rnaseqload.config)
 #
 # Outputs:
@@ -39,12 +39,11 @@ import mgi_utils
 import string
 import runCommand
 import sys
+import db
 
 print '%s' % mgi_utils.date()
 
 # paths to input and two output files
-inFilePath= os.getenv('INPUT_FILE_DEFAULT')
-fpInfile = open(inFilePath, 'r')
 logDir =  os.getenv('LOGDIR')
 rawInputDir =  os.getenv('RAW_INPUTDIR')
 
@@ -73,7 +72,8 @@ failedAESList = []
 failedEAEList = []
 
 def init():
-    global fpLog
+    global fpLog, rnaSeqSetResults
+
     # curation log
     fpLog = open (os.getenv('LOG_DOWNLOAD'), 'w')
 
@@ -90,6 +90,16 @@ def init():
     if rc != 0:
 	msg = 'rm cmd failed: %s%s' % (cmd, CRT)
 	fpLog.write(msg)
+
+    # create the result set of ids to load
+    rnaSeqSetResults = db.sql('''select a.accid
+    from ACC_Accession a, MGI_Set s, MGI_SetMember sm
+    where s.name = 'RNASeq Load Experiments'
+    and s._Set_key = sm._Set_key
+    and sm._Object_key = a._Object_key
+    and a._MGIType_key = 42 --GXD_HTExperiment
+    and a._LogicalDB_key = 189
+    and a.preferred = 1''', 'auto')
 
     return 0
 
@@ -109,7 +119,6 @@ def downloadAES(expID):
     stdout, stderr, statusCode = runCommand.runCommand("curl -C - --retry 5 --retry-delay 5 --retry-max-time 0 --max-time 20  '%s'" % aesURL)
     if statusCode != 0:
         msg = '%s statusCode: %s stderr: %s%s' % (aesURL, statusCode, stderr, CRT)
-	print msg
         fpLog.write(msg)
 	return statusCode
     else:
@@ -210,9 +219,10 @@ def downloadFiles():
     totalCt = 0
     successCt = 0
     errorCt = 0
-    for line in fpInfile.readlines():
-	totalCt += 1
-	expID = string.strip(string.split(line)[0])
+
+    for r in rnaSeqSetResults:
+        totalCt += 1
+        expID = string.strip(r['accid'])
 
 	fpLog.write('%sDownload files for experiment ID: %s%s' % (CRT, expID, CRT))
 
@@ -267,15 +277,14 @@ if rc > 0:
 	fpLog.write('AES files not downloaded:%s' % CRT)
 	for e in failedAESList:
 	    fpLog.write('%s%s' % (e, CRT))
-	fpLog.write('Total: %s' % len(failedAESList))
+	fpLog.write('Total: %s%s' % (len(failedAESList), CRT))
     if failedEAEList:
 	fpLog.write('EAE files not downloaded:%s' % CRT)
         for e in failedEAEList:
             fpLog.write('%s%s' % (e, CRT))
-	fpLog.write('Total: %s' % len(failedEAEList))
+	fpLog.write('Total: %s%s' % (len(failedEAEList), CRT))
 
 fpLog.close()
-fpInfile.close()
 sys.exit(rc)
 
 print '%s' % mgi_utils.date()

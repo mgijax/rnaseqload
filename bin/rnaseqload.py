@@ -2,31 +2,39 @@
 # python2.7 required for pandas
 ##########################################################################
 #
-# Purpose:
-#       
+# Purpose: For each experiment ID in the 'RNA Seq Load Experiment' MGI_Set
+#	Create intermediate files for EAE and AES files (pulls out just the data 
+#	    needed)
+#	Join the two sets of intermediate files
+#	Determine biological replicates
+#	Create a pandas DataFrame from the joined file and the biological
+#	    replicate info
+#	Run Quantile Normalization
+#	Create bcp files
+#	Execute bcp
+#  	Write QC reports
 #
 # Usage: rnaseqload.py
 # Env Vars:
-#	 1. INPUT_FILE_DEFAULT - Connie's file of experiment IDs
-#	 2. LOGDIR 
-#	 3a. INPUTDIR - intermediate files generated from RAW input files
-#	 3b. RAW_INPUTDIR - files downloaded from source
-#	 4. OUTPUTDIR - rnaseq bcp files
-#	 5. INSTALLDIR - for path to run_join script	 
-#	 6. LOG_FUR - curation log
-#	 7. LOG_DIAG - diagnostic log
-#	 8a. RNASEQ_BCP - bcp filename suffix for rnaseq table - 
+#	 1. LOGDIR 
+#	 2a. INPUTDIR - intermediate files generated from RAW input files
+#	 2b. RAW_INPUTDIR - files downloaded from source
+#	 3. OUTPUTDIR - rnaseq bcp files
+#	 4. INSTALLDIR - for path to run_join script	 
+#	 5. LOG_CUR - curation log
+#	 6. LOG_DIAG - diagnostic log
+#	 7a. RNASEQ_BCP - bcp filename suffix for rnaseq table - 
 #			we will append expID
-#	 8b. COMBINED_BCP - bcp filename suffix for combined table - 
+#	 7b. COMBINED_BCP - bcp filename suffix for combined table - 
 #			we will append expID
-#	 9. PG_DBUTILS - for path to bcpin.csh script
-#	 10. AES_LOCAL_FILE_TEMPLATE - path and template for downloaded aes files
-#	 11. AES_PP_FILE_TEMPLATE - preprocessed to just runID, sampleID
-#	 12. EAE_LOCAL_FILE_TEMPLATE - path and template for downloaded eae files
-#	 13. EAE_PP_FILE_TEMPLATE - preprocessed to just geneID, runID, TPM
-#	 14. JOINED_PP_FILE_TEMPLATE - path & template for joined aes/eae files
+#	 8. PG_DBUTILS - for path to bcpin.csh script
+#	 9. AES_LOCAL_FILE_TEMPLATE - path and template for downloaded aes files
+#	 10. AES_PP_FILE_TEMPLATE - preprocessed to just runID, sampleID
+#	 11. EAE_LOCAL_FILE_TEMPLATE - path and template for downloaded eae files
+#	 12. EAE_PP_FILE_TEMPLATE - preprocessed to just geneID, runID, TPM
+#	 13. JOINED_PP_FILE_TEMPLATE - path & template for joined aes/eae files
 # Inputs:
-#	1. INPUTFILE - Connie's file of experiment IDs
+#	1. Database: RNA Seq Experiment set
 #	2. ArrayExpress files by experiment
 #	3. Expression Atlas files by experiment
 #	4. Configuration (see rnaseqload.config)
@@ -61,8 +69,6 @@ import pandas as pd	# used for QN
 import quantileNormalize # module within this product
 
 # paths to input and two output files
-inFilePath= os.getenv('INPUT_FILE_DEFAULT')
-fpInfile = open(inFilePath, 'r')
 logDir =  os.getenv('LOGDIR')
 inputDir =  os.getenv('INPUTDIR')
 rawInputDir = os.getenv('RAW_INPUTDIR')
@@ -223,7 +229,7 @@ def init():
     global experimentInDbDict, sampleInDbList, JDOSampleSet
     global relevantSampleSet, ensemblMarkerSet, ensemblSequenceSet
     global multiEnsemblMarkerDict, multiMarkerEnsemblDict, symbolToMultiEnsIdDict
-    global rnaSeqKey, combinedKey, ensemblMarkerDict
+    global rnaSeqKey, combinedKey, ensemblMarkerDict, rnaSeqSetResults
 
     db.useOneConnection(1)
 
@@ -322,6 +328,16 @@ def init():
         and preferred = 1 ''', 'auto')
     for r in results:
         ensemblSequenceSet.add(r['accid'])
+
+    # create the result set of ids to load
+    rnaSeqSetResults = db.sql('''select a.accid
+    from ACC_Accession a, MGI_Set s, MGI_SetMember sm
+    where s.name = 'RNASeq Load Experiments'
+    and s._Set_key = sm._Set_key
+    and sm._Object_key = a._Object_key
+    and a._MGIType_key = 42 --GXD_HTExperiment
+    and a._LogicalDB_key = 189
+    and a.preferred = 1''', 'auto')
 
     return 0
 
@@ -1141,8 +1157,8 @@ def getBioReplicates(expID):
 # end getBioReplicates ------------------------------------------------------------------
 
 #
-# Purpose: main processing function. Reads the experiment file and processes experiments
-#	one by one. Does some QC
+# Purpose: main processing function. Gets the list of experiment IDs from the
+#	'RNA Seq Load Experiment' set and processes experiments one by one. Does some QC
 # Returns: 0 if successful; handles return codes from all functions it calls 
 # Assumes: Nothing
 # Effects:
@@ -1157,10 +1173,11 @@ def process():
     # write the header to the student report up front
     fpStudentRpt.write('expID%sgeneID%ssampleID%stechRepl%saveTpm%sstdDev%sstdDevAve%stechRepCt%s' % (TAB, TAB, TAB, TAB, TAB, TAB, TAB, CRT))
 
-    # for each expID in Connie's file
     #
-    for line in fpInfile.readlines():
-        expID = string.strip(string.split(line)[0])
+    # for each expID in  the 'RNA Seq Load Experiment' MGI_Set:
+    #
+    for r in rnaSeqSetResults:
+        expID = string.strip(r['accid'])
 
 	# load the list of sampleIDS and their keys from the database 
 	# for current experiment there can be > 1
@@ -1377,7 +1394,6 @@ def process():
 def closefiles():
     fpCur.close()
     fpDiag.close()
-    fpInfile.close()
     fpStudentRpt.close()
     db.useOneConnection(0)
 

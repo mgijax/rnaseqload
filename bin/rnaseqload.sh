@@ -3,7 +3,9 @@
 #  rnaseqload.sh
 ###########################################################################
 #
-#  Purpose:
+#  Purpose: Wrapper that determines if the load needs to run, then runs
+#           the load. This script is responsible for truncating the RNA Seq
+#	    tables and dropping/recreating indexes
 #
   Usage=rnaseqload.sh
 #
@@ -33,7 +35,7 @@
 #
 # History:
 #
-# sc	11/30/2015 - created
+# sc	05/23/2019 - created
 #
 
 cd `dirname $0`
@@ -88,50 +90,35 @@ preload
 cleanDir ${OUTPUTDIR}
 
 #
-# There should be a "lastrun" file in the input directory that was created
-# the last time the load was run for this input file. If this file exists
-# and is more recent than the input file, the load does not need to be run.
+# this script checks to see if the load needs to be run
 #
-echo "${INPUT_FILE_DEFAULT}"
-
-LASTRUN_FILE=${INPUTDIR}/lastrun
-echo "${LASTRUN_FILE}"
-
-if [ -f ${LASTRUN_FILE} ]
+./checkSet.py
+STAT=$?
+echo "STAT: ${STAT}"
+if [ ${STAT} = 2 ]
 then
-    echo "last run is a file"
-    if test ${LASTRUN_FILE} -nt ${INPUT_FILE_DEFAULT}
-    then
-	echo "Input file has not been updated - skipping load" | tee -a ${LOG_PROC}
-	STAT=0
-	checkStatus ${STAT} 'Checking input and download_ok files'
-	shutDown
-	exit 0
-    else 
-	if [ -f ${DOWNLOAD_OK} ]
-        then
-            echo "Download is OK, running load"
-	else
-	    echo "Input file has been updated but files not successfully downloaded - skipping load" | tee -a ${LOG_PROC}
-	    STAT=0
-	    checkStatus ${STAT} 'Checking input and download_ok files'
-	    shutDown
-	    exit 0
+    checkStatus ${STAT} "WARNING: RNA Seq Experiment Set is empty - skipping file download" 
+    shutDown
+    exit 0
+fi
 
-	fi
-    fi
+if [ ${STAT} = 0 ]
+then
+    checkStatus ${STAT} "RNA Seq Experiment Set not updated - skipping file download" 
+    shutDown
+    exit 0
+fi
+
+if [ -f ${DOWNLOAD_OK} ]
+then
+    echo "Download is OK, running load"
 else
-    if [ -f ${DOWNLOAD_OK} ]
-    then
-	echo "Download is OK, running load"
-    else
-	echo "Input file has been updated but files not successfully downloaded - skipping load" | tee -a ${LOG_PROC}
-	STAT=0
-	checkStatus ${STAT} 'Checking input and download_ok files'
-	shutDown
-	exit 0
+    echo "RNA Seq Experiment Set has been updated but files not successfully downloaded - skipping load" | tee -a ${LOG_PROC}
+    STAT=0
+    checkStatus ${STAT} 'Checking MGI_Set and download_ok file'
+    shutDown
+    exit 0
 
-    fi
 fi
 
 # This cascades to GXD_HTSample_RNASeqSetMember
@@ -179,15 +166,4 @@ date | tee -a ${LOG_DIAG}
 echo "Grant Database Permissions" | tee -a ${LOG_DIAG}
 ${PG_DBUTILS}/bin/grantPublicPerms.csh ${PG_DBSERVER} ${PG_DBNAME} >> ${LOG_DIAG} 2>&1
 
-#
-# Touch the "lastrun" file to note when the load was run.
-#
-if [ ${STAT} = 0 ]
-then
-    touch ${LASTRUN_FILE}
-fi
-
-#
-# run postload cleanup and email logs
-#
 shutDown

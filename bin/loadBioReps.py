@@ -42,8 +42,6 @@ import sys 	 # to flush stdout
 import time	 # used for its time.time() function (for timestamps)
 
 # paths to input and two output files
-inFilePath= os.getenv('INPUT_FILE_DEFAULT')
-fpInfile = open(inFilePath, 'r')
 logDir =  os.getenv('LOGDIR')
 inputDir =  os.getenv('INPUTDIR')
 outputDir = os.getenv('OUTPUTDIR')
@@ -82,21 +80,14 @@ setKey = None
 memberKey = None
 
 def init():
-    global setKey, memberKey, fpSet, fpMember, expIDString
+    global setKey, memberKey, fpSet, fpMember
 
     fpSet = open('%s/%s' % (outputDir, setBcp), 'w')
     fpMember =  open('%s/%s' % (outputDir, memberBcp), 'w')
 
-    expIDList = []
-    # for each expID in Connie's file
-    #
-    for line in fpInfile.readlines():
-	expIDList.append("'%s'" % string.strip(string.split(line)[0]))
-
-    expIDString = string.join(expIDList, ',')
-
     db.useOneConnection(1)
 
+    # Don't need to do this as drop and reload, keep for if we decide to do updates
     #results = db.sql('''select nextval('gxd_htsample_rnaseqset_seq') as maxKey ''', 'auto')
     #setKey = results[0]['maxKey']
     #print 'setKey: %s' % setKey
@@ -116,12 +107,15 @@ def init():
 def process():
     global setKey, memberKey
 
-    db.sql('''select _object_key as _experiment_key, accid as exp_id 
+    db.sql('''select sm._object_key as _experiment_key, a.accid as exp_id 
 	into temporary table temp1
-        from ACC_Accession
-	where _MGIType_key = 42
-	and preferred = 1
-	and accid in (%s)''' % expIDString, None)
+        from ACC_Accession a,  MGI_Set s, MGI_SetMember sm
+	where s.name = 'RNASeq Load Experiments'
+    and s._Set_key = sm._Set_key
+    and sm._Object_key = a._Object_key
+    and a._MGIType_key = 42 --GXD_HTExperiment
+    and a._LogicalDB_key = 189
+    and a.preferred = 1''', None)
     db.sql('''create index idx1 on temp1 (_experiment_key)''', None)
     db.sql('''select t1.*, hts._sample_key, 
 	    hts.name, hts.age, hts._organism_key, hts._sex_key, hts._stage_key, 
