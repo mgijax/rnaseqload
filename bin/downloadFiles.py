@@ -116,7 +116,7 @@ def downloadAES(expID):
     #  Use "-C -" to tell curl to automatically find out  where/how  to
     #      resume  the  transfer. It then uses the given output/input files
     #      to figure that out. 
-    stdout, stderr, statusCode = runCommand.runCommand("curl -C - --retry 5 --retry-delay 5 --retry-max-time 0 --max-time 20  '%s'" % aesURL)
+    stdout, stderr, statusCode = runCommand.runCommand("curl -C - --retry 5 --retry-delay 5 --retry-max-time 0 --max-time 40  '%s'" % aesURL)
     if statusCode != 0:
         msg = '%s statusCode: %s stderr: %s%s' % (aesURL, statusCode, stderr, CRT)
         fpLog.write(msg)
@@ -134,8 +134,8 @@ def downloadEAE(expID):
     fpEae = open(eaeFile, 'w')
     eaeURL = eaeTemplate % expID
     msg = ''
-    #stdout, stderr, statusCode = runCommand.runCommand("curl --compressed --max-time 20 --retry 5 --retry-delay 5 --retry-max-time 0 '%s'" % eaeURL)
-    stdout, stderr, statusCode = runCommand.runCommand("curl -C - --max-time 20 --retry 5 --retry-delay 5 --retry-max-time 0 '%s'" % eaeURL)
+    #stdout, stderr, statusCode = runCommand.runCommand("curl --compressed --max-time 40 --retry 5 --retry-delay 5 --retry-max-time 0 '%s'" % eaeURL)
+    stdout, stderr, statusCode = runCommand.runCommand("curl -C - --max-time 40 --retry 5 --retry-delay 5 --retry-max-time 0 '%s'" % eaeURL)
     #print '%s%s eae statusCode: %s%s' % (CRT, expID, statusCode, CRT)
     #print 'eae stderr: %s%s' % (stderr, CRT)
     if statusCode != 0:
@@ -190,7 +190,7 @@ def checkEAEFile(file):
         intermediateFile = '%s.int' % file
 
 	fpLog.write('FINDING proper part of the file\n')
-	cmd = "sed -n '%sq;%s,%sp' %s > %s" % (lastLineNum, startLineNum, lastLineNum, eaeFile, intermediateFile)
+	cmd = "sed -n '%sq;%s,%sp' %s > %s" % (lastLineNum, startLineNum, lastLineNum, file, intermediateFile)
 	fpLog.write(cmd + '\n')
 	stdout, stderr, statusCode = runCommand.runCommand(cmd)
 	msg = '%sstatusCode: %s stderr: %s stdout: %s%s' % (CRT, statusCode, stderr, stdout, CRT)
@@ -250,9 +250,12 @@ def downloadFiles():
 	    fpLog.write('%s skipping EAE file for %s with curl return code 78 RETR response: 550%s' % (CRT, expID, CRT))
 	    failedEAEList.append(expID)
 	    continue
-	while e_rc != 0 and e_rc != 9 and e_rc != 78:
-	    fpLog.write('\ntry EAE again\n')
-	    e_rc = downloadEAE(expID)
+	elif e_rc != 0:
+	    errorCt += 1
+	    fpLog.write('%s skipping EAE file for %s with curl return code %s %s' % (CRT, expID, e_rc, CRT))
+            failedEAEList.append(expID)
+            continue
+
 	successCt += 1
 
     if errorCt > 0:
