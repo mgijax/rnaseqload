@@ -67,7 +67,7 @@ downloadOK = os.getenv('DOWNLOAD_OK')
 # number of files unable to be downloaded
 errorCt = 0
 
-# list of files that failed to download by type
+# list of files that did not download by type
 failedAESList = []
 failedEAEList = []
 
@@ -82,13 +82,13 @@ def init():
     cmd = 'rm %s/*.aes.*' % rawInputDir
     rc = os.system(cmd)
     if rc != 0:
-	msg = 'rm cmd failed: %s%s' % (cmd, CRT)
+	msg = 'rm cmd did not succeed: %s%s' % (cmd, CRT)
 	fpLog.write(msg)
 
     cmd = 'rm %s/*.eae.*' % rawInputDir
     rc = os.system(cmd)
     if rc != 0:
-	msg = 'rm cmd failed: %s%s' % (cmd, CRT)
+	msg = 'rm cmd did not succeed: %s%s' % (cmd, CRT)
 	fpLog.write(msg)
 
     # create the result set of ids to load
@@ -275,7 +275,7 @@ fpLog.write('%sTotal experiments in input file: %s%s' % (CRT, totalCt, CRT))
 fpLog.write('%sTotal files unable to be downloaded: %s%s' % (CRT, errorCt, CRT))
 fpLog.write('%sTotal files successfully downloaded:  %s%s' % (CRT, successCt, CRT))
 if rc > 0:
-    fpLog.write("%sDownload failed on one or more experiments%s" % (CRT, CRT))
+    fpLog.write("%sDownload did not succeed on one or more experiments%s" % (CRT, CRT))
     if failedAESList:
 	fpLog.write('AES files not downloaded:%s' % CRT)
 	for e in failedAESList:

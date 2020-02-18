@@ -816,7 +816,7 @@ def createJoinedFile(joinedFile):
     cmd = "%s/run_join %s %s %s" % (binDir, currentEaePPFile, currentAesPPFile, joinedFile)
     rc = os.system(cmd)
     if rc != 0:
-	msg = 'join cmd failed: %s%s' % (cmd, CRT)
+	msg = 'join cmd did not succeed: %s%s' % (cmd, CRT)
 	fpDiag.write(msg)
 
     elapsed_time = time.time() - start_time
@@ -1196,7 +1196,7 @@ def process():
         sys.stdout.flush()
         rc = ppAESFile(expID)
         if rc != 0:
-            print '''preprocessing AES file returned rc%s, 
+            print '''preprocessing AES file returned rc %s, 
 			skipping file for %s''' % (rc, expID)
             continue
 
@@ -1205,7 +1205,7 @@ def process():
         sys.stdout.flush()
         rc = ppEAEFile(expID)
         if rc != 0:
-            print '''preprocessing EAE file failed with rc %s, 
+            print '''preprocessing EAE file returned rc %s, 
 		    skipping file for %s''' % (rc, expID)
             continue
 
