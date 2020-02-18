@@ -1,7 +1,9 @@
+TAG: rnaseqload-6-0-15-12
 TAG: rnaseqload-6-0-15-11
 DATE: 02/18/2020
 STAFF: sc
 CHANGES: removed LOG from run_downloadFiles.sh 
+    rm references to the word 'fail' from logs
 
 TAG: rnaseqload-6-0-15-10
 DATE: 01/09/2020
