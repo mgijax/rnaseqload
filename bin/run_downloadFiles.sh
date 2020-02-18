@@ -36,8 +36,6 @@
 #
 
 cd `dirname $0`
-LOG=`pwd`/run_downloadFiles.log
-rm -rf ${LOG}
 
 CONFIG_LOAD=../rnaseqload.config
 
@@ -63,7 +61,7 @@ fi
 # the RNA-Seq experiments loaded, then run the download
 ./checkSet.py
 rc=$?
-echo "rc: $rc"
+#echo "rc: $rc"
 if [ $rc = 2 ]
 then
     echo "WARNING: RNA Seq Experiment Set is empty - skipping file download" | tee -a ${LOG_DOWNLOAD}
@@ -77,7 +75,7 @@ then
 fi
 
 # RNA Seq Experiment set updated; rm the download_ok file if it exists
-echo "DOWNLOAD_OK: ${DOWNLOAD_OK}"
+#echo "DOWNLOAD_OK: ${DOWNLOAD_OK}"
 if [ -f ${DOWNLOAD_OK} ]
 then
 	rm ${DOWNLOAD_OK}

@@ -1,3 +1,8 @@
+TAG: rnaseqload-6-0-15-11
+DATE: 02/18/2020
+STAFF: sc
+CHANGES: removed LOG from run_downloadFiles.sh 
+
 TAG: rnaseqload-6-0-15-10
 DATE: 01/09/2020
 STAFF: sc
