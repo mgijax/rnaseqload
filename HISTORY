@@ -1,3 +1,17 @@
+TAG: rnaseqload-6-0-15-13
+DATE: 02/26/2020
+STAFF: sc
+CHANGES: 
+1) updated run_join to create separate sorted files,
+   run the join, then delete the sorted files.
+2) added cleanDir INPUTDIR to clean out the old files as
+     when experiments changes old intermediate files 
+     were hanging around
+3) Added: bin/test_rnaseqload.py
+       bin/test_rnaseqload.sh
+       bin/test_run_downloadFiles.sh
+   These can be removed after testing
+
 TAG: rnaseqload-6-0-15-12
 TAG: rnaseqload-6-0-15-11
 DATE: 02/18/2020
