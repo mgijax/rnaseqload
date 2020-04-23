@@ -27,7 +27,9 @@ def qn(dataframe, cols):
     df = dataframe.copy().filter(items=cols)
 
     # columns from the original dataframe not specified in cols
-    non_numeric = dataframe.filter(items=list(filter(lambda col: col not in cols, list(dataframe))))
+    # non_numeric = dataframe.filter(items=list(filter(lambda col: col not in cols, list(dataframe))))
+    # 2to3 replaced above with below
+    non_numeric = dataframe.filter(items=list([col for col in list(dataframe) if col not in cols]))
 
     # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.stack.html
     # https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.groupby.html

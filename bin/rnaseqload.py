@@ -250,13 +250,13 @@ def init():
         from GXD_HTSample
         where _Genotype_key = 90560''', 'auto')
     for r in results:
-        JDOSampleSet.add(string.strip(r['name']))
+        JDOSampleSet.add(str.strip(r['name']))
 
     results =  db.sql('''select name
         from GXD_HTSample
         where _Relevance_key = 20475450''', 'auto')
     for r in results:
-        relevantSampleSet.add(string.strip(r['name']))
+        relevantSampleSet.add(str.strip(r['name']))
 
     results = db.sql('''select accid, _Object_key
         from ACC_Accession
@@ -363,7 +363,7 @@ def loadSampleInDbDict(expID):
         and a.preferred = 1
         and a.accID = '%s' ''' % expID, 'auto')
     for r in results:
-        sampleID = string.strip(r['name'])
+        sampleID = str.strip(r['name'])
         if sampleID not in sampleInDbDict:
             sampleInDbDict[sampleID] = []
         sampleInDbDict[sampleID].append(r['_Sample_key'])
@@ -484,7 +484,7 @@ def ppAESFile(expID):
     
     # process the header line
     #
-    headerList = string.split(fpAes.readline(), TAB)
+    headerList = str.split(fpAes.readline(), TAB)
     if headerList == ['']: # means file is empty
         return 2
     # find the idx of the columns we want - they are not ordered
@@ -493,12 +493,12 @@ def ppAESFile(expID):
     enaSampleIDX = None
     runIDX = None
     for idx, colName in enumerate(headerList):
-        colName = string.strip(colName)
-        if string.find(colName, 'Source Name') != -1:
+        colName = str.strip(colName)
+        if str.find(colName, 'Source Name') != -1:
             sourceSampleIDX = idx
-        elif string.find(colName, 'ENA_SAMPLE') != -1:
+        elif str.find(colName, 'ENA_SAMPLE') != -1:
             enaSampleIDX = idx
-        elif string.find(colName, 'ENA_RUN') != -1:
+        elif str.find(colName, 'ENA_RUN') != -1:
             runIDX = idx
     
     # now iterate through each gene/run/tpm in the file
@@ -506,7 +506,7 @@ def ppAESFile(expID):
     for line in fpAes.readlines():
         if line == '\n':
             continue 
-        tokens = string.split(line, TAB)
+        tokens = str.split(line, TAB)
         sampleID = '' # The sampleID we load to the lookup
         ssID = '' # ID from 'Source Name' column
         enaID = '' # ID from ENA_SAMPLE column 
@@ -520,10 +520,10 @@ def ppAESFile(expID):
         # get the sampleID from one or both of the fields
         #
         if sourceSampleIDX != None:
-            ssID = string.strip(tokens[sourceSampleIDX])
+            ssID = str.strip(tokens[sourceSampleIDX])
 
         if enaSampleIDX != None:
-            enaID = string.strip(tokens[enaSampleIDX])
+            enaID = str.strip(tokens[enaSampleIDX])
 
         # report and return if we did not find either sample column
         #
@@ -549,7 +549,7 @@ def ppAESFile(expID):
             ambiguousSampleInDbList.append('Exp: %s Sample ID: %s' % (expID, sampleID))
             return 5
         else:
-            runID = string.strip(tokens[runIDX])
+            runID = str.strip(tokens[runIDX])
             aesRunIdSet.add(runID)
             line = '%s%s%s%s' % (runID, TAB, sampleID, CRT)
             if line not in ppList:
@@ -722,7 +722,7 @@ def ppEAEFile(expID):
     # get the runIDs from the header, we will use the index of te`e tpms
     # in each gene/tpm line to get the runID
     #
-    headerList = string.split(fpEae.readline(), TAB)
+    headerList = str.split(fpEae.readline(), TAB)
     #print 'headerList: %s' % headerList
     if headerList == ['']: # means file is empty
         return 2
@@ -733,12 +733,12 @@ def ppEAEFile(expID):
     # process each gene and it's sample tpm's
     #
     for line in fpEae.readlines():
-        tokens = string.split(line, TAB)
-        geneID = string.strip(tokens[0])
+        tokens = str.split(line, TAB)
+        geneID = str.strip(tokens[0])
         
         # multi marker per ensembl
         if geneID in multiMarkerEnsemblDict:
-            symbols = string.join(multiMarkerEnsemblDict[geneID], ', ')
+            symbols = ', '.join(multiMarkerEnsemblDict[geneID])
             msg = '%s: %s' % (geneID, symbols)
             if msg not in multiMarkerEnsemblList:
                 multiMarkerEnsemblList.append(msg)
@@ -748,7 +748,7 @@ def ppEAEFile(expID):
         elif geneID in multiEnsemblMarkerDict:
             symbol = multiEnsemblMarkerDict[geneID]
             #if len(symbolToMultiEnsIdDict[symbol]) > 1:
-            ensIDs = string.join(symbolToMultiEnsIdDict[symbol], ', ')
+            ensIDs = ', '.join(symbolToMultiEnsIdDict[symbol])
             msg = '%s: %s' % (symbol, ensIDs)
             if msg not in multiEnsemblMarkerList:
                 multiEnsemblMarkerList.append(msg)
@@ -774,13 +774,13 @@ def ppEAEFile(expID):
         for idx, tpm in enumerate(tpmList):
             # get the runID that goes with this tpm value
             try:
-                runID = string.strip(eaeRunIdList[idx])
+                runID = str.strip(eaeRunIdList[idx])
             except:
                 # this shouldn't happen once we finish the file download script
-                print 'Multi header record. idx: %s tpm: %s' % (idx, tpm)
+                print('Multi header record. idx: %s tpm: %s' % (idx, tpm))
                 return 3
             eaeRunIdSet.add(runID)
-            tpm = string.strip(tpm)
+            tpm = str.strip(tpm)
 
             # report blank tpm values and set them to 0.0
             if tpm == '':
@@ -792,7 +792,7 @@ def ppEAEFile(expID):
 
     fpCurrentPP.close();
     elapsed_time = time.time() - start_time
-    print '%sTIME: Processing Runs from the EAE file %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT) 
+    print('%sTIME: Processing Runs from the EAE file %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)) 
 
     return 0
 
@@ -818,7 +818,7 @@ def createJoinedFile(joinedFile):
         fpDiag.write(msg)
 
     elapsed_time = time.time() - start_time
-    print '%sTIME: Creating the join file %s %s%s' % (CRT, joinedFile, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
+    print('%sTIME: Creating the join file %s %s%s' % (CRT, joinedFile, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT))
     sys.stdout.flush()
 
     return 0
@@ -848,7 +848,7 @@ def processJoinedFile(expID, joinedFile):
     fpJoined = open(joinedFile, 'r')
     line = fpJoined.readline()
     while line:
-        tokens = string.split(line, TAB)
+        tokens = str.split(line, TAB)
         geneID = tokens[0]
         runID = tokens[1]
         tpm = tokens[2]
@@ -856,7 +856,7 @@ def processJoinedFile(expID, joinedFile):
 
         # some join files have no column 4, do a try/except
         try:
-            sampleID = string.strip(tokens[3])
+            sampleID = str.strip(tokens[3])
         except:
             sampleID = ''
 
@@ -893,7 +893,7 @@ def processJoinedFile(expID, joinedFile):
         line = fpJoined.readline()
 
     elapsed_time = time.time() - start_time
-    print '%sTIME: Processing the join file %s %s%s' % (CRT, joinedFile, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
+    print('%sTIME: Processing the join file %s %s%s' % (CRT, joinedFile, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT))
 
     return geneDict
 
@@ -968,7 +968,7 @@ def writeBCP(expID, matrixList):
             # to get samples we iterate over rowLen-3 starting with i+1 
             for i in range(rowLen-3):
                 #print 'next sample: %s' % row[i+1]
-                sampleKey, aveTpm, qnTpm = string.split(row[i+1], PIPE)
+                sampleKey, aveTpm, qnTpm = str.split(row[i+1], PIPE)
                 line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (rnaSeqKey, TAB, sampleKey, TAB, combinedKey, TAB, markerKey, TAB, aveTpm, TAB, qnTpm, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT)
                 #print 'rnaseq: %s' % line
                 fpRnaSeqBcp.write(line)
@@ -994,7 +994,7 @@ def writeBCP(expID, matrixList):
 
     elapsed_time = time.time() - start_time
     elapsed_time = time.time() - start_time
-    print '%sTIME: Creating bcp files %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
+    print('%sTIME: Creating bcp files %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT))
 
     return 0
 
@@ -1056,7 +1056,7 @@ def calcTPMAveSD(expID, geneDict):
             # tpms and the stdDevAve (stdDev/aveTpm) as well as the count of
             # technical replicates (number of runs per sample)
             #
-            fpStudentRpt.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, geneID, TAB, sampleID, TAB, string.join(map(str, tpmList), ', '),  TAB, aveTpm, TAB, stdDev, TAB, stdDevAve, TAB, techReplCt, CRT))
+            fpStudentRpt.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (expID, TAB, geneID, TAB, sampleID, TAB, ', '.join(list(map(str, tpmList))),  TAB, aveTpm, TAB, stdDev, TAB, stdDevAve, TAB, techReplCt, CRT))
 
     # Now iterate through the sampleAveSDDict and calculate the average of
     # each aveSD. Report any above a threshold weeding out dupes.
@@ -1064,7 +1064,7 @@ def calcTPMAveSD(expID, geneDict):
     keyList = sorted(sampleAveSDDict.keys())
 
     for key in keyList:
-        eID, sampleID, sampleKey = string.split(key, PIPE)
+        eID, sampleID, sampleKey = str.split(key, PIPE)
         aveAveSdAllGenes = calcAve(sampleAveSDDict[key], 2)
 
         # if average of the average SD across genes in > stdDevCutoff (config)
@@ -1077,7 +1077,7 @@ def calcTPMAveSD(expID, geneDict):
                 highAveStdDevList.append(reportLine)
 
     elapsed_time = time.time() - start_time
-    print '%sTIME: calcTPMAveSD %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
+    print('%sTIME: calcTPMAveSD %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT))
 
     return  aveTPMDict
 
@@ -1175,7 +1175,7 @@ def process():
     # for each expID in  the 'RNA Seq Load Experiment' MGI_Set:
     #
     for r in rnaSeqSetResults:
-        expID = string.strip(r['accid'])
+        expID = str.strip(r['accid'])
 
         # load the list of sampleIDS and their keys from the database 
         # for current experiment there can be > 1
@@ -1194,8 +1194,8 @@ def process():
         sys.stdout.flush()
         rc = ppAESFile(expID)
         if rc != 0:
-            print '''preprocessing AES file returned rc %s, 
-                        skipping file for %s''' % (rc, expID)
+            print('''preprocessing AES file returned rc %s, 
+                        skipping file for %s''' % (rc, expID))
             continue
 
         # preprocess the eae file for this expID (gene, run, tpm)
@@ -1203,15 +1203,15 @@ def process():
         sys.stdout.flush()
         rc = ppEAEFile(expID)
         if rc != 0:
-            print '''preprocessing EAE file returned rc %s, 
-                    skipping file for %s''' % (rc, expID)
+            print('''preprocessing EAE file returned rc %s, 
+                    skipping file for %s''' % (rc, expID))
             continue
 
         # check for AES runIDs not in the EAE file
         #
         diff = aesRunIdSet.difference(eaeRunIdSet)
         if len(diff):
-            diffString = string.join(diff, ', ')
+            diffString = ', '.join(diff)
             runIdNotInEAList.append('%s: %s' % (expID, diffString))
 
         # Create the joined file from the two preprocessed (pp) files
@@ -1290,7 +1290,7 @@ def process():
                 replisetAveTpmDict[sampleKey] = aveTPMDict[sampleKey]
             # Now QN them
             qnInput =  pd.DataFrame(replisetAveTpmDict)
-            qnOutput = quantileNormalize.qn(qnInput, replisetAveTpmDict.keys())
+            qnOutput = quantileNormalize.qn(qnInput, list(replisetAveTpmDict.keys()))
 
             # {sampleKey:{markerKey:qnAveTPM, ...},
             #       sampleKey2:{markerKey:qnAveTPM, ...}, ...}
@@ -1311,7 +1311,7 @@ def process():
             numColumns = 1 + totalSamples + 2
 
             # now our sampleSet, numColumns, numRows are set and correct
-            #  create an empty matrix with string data type
+            #  create an empty matrix with str.data type
             matrix = np.empty((numRows, numColumns), dtype='object')
 
             # now we pull everything into a 2-D matrix from aveTPMDict 
@@ -1406,11 +1406,11 @@ def closefiles():
 # -------------------------------------------------------------
 START_TIME = time.time()
 
-print 'Start time: %s' %  mgi_utils.date()
+print('Start time: %s' %  mgi_utils.date())
 sys.stdout.flush()
 init()
 elapsed_time = time.time() - START_TIME
-print 'TIME to run init function %s' %  time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+print('TIME to run init function %s' %  time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
 sys.stdout.flush()
 
 # -------------------------------------------------------------
@@ -1418,7 +1418,7 @@ TIME = time.time()
 
 process()
 elapsed_time = time.time() - TIME
-print 'TIME to run process function %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+print('TIME to run process function %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
 sys.stdout.flush()
 
 # -------------------------------------------------------------
@@ -1426,7 +1426,7 @@ TIME = time.time()
 
 writeQC()
 elapsed_time = time.time() - TIME
-print 'TIME to run writeQC function %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+print('TIME to run writeQC function %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
 sys.stdout.flush()
 
 # -------------------------------------------------------------
@@ -1435,6 +1435,6 @@ closefiles()
 
 elapsed_time = time.time() - START_TIME
 
-print 'End time: %s'  % mgi_utils.date()
+print('End time: %s'  % mgi_utils.date())
 
-print 'Total run time: %s' %  time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+print('Total run time: %s' %  time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))

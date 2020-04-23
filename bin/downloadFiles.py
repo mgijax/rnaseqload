@@ -39,7 +39,7 @@ import runCommand
 import sys
 import db
 
-print '%s' % mgi_utils.date()
+print('%s' % mgi_utils.date())
 
 # paths to input and two output files
 logDir =  os.getenv('LOGDIR')
@@ -159,7 +159,7 @@ def checkEAEFile(file):
     fpLog.write(cmd + '\n')
 
     stdout, stderr, statusCode = runCommand.runCommand(cmd)
-    lastLineNum = string.strip(stdout)
+    lastLineNum = str.strip(stdout)
     msg = '%sstatusCode: %s stderr: %s stdout: %s lastLineNum: %s%s' % (CRT, statusCode, stderr, stdout, lastLineNum, CRT)
     fpLog.write(msg + '\n')
 
@@ -174,7 +174,7 @@ def checkEAEFile(file):
     startLineNum = 0 
     stdout, stderr, statusCode = runCommand.runCommand(cmd)
     if stdout:
-        stdout = string.strip(stdout)
+        stdout = str.strip(stdout)
         startLineNum = stdout.split('\n')[-1]
 
     msg = '%sstatusCode: %s stderr: %s stdout: %s startLineNum: %s%s' % (CRT, statusCode, stderr, stdout, startLineNum, CRT)
@@ -200,8 +200,8 @@ def checkEAEFile(file):
         firstLine = 1
         for line in fpIn.readlines():
             if firstLine:
-                index = string.find('Gene', line)
-                line = line[string.find(line, 'Gene'):]
+                index = str.find('Gene', line)
+                line = line[str.find(line, 'Gene'):]
                 firstLine = 0
             fpOut.write(line)
         fpIn.close()
@@ -220,7 +220,7 @@ def downloadFiles():
 
     for r in rnaSeqSetResults:
         totalCt += 1
-        expID = string.strip(r['accid'])
+        expID = str.strip(r['accid'])
 
         fpLog.write('%sDownload files for experiment ID: %s%s' % (CRT, expID, CRT))
 
@@ -288,4 +288,4 @@ if rc > 0:
 fpLog.close()
 sys.exit(rc)
 
-print '%s' % mgi_utils.date()
+print('%s' % mgi_utils.date())

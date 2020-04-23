@@ -163,7 +163,7 @@ def process():
     # get the set of sample keys for each replicate
     # creat bcp line for the Set and the SetMembers
     for rep in repliconDict:
-        expKey, age, orgKey, sexKey, emapaKey, stageKey, genotypeKey, note = string.split(rep, PIPE)
+        expKey, age, orgKey, sexKey, emapaKey, stageKey, genotypeKey, note = str.split(rep, PIPE)
         sampleKeySet = repliconDict[rep]
         fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (setKey, TAB, expKey, TAB, age, TAB, orgKey, TAB, sexKey, TAB, emapaKey, TAB, stageKey, TAB, genotypeKey, TAB, note, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
         for sKey in sampleKeySet:
@@ -207,32 +207,32 @@ def execBCP ():
 
 START_TIME = time.time()
 
-print 'Start time: %s' %  mgi_utils.date()
+print('Start time: %s' %  mgi_utils.date())
 sys.stdout.flush()
 
 # ----------------------------------------------------------------------------------
 TIME = time.time()
 init()
 elapsed_time = time.time() - TIME
-print 'TIME to run init function %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+print('TIME to run init function %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
 sys.stdout.flush()
 
 # ----------------------------------------------------------------------------------
 TIME = time.time()
 process()
 elapsed_time = time.time() - TIME
-print 'TIME to run process function %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+print('TIME to run process function %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
 sys.stdout.flush()
 
 # ----------------------------------------------------------------------------------
 TIME = time.time()
 execBCP()
 elapsed_time = time.time() - TIME
-print 'TIME to run execBCP function %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+print('TIME to run execBCP function %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
 sys.stdout.flush()
 
 total_time = time.time() - START_TIME
 
-print 'Total run time: %s' %  time.strftime("%H:%M:%S", time.gmtime(total_time))
+print('Total run time: %s' %  time.strftime("%H:%M:%S", time.gmtime(total_time)))
 
-print 'End time: %s'  % mgi_utils.date()
+print('End time: %s'  % mgi_utils.date())
