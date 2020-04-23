@@ -1,5 +1,3 @@
-#!/opt/python/bin/python
-# python2.7 required for pandas
 ##########################################################################
 #
 # Purpose: For each experiment ID in the 'RNA Seq Load Experiment' MGI_Set
@@ -243,14 +241,14 @@ def init():
 
     results = db.sql('''select accid, _object_key
         from ACC_Accession
-	where _MGIType_key = 42
-	and preferred = 1''', 'auto')
+        where _MGIType_key = 42
+        and preferred = 1''', 'auto')
     for r in results:
-	experimentInDbDict[r['accid']] = r['_object_key']
+        experimentInDbDict[r['accid']] = r['_object_key']
 
     results =  db.sql('''select name
         from GXD_HTSample
-	where _Genotype_key = 90560''', 'auto')
+        where _Genotype_key = 90560''', 'auto')
     for r in results:
         JDOSampleSet.add(string.strip(r['name']))
 
@@ -261,65 +259,65 @@ def init():
         relevantSampleSet.add(string.strip(r['name']))
 
     results = db.sql('''select accid, _Object_key
-	from ACC_Accession
-	where _LogicalDB_key =  60
-	and _MGIType_key = 2
-	and preferred = 1 ''', 'auto')
+        from ACC_Accession
+        where _LogicalDB_key =  60
+        and _MGIType_key = 2
+        and preferred = 1 ''', 'auto')
     for r in results:
-	accid = r['accid']
-	ensemblMarkerSet.add(accid)
-	ensemblMarkerDict[accid] = r['_Object_key']
+        accid = r['accid']
+        ensemblMarkerSet.add(accid)
+        ensemblMarkerDict[accid] = r['_Object_key']
 
     db.sql('''select accid
- 	into temporary table multiEns
+        into temporary table multiEns
         from ACC_Accession
         where _LogicalDB_key =  60
         and _MGIType_key = 2
         and preferred = 1
-	group by accid having count(*) > 1 ''', None)
+        group by accid having count(*) > 1 ''', None)
 
     db.sql('''create index idx1 on multiEns(accid)''')
 
     results = db.sql('''select a.accid, m.symbol
-	from multiEns me, ACC_Accession a, MRK_Marker m
-	where me.accid = a.accid
-	and a._LogicalDB_key =  60
-		and a._MGIType_key = 2
-		and a.preferred = 1
-	and a._Object_key = m._Marker_key''', 'auto')
+        from multiEns me, ACC_Accession a, MRK_Marker m
+        where me.accid = a.accid
+        and a._LogicalDB_key =  60
+                and a._MGIType_key = 2
+                and a.preferred = 1
+        and a._Object_key = m._Marker_key''', 'auto')
 
     for r in results:
-	ensID = r['accid']
-	symbol = r['symbol']
-	if ensID not in multiMarkerEnsemblDict:
-	    multiMarkerEnsemblDict[ensID] = []
-	multiMarkerEnsemblDict[ensID].append(symbol)
+        ensID = r['accid']
+        symbol = r['symbol']
+        if ensID not in multiMarkerEnsemblDict:
+            multiMarkerEnsemblDict[ensID] = []
+        multiMarkerEnsemblDict[ensID].append(symbol)
 
     db.sql('''select _Object_key
-	into temporary table multi
-	from ACC_Accession
-	where _MGIType_key = 2
-	and _LogicalDB_key = 60
-	group by _Object_key 
-	having count(*) > 1''', None)
+        into temporary table multi
+        from ACC_Accession
+        where _MGIType_key = 2
+        and _LogicalDB_key = 60
+        group by _Object_key 
+        having count(*) > 1''', None)
     
     db.sql('create index idx2 on multi(_Object_key)')
     
     results = db.sql('''select a.accid, m.symbol
-	from ACC_Accession a, multi mm, MRK_Marker m
-	where a._MGIType_key = 2
-	and a._LogicalDB_key = 60
-	and a._Object_key = mm._Object_key
-	and a._Object_key = m._Marker_key
-	order by m.symbol''', 'auto')
+        from ACC_Accession a, multi mm, MRK_Marker m
+        where a._MGIType_key = 2
+        and a._LogicalDB_key = 60
+        and a._Object_key = mm._Object_key
+        and a._Object_key = m._Marker_key
+        order by m.symbol''', 'auto')
 
     for r in results:
-	ensID = r['accid']
-	symbol = r['symbol']
-	if symbol not in symbolToMultiEnsIdDict:
-	    symbolToMultiEnsIdDict[symbol] = []
-	symbolToMultiEnsIdDict[symbol].append(ensID)
-	multiEnsemblMarkerDict[ensID] = symbol
+        ensID = r['accid']
+        symbol = r['symbol']
+        if symbol not in symbolToMultiEnsIdDict:
+            symbolToMultiEnsIdDict[symbol] = []
+        symbolToMultiEnsIdDict[symbol].append(ensID)
+        multiEnsemblMarkerDict[ensID] = symbol
 
     results = db.sql('''select accid
         from ACC_Accession
@@ -474,9 +472,9 @@ def ppAESFile(expID):
     aesFile = aesTemplate % expID
     #print 'aesFile: %s' % aesFile
     try:
-	fpAes = open(aesFile, 'r')
+        fpAes = open(aesFile, 'r')
     except:
-	return 1 # file does not exist
+        return 1 # file does not exist
 
     # path the aes preprocessed file for this experiment
     #
@@ -488,7 +486,7 @@ def ppAESFile(expID):
     #
     headerList = string.split(fpAes.readline(), TAB)
     if headerList == ['']: # means file is empty
-	return 2
+        return 2
     # find the idx of the columns we want - they are not ordered
     #
     sourceSampleIDX = None
@@ -496,73 +494,73 @@ def ppAESFile(expID):
     runIDX = None
     for idx, colName in enumerate(headerList):
         colName = string.strip(colName)
-	if string.find(colName, 'Source Name') != -1:
-	    sourceSampleIDX = idx
-	elif string.find(colName, 'ENA_SAMPLE') != -1:
-	    enaSampleIDX = idx
-	elif string.find(colName, 'ENA_RUN') != -1:
-	    runIDX = idx
+        if string.find(colName, 'Source Name') != -1:
+            sourceSampleIDX = idx
+        elif string.find(colName, 'ENA_SAMPLE') != -1:
+            enaSampleIDX = idx
+        elif string.find(colName, 'ENA_RUN') != -1:
+            runIDX = idx
     
     # now iterate through each gene/run/tpm in the file
     #
     for line in fpAes.readlines():
-	if line == '\n':
-	    continue 
+        if line == '\n':
+            continue 
         tokens = string.split(line, TAB)
-	sampleID = '' # The sampleID we load to the lookup
-	ssID = '' # ID from 'Source Name' column
-	enaID = '' # ID from ENA_SAMPLE column 
-	runID = '' # ID from ENA_RUN column
-	if runIDX == None:
-	    # report that the READ column cannot be found
-	    #
-	    noRunOrSampleColList.append('Exp: %s file has no Run column' % expID)
-	    return 3
+        sampleID = '' # The sampleID we load to the lookup
+        ssID = '' # ID from 'Source Name' column
+        enaID = '' # ID from ENA_SAMPLE column 
+        runID = '' # ID from ENA_RUN column
+        if runIDX == None:
+            # report that the READ column cannot be found
+            #
+            noRunOrSampleColList.append('Exp: %s file has no Run column' % expID)
+            return 3
 
-	# get the sampleID from one or both of the fields
-	#
-  	if sourceSampleIDX != None:
-	    ssID = string.strip(tokens[sourceSampleIDX])
+        # get the sampleID from one or both of the fields
+        #
+        if sourceSampleIDX != None:
+            ssID = string.strip(tokens[sourceSampleIDX])
 
-	if enaSampleIDX != None:
-	    enaID = string.strip(tokens[enaSampleIDX])
+        if enaSampleIDX != None:
+            enaID = string.strip(tokens[enaSampleIDX])
 
-	# report and return if we did not find either sample column
-	#
-	if not (ssID or enaID): 
-	    noRunOrSampleColList.append('Exp: %s file has neither Sample column' % expID)
-	    return 4
-	# choose the ID to use: not empty and in database. Checking the database
-	# is the only way we know if we have a sampleID (and not something else)
-	#
+        # report and return if we did not find either sample column
+        #
+        if not (ssID or enaID): 
+            noRunOrSampleColList.append('Exp: %s file has neither Sample column' % expID)
+            return 4
+        # choose the ID to use: not empty and in database. Checking the database
+        # is the only way we know if we have a sampleID (and not something else)
+        #
         inDb = 0 # sample ID in the database? 0/1
-	if ssID and ssID in sampleInDbDict:
- 	    inDb = 1
-	    sampleID = ssID
-	elif enaID and enaID in sampleInDbDict:
-	    inDb = 1
-	    sampleID = enaID
+        if ssID and ssID in sampleInDbDict:
+            inDb = 1
+            sampleID = ssID
+        elif enaID and enaID in sampleInDbDict:
+            inDb = 1
+            sampleID = enaID
 
-	if inDb == 0:
-	    # report that the ID is not in the database
-	    sampleIdNotInDbList.append('Exp: %s Sample Name ID %s and Sample ENA ID %s not in the database' % (expID, ssID, enaID))
-	elif len(sampleInDbDict[sampleID]) > 1: 
-	    # report ambiguous expID/sampleID in database
-	    ambiguousSampleInDbList.append('Exp: %s Sample ID: %s' % (expID, sampleID))
-	    return 5
-	else:
-	    runID = string.strip(tokens[runIDX])
-	    aesRunIdSet.add(runID)
-	    line = '%s%s%s%s' % (runID, TAB, sampleID, CRT)
-	    if line not in ppList:
-		ppList.append(line)
+        if inDb == 0:
+            # report that the ID is not in the database
+            sampleIdNotInDbList.append('Exp: %s Sample Name ID %s and Sample ENA ID %s not in the database' % (expID, ssID, enaID))
+        elif len(sampleInDbDict[sampleID]) > 1: 
+            # report ambiguous expID/sampleID in database
+            ambiguousSampleInDbList.append('Exp: %s Sample ID: %s' % (expID, sampleID))
+            return 5
+        else:
+            runID = string.strip(tokens[runIDX])
+            aesRunIdSet.add(runID)
+            line = '%s%s%s%s' % (runID, TAB, sampleID, CRT)
+            if line not in ppList:
+                ppList.append(line)
     # we write all samples except those not in the database to the file. 
     # We will exclude non-relevant and J:DO strain samples later so we may 
     # differentiate btwn a)non-relevant b)J:DO c)not in the aes file 
     # (excluding those not in the database
     #
     for line in ppList:
-	fpCurrentPP.write(line)
+        fpCurrentPP.write(line)
     fpCurrentPP.close();
 
     return 0
@@ -596,19 +594,19 @@ def writeQC():
     fpCur.write("%sExperimentIDs From Experiment Input File Not in the Database%s" % (CRT, CRT))
     fpCur.write('----------------------------------------------------%s' % CRT)
     for e in experimentNotInDbList:
-	fpCur.write('%s%s' % (e, CRT))
+        fpCur.write('%s%s' % (e, CRT))
     fpCur.write('Total: %s%s' % (len(experimentNotInDbList), CRT))
 
     fpCur.write('%sExperiments missing Run Column or Sample Columns, or both%s' % (CRT, CRT))
     fpCur.write('--------------------------------------------%s' % CRT)
     for e in noRunOrSampleColList:
-	fpCur.write('%s%s' % (e, CRT))
+        fpCur.write('%s%s' % (e, CRT))
     fpCur.write('Total: %s%s' % (len(noRunOrSampleColList), CRT))
 
     fpCur.write('%sSample IDs from AE file not in the Database%s' % (CRT, CRT))
     fpCur.write('---------------------------------------------%s' % CRT)
     for e in sampleIdNotInDbList:
-	fpCur.write('%s%s' % (e, CRT))
+        fpCur.write('%s%s' % (e, CRT))
     fpCur.write('Total: %s%s' % (len(sampleIdNotInDbList), CRT))
 
     fpCur.write('%sEnsembl ID in EAE file is associated with > 1 marker in MGI%s' % (CRT, CRT))
@@ -644,13 +642,13 @@ def writeQC():
     fpCur.write('%sRuns with empty TPM value set to 0.0%s' % (CRT, CRT))
     fpCur.write('-------------------------------------------------%s' % CRT)
     for e in noTpmValueList:
-	fpCur.write('%s%s' % (e, CRT))
+        fpCur.write('%s%s' % (e, CRT))
     fpCur.write('Total: %s%s' % (len(noTpmValueList), CRT))
 
     fpCur.write('%sRun IDs not in ArrayExpress File%s' % (CRT, CRT))
     fpCur.write('-------------------------%s' % CRT)
     for e in runIdNotInAEList:
-	fpCur.write('%s%s' % (e, CRT))
+        fpCur.write('%s%s' % (e, CRT))
     fpCur.write('Total: %s%s' % (len(runIdNotInAEList), CRT))
 
     fpCur.write('%sRun IDs not in Expression Atlas File%s' % (CRT, CRT))
@@ -662,13 +660,13 @@ def writeQC():
     fpCur.write('%sSamples not flagged as Relevant in the Database%s' % (CRT, CRT))
     fpCur.write('-------------------------------------------------%s' % CRT)
     for e in nonRelSkippedList:
-	fpCur.write('%s%s' % (e, CRT))
+        fpCur.write('%s%s' % (e, CRT))
     fpCur.write('Total: %s%s' % (len(nonRelSkippedList), CRT))
 
     fpCur.write('%sSamples with strain: J:DO%s' % (CRT, CRT))
     fpCur.write('-------------------------------------------------%s' % CRT)
     for e in JDOSkippedList:
-	fpCur.write('%s%s' % (e, CRT))
+        fpCur.write('%s%s' % (e, CRT))
     fpCur.write('Total: %s%s' % (len(JDOSkippedList), CRT))
 
     fpCur.write('%sSamples where average of the average TPM SD across all genes is > %s%s' % (CRT, stdDevCutoff, CRT))
@@ -712,9 +710,9 @@ def ppEAEFile(expID):
     eaeFile = eaeTemplate % expID
     #print 'eaeFile: %s' % eaeFile
     try:
-	fpEae = open(eaeFile, 'r')
+        fpEae = open(eaeFile, 'r')
     except:
-	return 1 # file does not exist
+        return 1 # file does not exist
 
     # path the aes preprocessed file for this experiment
     #
@@ -727,7 +725,7 @@ def ppEAEFile(expID):
     headerList = string.split(fpEae.readline(), TAB)
     #print 'headerList: %s' % headerList
     if headerList == ['']: # means file is empty
-	return 2
+        return 2
     eaeRunIdList = splitOffGene(headerList)
     #print 'Num runIDs for %s: %s %s' % (expID, len(eaeRunIdList), eaeRunIdList)
     sys.stdout.flush()
@@ -735,62 +733,62 @@ def ppEAEFile(expID):
     # process each gene and it's sample tpm's
     #
     for line in fpEae.readlines():
-	tokens = string.split(line, TAB)
-	geneID = string.strip(tokens[0])
-	
-	# multi marker per ensembl
-	if geneID in multiMarkerEnsemblDict:
-	    symbols = string.join(multiMarkerEnsemblDict[geneID], ', ')
-	    msg = '%s: %s' % (geneID, symbols)
-	    if msg not in multiMarkerEnsemblList:
-		multiMarkerEnsemblList.append(msg)
-	    continue
-	
-	# multi ensembl per marker
-	elif geneID in multiEnsemblMarkerDict:
-	    symbol = multiEnsemblMarkerDict[geneID]
-	    #if len(symbolToMultiEnsIdDict[symbol]) > 1:
-	    ensIDs = string.join(symbolToMultiEnsIdDict[symbol], ', ')
-	    msg = '%s: %s' % (symbol, ensIDs)
-	    if msg not in multiEnsemblMarkerList:
-		multiEnsemblMarkerList.append(msg)
-	    continue
-
-	# not in MGI
-	elif geneID not in ensemblMarkerSet and geneID not in ensemblSequenceSet:
-	    msg = '%s' % (geneID)
-	    if msg not in ensemblNotInMGIList:
-		ensemblNotInMGIList.append(msg)
-	    continue
-
-	# assoc only with a sequence
-	elif geneID not in ensemblMarkerSet and geneID in ensemblSequenceSet:
-	    msg = '%s' % (geneID)
-	    if msg not in ensemblIsOrphanList:
-		ensemblIsOrphanList.append(msg)
+        tokens = string.split(line, TAB)
+        geneID = string.strip(tokens[0])
+        
+        # multi marker per ensembl
+        if geneID in multiMarkerEnsemblDict:
+            symbols = string.join(multiMarkerEnsemblDict[geneID], ', ')
+            msg = '%s: %s' % (geneID, symbols)
+            if msg not in multiMarkerEnsemblList:
+                multiMarkerEnsemblList.append(msg)
+            continue
+        
+        # multi ensembl per marker
+        elif geneID in multiEnsemblMarkerDict:
+            symbol = multiEnsemblMarkerDict[geneID]
+            #if len(symbolToMultiEnsIdDict[symbol]) > 1:
+            ensIDs = string.join(symbolToMultiEnsIdDict[symbol], ', ')
+            msg = '%s: %s' % (symbol, ensIDs)
+            if msg not in multiEnsemblMarkerList:
+                multiEnsemblMarkerList.append(msg)
             continue
 
-	# list of runs (tpm) for geneID
-	tpmList = splitOffGene(tokens)
+        # not in MGI
+        elif geneID not in ensemblMarkerSet and geneID not in ensemblSequenceSet:
+            msg = '%s' % (geneID)
+            if msg not in ensemblNotInMGIList:
+                ensemblNotInMGIList.append(msg)
+            continue
 
-	for idx, tpm in enumerate(tpmList):
-	    # get the runID that goes with this tpm value
-	    try:
-		runID = string.strip(eaeRunIdList[idx])
-	    except:
-		# this shouldn't happen once we finish the file download script
-		print 'Multi header record. idx: %s tpm: %s' % (idx, tpm)
-		return 3
-	    eaeRunIdSet.add(runID)
-	    tpm = string.strip(tpm)
+        # assoc only with a sequence
+        elif geneID not in ensemblMarkerSet and geneID in ensemblSequenceSet:
+            msg = '%s' % (geneID)
+            if msg not in ensemblIsOrphanList:
+                ensemblIsOrphanList.append(msg)
+            continue
 
-	    # report blank tpm values and set them to 0.0
-	    if tpm == '':
-		tpm = 0.0
-		noTpmValueList.append('ExpID: %s geneID: %s runID: %s' % \
-		    (expID, geneID, runID))
+        # list of runs (tpm) for geneID
+        tpmList = splitOffGene(tokens)
 
-	    fpCurrentPP.write('%s%s%s%s%s%s' % (geneID, TAB, runID, TAB, tpm, CRT))
+        for idx, tpm in enumerate(tpmList):
+            # get the runID that goes with this tpm value
+            try:
+                runID = string.strip(eaeRunIdList[idx])
+            except:
+                # this shouldn't happen once we finish the file download script
+                print 'Multi header record. idx: %s tpm: %s' % (idx, tpm)
+                return 3
+            eaeRunIdSet.add(runID)
+            tpm = string.strip(tpm)
+
+            # report blank tpm values and set them to 0.0
+            if tpm == '':
+                tpm = 0.0
+                noTpmValueList.append('ExpID: %s geneID: %s runID: %s' % \
+                    (expID, geneID, runID))
+
+            fpCurrentPP.write('%s%s%s%s%s%s' % (geneID, TAB, runID, TAB, tpm, CRT))
 
     fpCurrentPP.close();
     elapsed_time = time.time() - start_time
@@ -816,8 +814,8 @@ def createJoinedFile(joinedFile):
     cmd = "%s/run_join %s %s %s" % (binDir, currentEaePPFile, currentAesPPFile, joinedFile)
     rc = os.system(cmd)
     if rc != 0:
-	msg = 'join cmd did not succeed: %s%s' % (cmd, CRT)
-	fpDiag.write(msg)
+        msg = 'join cmd did not succeed: %s%s' % (cmd, CRT)
+        fpDiag.write(msg)
 
     elapsed_time = time.time() - start_time
     print '%sTIME: Creating the join file %s %s%s' % (CRT, joinedFile, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
@@ -850,49 +848,49 @@ def processJoinedFile(expID, joinedFile):
     fpJoined = open(joinedFile, 'r')
     line = fpJoined.readline()
     while line:
-	tokens = string.split(line, TAB)
-	geneID = tokens[0]
-	runID = tokens[1]
-	tpm = tokens[2]
-	sampleID = ''
+        tokens = string.split(line, TAB)
+        geneID = tokens[0]
+        runID = tokens[1]
+        tpm = tokens[2]
+        sampleID = ''
 
-	# some join files have no column 4, do a try/except
-	try:
-	    sampleID = string.strip(tokens[3])
-	except:
-	    sampleID = ''
+        # some join files have no column 4, do a try/except
+        try:
+            sampleID = string.strip(tokens[3])
+        except:
+            sampleID = ''
 
-	# some join files have empty column 4
-	if sampleID == '':
-	    msg = '%s: %s' % (expID, runID)
-	    if msg not in  runIdNotInAEList:
-		runIdNotInAEList.append(msg)
-	    line = fpJoined.readline()
-	    continue
-	# is sampleID flagged as relevant in the db? If not report/skip
-	# we do this here rather than excluding when create the aes pp file
-	# so we may differentiate between sample id 1) not in database and
-	# 2) a) not relevant b) in J:DO strain set
-	if sampleID not in relevantSampleSet:
-	    msg = '%s: %s' % (expID, sampleID)
-	    if msg not in  nonRelSkippedList:
-		nonRelSkippedList.append(msg)
-	    line = fpJoined.readline()
-	    continue
-	elif sampleID in JDOSampleSet:
-	    # Report/skip if the sampleID is in the J:DO strain set
-	    msg = '%s: %s' % (expID, sampleID)
-	    if msg not in JDOSkippedList:
-		JDOSkippedList.append(msg)
-	    line = fpJoined.readline()
-	    continue
+        # some join files have empty column 4
+        if sampleID == '':
+            msg = '%s: %s' % (expID, runID)
+            if msg not in  runIdNotInAEList:
+                runIdNotInAEList.append(msg)
+            line = fpJoined.readline()
+            continue
+        # is sampleID flagged as relevant in the db? If not report/skip
+        # we do this here rather than excluding when create the aes pp file
+        # so we may differentiate between sample id 1) not in database and
+        # 2) a) not relevant b) in J:DO strain set
+        if sampleID not in relevantSampleSet:
+            msg = '%s: %s' % (expID, sampleID)
+            if msg not in  nonRelSkippedList:
+                nonRelSkippedList.append(msg)
+            line = fpJoined.readline()
+            continue
+        elif sampleID in JDOSampleSet:
+            # Report/skip if the sampleID is in the J:DO strain set
+            msg = '%s: %s' % (expID, sampleID)
+            if msg not in JDOSkippedList:
+                JDOSkippedList.append(msg)
+            line = fpJoined.readline()
+            continue
 
-	if geneID not in geneDict:
-	    geneDict[geneID] = {}
-	if sampleID not in geneDict[geneID]:
-	    geneDict[geneID][sampleID] = []
-	geneDict[geneID][sampleID].append(float(tpm))
-	line = fpJoined.readline()
+        if geneID not in geneDict:
+            geneDict[geneID] = {}
+        if sampleID not in geneDict[geneID]:
+            geneDict[geneID][sampleID] = []
+        geneDict[geneID][sampleID].append(float(tpm))
+        line = fpJoined.readline()
 
     elapsed_time = time.time() - start_time
     print '%sTIME: Processing the join file %s %s%s' % (CRT, joinedFile, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
@@ -911,17 +909,17 @@ def processJoinedFile(expID, joinedFile):
 def calcLevel(aveQnTpm):
     level = None
     if aveQnTpm < 0.5:	
-    	level = BELOW_CUTOFF 
+        level = BELOW_CUTOFF 
     elif aveQnTpm >=  0.5 and aveQnTpm <= 10:
-	level = LOW
+        level = LOW
     elif aveQnTpm >=  11 and aveQnTpm <= 1000:
-	level = MED
+        level = MED
     else:  # aveQnTpm > 1000:
-	level = HIGH
+        level = HIGH
 
     return  level
 # end calcLevel ------------------------------------------------------------------
-	
+        
 #
 # Purpose: creates RNASeq and Combined bcp files from a list of matrices (2-dimensional
 #       arrays) created by another function
@@ -949,34 +947,34 @@ def writeBCP(expID, matrixList):
     rnaSeqLineCt = 0 
 
     for matrix in matrixList:
-	for row in matrix:
-	    #print row
-	    rowLen = len(row)
-	    # position 0 is always markerKey
+        for row in matrix:
+            #print row
+            rowLen = len(row)
+            # position 0 is always markerKey
             # position rowLen -1 is # Biological Replicates
             # position rowLen - 2 is ave QN TPM (all samples)
-	    markerKey =  row[0] 
-	    numBioRepl = row[-1]
-	    aveQnTpm = row[-2]
-	    #print 'avQnTpm: %s' % aveQnTpm
-	    levelKey = calcLevel(aveQnTpm)
-	    #print 'levelKey: %s' % levelKey
-	    line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (combinedKey, TAB, markerKey, TAB, levelKey, TAB, numBioRepl, TAB, aveQnTpm, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT)
-	    #print 'combined: %s' %line
-	    fpCombinedBcp.write(line)
-	    combinedLineCt += 1
+            markerKey =  row[0] 
+            numBioRepl = row[-1]
+            aveQnTpm = row[-2]
+            #print 'avQnTpm: %s' % aveQnTpm
+            levelKey = calcLevel(aveQnTpm)
+            #print 'levelKey: %s' % levelKey
+            line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (combinedKey, TAB, markerKey, TAB, levelKey, TAB, numBioRepl, TAB, aveQnTpm, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT)
+            #print 'combined: %s' %line
+            fpCombinedBcp.write(line)
+            combinedLineCt += 1
 
-	    # positions 1 to rowLen-2 are samples: sampleKey|aveTPM|qnTpm
-	    # to get samples we iterate over rowLen-3 starting with i+1 
-	    for i in range(rowLen-3):
-		#print 'next sample: %s' % row[i+1]
-		sampleKey, aveTpm, qnTpm = string.split(row[i+1], PIPE)
-		line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (rnaSeqKey, TAB, sampleKey, TAB, combinedKey, TAB, markerKey, TAB, aveTpm, TAB, qnTpm, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT)
-		#print 'rnaseq: %s' % line
-		fpRnaSeqBcp.write(line)
-		rnaSeqLineCt += 1
-		rnaSeqKey += 1
-	    combinedKey +=1
+            # positions 1 to rowLen-2 are samples: sampleKey|aveTPM|qnTpm
+            # to get samples we iterate over rowLen-3 starting with i+1 
+            for i in range(rowLen-3):
+                #print 'next sample: %s' % row[i+1]
+                sampleKey, aveTpm, qnTpm = string.split(row[i+1], PIPE)
+                line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (rnaSeqKey, TAB, sampleKey, TAB, combinedKey, TAB, markerKey, TAB, aveTpm, TAB, qnTpm, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT)
+                #print 'rnaseq: %s' % line
+                fpRnaSeqBcp.write(line)
+                rnaSeqLineCt += 1
+                rnaSeqKey += 1
+            combinedKey +=1
 
     closeCombinedBcp()
     closeRnaSeqBcp()
@@ -1025,8 +1023,8 @@ def calcTPMAveSD(expID, geneDict):
     for geneID in geneDict:
         sampleDict = geneDict[geneID]
         for sampleID in sampleDict:
-	    # dupe samples for current expID have already been QC, if exist this expID is
-	    # skipped. we can assume only one sampleID in the list
+            # dupe samples for current expID have already been QC, if exist this expID is
+            # skipped. we can assume only one sampleID in the list
             sampleKey = sampleInDbDict[sampleID][0]
             tpmList = sampleDict[sampleID]
             techReplCt = len(tpmList)       # number of runs for the sample (1-n)
@@ -1037,14 +1035,14 @@ def calcTPMAveSD(expID, geneDict):
             if aveTpm != 0.0:
                 stdDevAve = round(stdDev / aveTpm, 2)
 
-	    # get the marker key
+            # get the marker key
             markerKey = ensemblMarkerDict[geneID]
 
-	    # load the QN input dictionary 
-	    if sampleKey not in aveTPMDict:
-		aveTPMDict[sampleKey] = {}
-		#print 'calcTPMAveSD sampleID; %s sampleKey: %s' % (sampleID, sampleKey)
-	    aveTPMDict[sampleKey][markerKey] = aveTpm
+            # load the QN input dictionary 
+            if sampleKey not in aveTPMDict:
+                aveTPMDict[sampleKey] = {}
+                #print 'calcTPMAveSD sampleID; %s sampleKey: %s' % (sampleID, sampleKey)
+            aveTPMDict[sampleKey][markerKey] = aveTpm
 
             # collect the stdDevAve of the technical replicates - we will want to
             # take the average of all aveSD across all genes of a sample to
@@ -1066,17 +1064,17 @@ def calcTPMAveSD(expID, geneDict):
     keyList = sorted(sampleAveSDDict.keys())
 
     for key in keyList:
-	eID, sampleID, sampleKey = string.split(key, PIPE)
-	aveAveSdAllGenes = calcAve(sampleAveSDDict[key], 2)
+        eID, sampleID, sampleKey = string.split(key, PIPE)
+        aveAveSdAllGenes = calcAve(sampleAveSDDict[key], 2)
 
-	# if average of the average SD across genes in > stdDevCutoff (config)
-	# report it and remove all genes for that sample from the aveTPMDict
-	if aveAveSdAllGenes > stdDevCutoff:
-	    del aveTPMDict[sampleKey]
-	    reportLine = '%s%s%s%s%s%s' % \
-		(eID, TAB, sampleID, TAB, aveAveSdAllGenes, CRT)
-	    if reportLine not in highAveStdDevList:
-		highAveStdDevList.append(reportLine)
+        # if average of the average SD across genes in > stdDevCutoff (config)
+        # report it and remove all genes for that sample from the aveTPMDict
+        if aveAveSdAllGenes > stdDevCutoff:
+            del aveTPMDict[sampleKey]
+            reportLine = '%s%s%s%s%s%s' % \
+                (eID, TAB, sampleID, TAB, aveAveSdAllGenes, CRT)
+            if reportLine not in highAveStdDevList:
+                highAveStdDevList.append(reportLine)
 
     elapsed_time = time.time() - start_time
     print '%sTIME: calcTPMAveSD %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)
@@ -1098,8 +1096,8 @@ def execBCP ():
 
     # execute all the bcp files
     for bcpCmd in bcpCommandList:
-	fpDiag.write('%s\n' % bcpCmd)
-	os.system(bcpCmd)
+        fpDiag.write('%s\n' % bcpCmd)
+        os.system(bcpCmd)
 
     # reset the rnaseq primary key sequence
     db.sql('''select setval('gxd_htsample_rnaseq_seq', (select max(_rnaseq_key) from gxd_htsample_rnaseq))''', None)
@@ -1125,10 +1123,10 @@ def execBCP ():
 def getBioReplicates(expID):
     expKey = experimentInDbDict[expID]
     results = db.sql('''select s.*, sm._Sample_key 
-	from GXD_HTSample_RNASeqSet s,
-	GXD_HTSample_RNASeqSetMember sm
-	where s._experiment_key = %s
-	and s._rnaSeqSet_key = sm._rnaSeqSet_key''' % expKey, 'auto')
+        from GXD_HTSample_RNASeqSet s,
+        GXD_HTSample_RNASeqSetMember sm
+        where s._experiment_key = %s
+        and s._rnaSeqSet_key = sm._rnaSeqSet_key''' % expKey, 'auto')
     #print 'len bio replicates results: %s' % len(results)
 
     # {attributeKey:set(sampleKeys), ...}
@@ -1136,7 +1134,7 @@ def getBioReplicates(expID):
 
     # iterate through results and map the replicate to its set of sample keys
     for r in results:
-	sampleKey = r['_sample_key']
+        sampleKey = r['_sample_key']
         expKey = r['_experiment_key']
         age = r['age']
         orgKey = r['_organism_key']
@@ -1179,206 +1177,206 @@ def process():
     for r in rnaSeqSetResults:
         expID = string.strip(r['accid'])
 
-	# load the list of sampleIDS and their keys from the database 
-	# for current experiment there can be > 1
-	loadSampleInDbDict(expID)
+        # load the list of sampleIDS and their keys from the database 
+        # for current experiment there can be > 1
+        loadSampleInDbDict(expID)
 
-	# the list of matrices for this experiment, one per repliset
-	matrixList = []
+        # the list of matrices for this experiment, one per repliset
+        matrixList = []
 
         # report if expID not in the database and skip
-	#
+        #
         if expID not in experimentInDbDict:
             experimentNotInDbList.append(expID)
             continue
         # preprocess the aes file for this expID (run, sample)
-	#
+        #
         sys.stdout.flush()
         rc = ppAESFile(expID)
         if rc != 0:
             print '''preprocessing AES file returned rc %s, 
-			skipping file for %s''' % (rc, expID)
+                        skipping file for %s''' % (rc, expID)
             continue
 
         # preprocess the eae file for this expID (gene, run, tpm)
-	#
+        #
         sys.stdout.flush()
         rc = ppEAEFile(expID)
         if rc != 0:
             print '''preprocessing EAE file returned rc %s, 
-		    skipping file for %s''' % (rc, expID)
+                    skipping file for %s''' % (rc, expID)
             continue
 
-	# check for AES runIDs not in the EAE file
-	#
-	diff = aesRunIdSet.difference(eaeRunIdSet)
-	if len(diff):
-	    diffString = string.join(diff, ', ')
-	    runIdNotInEAList.append('%s: %s' % (expID, diffString))
+        # check for AES runIDs not in the EAE file
+        #
+        diff = aesRunIdSet.difference(eaeRunIdSet)
+        if len(diff):
+            diffString = string.join(diff, ', ')
+            runIdNotInEAList.append('%s: %s' % (expID, diffString))
 
-	# Create the joined file from the two preprocessed (pp) files
-	#
+        # Create the joined file from the two preprocessed (pp) files
+        #
         joinedFile =  joinedPPTemplate % expID
-	createJoinedFile(joinedFile)
+        createJoinedFile(joinedFile)
 
         # process the joined file, creating dict by geneID
         # {geneID: {sampleID:[tpm1, ...], ...}, ...}
-	#
-	geneDict = processJoinedFile(expID, joinedFile)
-	
-	# {sampleKey:{markerKey:aveTPM, ...}, 
-	#	sampleKey2:{markerKey:aveTPM, ...}, ...}
-	aveTPMDict = calcTPMAveSD(expID, geneDict)
-	#print 'aveTPMDict keys: %s' % aveTPMDict.keys()
-	if not aveTPMDict: # nothing to normalize
-	    continue
+        #
+        geneDict = processJoinedFile(expID, joinedFile)
+        
+        # {sampleKey:{markerKey:aveTPM, ...}, 
+        #	sampleKey2:{markerKey:aveTPM, ...}, ...}
+        aveTPMDict = calcTPMAveSD(expID, geneDict)
+        #print 'aveTPMDict keys: %s' % aveTPMDict.keys()
+        if not aveTPMDict: # nothing to normalize
+            continue
 
-	# {attributeKey:set(sampleKeys), ...}
-	replisetDict = getBioReplicates(expID)
-	# number of genes
-	numRows = 0 # set this later when we know!
+        # {attributeKey:set(sampleKeys), ...}
+        replisetDict = getBioReplicates(expID)
+        # number of genes
+        numRows = 0 # set this later when we know!
 
         # Preprocess the replisetDict:
-	# a) remove samples in the db not in input
-	# b) # samples is  used to determine # columns in the matrix
-	for key in replisetDict:
-	    sampleSet = replisetDict[key]
-	    newSet = set()	
-	    for sampleKey in sampleSet:
-		# if we find samples in DB not in aveTPMDict we need to 
-		# remove from the set
-		# remember - QC can kick out some samples
-		# qnOutputDict is produced from aveTPMDict so don't need
-		# to check it too
-		if sampleKey not in aveTPMDict:
+        # a) remove samples in the db not in input
+        # b) # samples is  used to determine # columns in the matrix
+        for key in replisetDict:
+            sampleSet = replisetDict[key]
+            newSet = set()	
+            for sampleKey in sampleSet:
+                # if we find samples in DB not in aveTPMDict we need to 
+                # remove from the set
+                # remember - QC can kick out some samples
+                # qnOutputDict is produced from aveTPMDict so don't need
+                # to check it too
+                if sampleKey not in aveTPMDict:
                     #print 'sampleKey: %s for expID: %s not in aveTPMDict' % \
                     #    (sampleKey, expID)
-		    #sampleSet.remove(sampleKey) # can't do this get 
-			# RuntimeError: Set changed size during iteration
-			# Create a new set
-		    #print 'removing %s from sampleSet' % sampleKey
+                    #sampleSet.remove(sampleKey) # can't do this get 
+                        # RuntimeError: Set changed size during iteration
+                        # Create a new set
+                    #print 'removing %s from sampleSet' % sampleKey
                     continue
-		newSet.add(sampleKey)
-		# set this only once, all samples have same number of genes
-		if numRows == 0: 
-		    numRows = len(aveTPMDict[sampleKey])
-	    # in case we changed the sampleSet, reset the new set in the Dict
-	    #print 'Adding newSet %s to replisetDict key: %s' % (newSet, key)
-	    replisetDict[key] = newSet
+                newSet.add(sampleKey)
+                # set this only once, all samples have same number of genes
+                if numRows == 0: 
+                    numRows = len(aveTPMDict[sampleKey])
+            # in case we changed the sampleSet, reset the new set in the Dict
+            #print 'Adding newSet %s to replisetDict key: %s' % (newSet, key)
+            replisetDict[key] = newSet
 
-	# now we have removed any kicked out samples from replisetDict
-	# recall 'key' is our compound key of all attributes
+        # now we have removed any kicked out samples from replisetDict
+        # recall 'key' is our compound key of all attributes
         for key in replisetDict:
-	    #print 'process replisetDict key: %s' % key
-	    # gather all the numBioReplicates by rowNum
-	    #  {rowNum:numBioReplicates, ...}
-	    numBioReplDict = {}
-	   
-	    sampleSet = replisetDict[key]
+            #print 'process replisetDict key: %s' % key
+            # gather all the numBioReplicates by rowNum
+            #  {rowNum:numBioReplicates, ...}
+            numBioReplDict = {}
+           
+            sampleSet = replisetDict[key]
 
-	    # if the sample set is empty then we skip this repliset
+            # if the sample set is empty then we skip this repliset
             if not sampleSet:
                 #print 'no samples for this repliset'
                 continue
 
-	    #print 'process replisetDict sampleSet: %s' % sampleSet
-	    totalSamples = len(sampleSet)
+            #print 'process replisetDict sampleSet: %s' % sampleSet
+            totalSamples = len(sampleSet)
 
-	    #
-	    # get the aveTPMs for this repliset so we may QN them
-	    #
-	    replisetAveTpmDict = {}
-	    for sampleKey in sampleSet:
-		replisetAveTpmDict[sampleKey] = aveTPMDict[sampleKey]
-	    # Now QN them
-	    qnInput =  pd.DataFrame(replisetAveTpmDict)
-	    qnOutput = quantileNormalize.qn(qnInput, replisetAveTpmDict.keys())
+            #
+            # get the aveTPMs for this repliset so we may QN them
+            #
+            replisetAveTpmDict = {}
+            for sampleKey in sampleSet:
+                replisetAveTpmDict[sampleKey] = aveTPMDict[sampleKey]
+            # Now QN them
+            qnInput =  pd.DataFrame(replisetAveTpmDict)
+            qnOutput = quantileNormalize.qn(qnInput, replisetAveTpmDict.keys())
 
-	    # {sampleKey:{markerKey:qnAveTPM, ...},
-	    #       sampleKey2:{markerKey:qnAveTPM, ...}, ...}
-	    qnOutputDict = qnOutput.to_dict()
+            # {sampleKey:{markerKey:qnAveTPM, ...},
+            #       sampleKey2:{markerKey:qnAveTPM, ...}, ...}
+            qnOutputDict = qnOutput.to_dict()
 
             #print 'process replisetDict key: %s samples: %s numBioReplicates: %s' % (key, sampleSet, len(sampleSet))
-	    
-	    # gather all the QN TPMs for averaging across all samples of a gene
-	    # rowNum = gene, we use number so we can sort the dict keys to 
-	    # assign the proper aveQNTPM to the proper gene (note python 3.* has
-	    # 'OrderedDict'
-	    # {rowNum:[list of qnTPM for the gene], ...}
-	    aveQNTpmDict = {}
+            
+            # gather all the QN TPMs for averaging across all samples of a gene
+            # rowNum = gene, we use number so we can sort the dict keys to 
+            # assign the proper aveQNTPM to the proper gene (note python 3.* has
+            # 'OrderedDict'
+            # {rowNum:[list of qnTPM for the gene], ...}
+            aveQNTpmDict = {}
 
-	    # 1  + number of samples  + 2
-	    # gene + total samples + qn tpm across all samples +
-	    # num bio replicates
-	    numColumns = 1 + totalSamples + 2
+            # 1  + number of samples  + 2
+            # gene + total samples + qn tpm across all samples +
+            # num bio replicates
+            numColumns = 1 + totalSamples + 2
 
-	    # now our sampleSet, numColumns, numRows are set and correct
-	    #  create an empty matrix with string data type
-	    matrix = np.empty((numRows, numColumns), dtype='object')
+            # now our sampleSet, numColumns, numRows are set and correct
+            #  create an empty matrix with string data type
+            matrix = np.empty((numRows, numColumns), dtype='object')
 
-	    # now we pull everything into a 2-D matrix from aveTPMDict 
-	    # and qnOutputDict for each biological replicate set for easy bcp 
-	    # file creation
-	    currentColumnNum = 1    # The first sample column
-	    currentRowNum = 0       # the first row
-	    
-	    for sampleKey in sampleSet:
-		#print 'next sampleKey: %s' % sampleKey
-		try:
-		    # {markerKey:aveTPM, ...}
-		    aveTpmByGeneDict = aveTPMDict[sampleKey]
-		except:
-		    # this shouldn't happend because we synced things up
-		    # above
-		    'sampleKey %s not in aveTPMDict' % sampleKey
+            # now we pull everything into a 2-D matrix from aveTPMDict 
+            # and qnOutputDict for each biological replicate set for easy bcp 
+            # file creation
+            currentColumnNum = 1    # The first sample column
+            currentRowNum = 0       # the first row
+            
+            for sampleKey in sampleSet:
+                #print 'next sampleKey: %s' % sampleKey
+                try:
+                    # {markerKey:aveTPM, ...}
+                    aveTpmByGeneDict = aveTPMDict[sampleKey]
+                except:
+                    # this shouldn't happend because we synced things up
+                    # above
+                    'sampleKey %s not in aveTPMDict' % sampleKey
 
-		# {markerKey:qnAveTPM, ...}
+                # {markerKey:qnAveTPM, ...}
                 qnTpmByGeneDict  = qnOutputDict[sampleKey]
-	
-		for mKey in aveTpmByGeneDict:
-		    # add number of replicates to dict by row number (gene )
-		    numBioReplDict[currentRowNum] = totalSamples
+        
+                for mKey in aveTpmByGeneDict:
+                    # add number of replicates to dict by row number (gene )
+                    numBioReplDict[currentRowNum] = totalSamples
 
-		    aveTPM = aveTpmByGeneDict[mKey]
-		    qnTPM = round(qnTpmByGeneDict[mKey], 2)
-		    sampleValues = '%s%s%s%s%s' % (sampleKey, PIPE, aveTPM, PIPE, qnTPM)
-		    # create/add to the list of qnTPM for the gene that will
-		    # will be processed later after we have built up the matrix
-		    # with its genes and sample aveTPM and qnTPM
-		    if currentRowNum not in aveQNTpmDict:
-			aveQNTpmDict[currentRowNum] = []
-		    aveQNTpmDict[currentRowNum].append(qnTPM)
-		    matrix[currentRowNum][0] = mKey
-		    matrix[currentRowNum][currentColumnNum] = sampleValues
-		    #print 'matrix[%s][%s]: %s' % (currentRowNum, currentColumnNum, matrix[currentRowNum][currentColumnNum])
-		    currentRowNum += 1
-		currentRowNum = 0
-		currentColumnNum += 1
+                    aveTPM = aveTpmByGeneDict[mKey]
+                    qnTPM = round(qnTpmByGeneDict[mKey], 2)
+                    sampleValues = '%s%s%s%s%s' % (sampleKey, PIPE, aveTPM, PIPE, qnTPM)
+                    # create/add to the list of qnTPM for the gene that will
+                    # will be processed later after we have built up the matrix
+                    # with its genes and sample aveTPM and qnTPM
+                    if currentRowNum not in aveQNTpmDict:
+                        aveQNTpmDict[currentRowNum] = []
+                    aveQNTpmDict[currentRowNum].append(qnTPM)
+                    matrix[currentRowNum][0] = mKey
+                    matrix[currentRowNum][currentColumnNum] = sampleValues
+                    #print 'matrix[%s][%s]: %s' % (currentRowNum, currentColumnNum, matrix[currentRowNum][currentColumnNum])
+                    currentRowNum += 1
+                currentRowNum = 0
+                currentColumnNum += 1
 
-	    # add the ave QN to the matrix for each gene
-	    for rowNum in aveQNTpmDict:
-		ave = calcAve(aveQNTpmDict[rowNum], 1)
-		if ave >= 1:
-		    ave = int(round(ave, 0)) # if >1 round then truncate decimal
-		matrix[rowNum][numColumns - 2] = ave
+            # add the ave QN to the matrix for each gene
+            for rowNum in aveQNTpmDict:
+                ave = calcAve(aveQNTpmDict[rowNum], 1)
+                if ave >= 1:
+                    ave = int(round(ave, 0)) # if >1 round then truncate decimal
+                matrix[rowNum][numColumns - 2] = ave
 
-	    # add the number of bio  replicates to matrix for each gene
-	    for rowNum in numBioReplDict:
-		matrix[rowNum][numColumns - 1] = numBioReplDict[rowNum]
-	    # Now matrix is complete
-	    matrixList.append(matrix)
+            # add the number of bio  replicates to matrix for each gene
+            for rowNum in numBioReplDict:
+                matrix[rowNum][numColumns - 1] = numBioReplDict[rowNum]
+            # Now matrix is complete
+            matrixList.append(matrix)
 
-	    #print 'Row 1 of matrix:'
-	    #print  matrix[0]
+            #print 'Row 1 of matrix:'
+            #print  matrix[0]
 
-	    #print '\nRow 2 of matrix'
-	    #print matrix[1]
-	    
-	    #print '\nRow 3 of matrix'
+            #print '\nRow 2 of matrix'
+            #print matrix[1]
+            
+            #print '\nRow 3 of matrix'
             #print matrix[2]
 
-	# write out bcp for all replisets of this experiment
-	writeBCP(expID, matrixList)
+        # write out bcp for all replisets of this experiment
+        writeBCP(expID, matrixList)
 
     # we've processed all experiments, now execute bcp
     execBCP()
@@ -1440,4 +1438,3 @@ elapsed_time = time.time() - START_TIME
 print 'End time: %s'  % mgi_utils.date()
 
 print 'Total run time: %s' %  time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
-

@@ -1,5 +1,3 @@
-#!/opt/python/bin/python
-# python2.7 required for pandas
 ##########################################################################
 #
 # Purpose:

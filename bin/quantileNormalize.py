@@ -1,5 +1,3 @@
-#!/opt/python/bin/python
-# python 2.7 required for numpy and pandas
 
 import numpy as np
 import pandas as pd

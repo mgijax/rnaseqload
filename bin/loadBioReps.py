@@ -1,4 +1,3 @@
-#!/opt/python/bin/python
 ##########################################################################
 #
 # Purpose:
@@ -108,9 +107,9 @@ def process():
     global setKey, memberKey
 
     db.sql('''select sm._object_key as _experiment_key, a.accid as exp_id 
-	into temporary table temp1
+        into temporary table temp1
         from ACC_Accession a,  MGI_Set s, MGI_SetMember sm
-	where s.name = 'RNASeq Load Experiments'
+        where s.name = 'RNASeq Load Experiments'
     and s._Set_key = sm._Set_key
     and sm._Object_key = a._Object_key
     and a._MGIType_key = 42 --GXD_HTExperiment
@@ -118,58 +117,58 @@ def process():
     and a.preferred = 1''', None)
     db.sql('''create index idx1 on temp1 (_experiment_key)''', None)
     db.sql('''select t1.*, hts._sample_key, 
-	    hts.name, hts.age, hts._organism_key, hts._sex_key, hts._stage_key, 
-	    hts._emapa_key, hts._genotype_key 
-	into temporary table temp2 
-	from temp1 t1, gxd_htsample hts
-	where hts._genotype_key != 90560 --J:DO
-	and hts._relevance_key = 20475450 --Yes
-	and hts._experiment_key = t1._experiment_key''', None)
+            hts.name, hts.age, hts._organism_key, hts._sex_key, hts._stage_key, 
+            hts._emapa_key, hts._genotype_key 
+        into temporary table temp2 
+        from temp1 t1, gxd_htsample hts
+        where hts._genotype_key != 90560 --J:DO
+        and hts._relevance_key = 20475450 --Yes
+        and hts._experiment_key = t1._experiment_key''', None)
     db.sql('''create index idx2 ON temp2 (_emapa_key)''', None)
     db.sql('''select n._object_key as _sample_key, nc.note 
-	into temporary table temp4 
-	from mgi_note n, mgi_notechunk nc 
-	where n._notetype_key = 1048 
-	and n._mgitype_key = 43 
-	and nc._note_key = n._note_key''', None)
+        into temporary table temp4 
+        from mgi_note n, mgi_notechunk nc 
+        where n._notetype_key = 1048 
+        and n._mgitype_key = 43 
+        and nc._note_key = n._note_key''', None)
     db.sql('''create index idx4 on temp4 (_sample_key)''', None)
     results = db.sql('''select distinct  t2._experiment_key, t2._sample_key, t2.age,
-	    t2._organism_key, t2._sex_key, t2._stage_key, t2._emapa_key, t2._genotype_key, 
-	    t4.note 
-	from temp2 t2 
-	left outer join temp4 t4 on (t2._sample_key = t4._sample_key)''', 'auto')
+            t2._organism_key, t2._sex_key, t2._stage_key, t2._emapa_key, t2._genotype_key, 
+            t4.note 
+        from temp2 t2 
+        left outer join temp4 t4 on (t2._sample_key = t4._sample_key)''', 'auto')
     #print 'len results: %s' % len(results)
     repliconDict = {}
 
     # iterate through results and map the replicate to its set of sample keys	
     for r in results:
-	expKey = r['_experiment_key']
-	age = r['age']
+        expKey = r['_experiment_key']
+        age = r['age']
         orgKey = r['_organism_key']
-	sexKey = r['_sex_key']
-	emapaKey = r['_emapa_key']
-	stageKey = r['_stage_key']
-	genotypeKey = r['_genotype_key']
-	note = r['note']
-	if note == None:
-	    note = ''
+        sexKey = r['_sex_key']
+        emapaKey = r['_emapa_key']
+        stageKey = r['_stage_key']
+        genotypeKey = r['_genotype_key']
+        note = r['note']
+        if note == None:
+            note = ''
 
-	sampleKey = r['_sample_key']
+        sampleKey = r['_sample_key']
 
-	key = '%s|%s|%s|%s|%s|%s|%s|%s' % (expKey, age, orgKey, sexKey, emapaKey, stageKey, genotypeKey, note)
-	if key not in repliconDict:
-	    repliconDict[key] = set()
-	repliconDict[key].add(sampleKey)
+        key = '%s|%s|%s|%s|%s|%s|%s|%s' % (expKey, age, orgKey, sexKey, emapaKey, stageKey, genotypeKey, note)
+        if key not in repliconDict:
+            repliconDict[key] = set()
+        repliconDict[key].add(sampleKey)
 
     # get the set of sample keys for each replicate
     # creat bcp line for the Set and the SetMembers
     for rep in repliconDict:
-	expKey, age, orgKey, sexKey, emapaKey, stageKey, genotypeKey, note = string.split(rep, PIPE)
-	sampleKeySet = repliconDict[rep]
-	fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (setKey, TAB, expKey, TAB, age, TAB, orgKey, TAB, sexKey, TAB, emapaKey, TAB, stageKey, TAB, genotypeKey, TAB, note, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
-	for sKey in sampleKeySet:
-	    fpMember.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (memberKey, TAB, setKey, TAB, sKey,  TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
-	    memberKey += 1
+        expKey, age, orgKey, sexKey, emapaKey, stageKey, genotypeKey, note = string.split(rep, PIPE)
+        sampleKeySet = repliconDict[rep]
+        fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (setKey, TAB, expKey, TAB, age, TAB, orgKey, TAB, sexKey, TAB, emapaKey, TAB, stageKey, TAB, genotypeKey, TAB, note, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+        for sKey in sampleKeySet:
+            fpMember.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (memberKey, TAB, setKey, TAB, sKey,  TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+            memberKey += 1
         setKey += 1
 
     fpSet.close()

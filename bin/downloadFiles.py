@@ -1,5 +1,3 @@
-#!/opt/python/bin/python
-# python 2.7
 ##########################################################################
 # 
 # Purpose:
@@ -82,14 +80,14 @@ def init():
     cmd = 'rm %s/*.aes.*' % rawInputDir
     rc = os.system(cmd)
     if rc != 0:
-	msg = 'rm cmd did not succeed: %s%s' % (cmd, CRT)
-	fpLog.write(msg)
+        msg = 'rm cmd did not succeed: %s%s' % (cmd, CRT)
+        fpLog.write(msg)
 
     cmd = 'rm %s/*.eae.*' % rawInputDir
     rc = os.system(cmd)
     if rc != 0:
-	msg = 'rm cmd did not succeed: %s%s' % (cmd, CRT)
-	fpLog.write(msg)
+        msg = 'rm cmd did not succeed: %s%s' % (cmd, CRT)
+        fpLog.write(msg)
 
     # create the result set of ids to load
     rnaSeqSetResults = db.sql('''select a.accid
@@ -120,10 +118,10 @@ def downloadAES(expID):
     if statusCode != 0:
         msg = '%s statusCode: %s stderr: %s%s' % (aesURL, statusCode, stderr, CRT)
         fpLog.write(msg)
-	return statusCode
+        return statusCode
     else:
-	fpAes.write(stdout)
-	fpAes.close()
+        fpAes.write(stdout)
+        fpAes.close()
 
     return 0
 # end downloadAES -------------------------------------------------------------
@@ -140,13 +138,13 @@ def downloadEAE(expID):
     #print 'eae stderr: %s%s' % (stderr, CRT)
     if statusCode != 0:
         msg = '%s statusCode: %s stderr: %s%s' % (eaeURL, statusCode, stderr, CRT)
-	fpLog.write(msg)
-	return statusCode
+        fpLog.write(msg)
+        return statusCode
     else:
         fpEae.write(stdout)
-	fpEae.close()
-	checkEAEFile(eaeFile)
-	
+        fpEae.close()
+        checkEAEFile(eaeFile)
+        
     return statusCode
 
 # end downloadEAE -------------------------------------------------------------
@@ -176,8 +174,8 @@ def checkEAEFile(file):
     startLineNum = 0 
     stdout, stderr, statusCode = runCommand.runCommand(cmd)
     if stdout:
-	stdout = string.strip(stdout)
-	startLineNum = stdout.split('\n')[-1]
+        stdout = string.strip(stdout)
+        startLineNum = stdout.split('\n')[-1]
 
     msg = '%sstatusCode: %s stderr: %s stdout: %s startLineNum: %s%s' % (CRT, statusCode, stderr, stdout, startLineNum, CRT)
     fpLog.write(msg  + '\n')
@@ -189,27 +187,27 @@ def checkEAEFile(file):
     if int(startLineNum) > 1:
         intermediateFile = '%s.int' % file
 
-	fpLog.write('FINDING proper part of the file\n')
-	cmd = "sed -n '%sq;%s,%sp' %s > %s" % (lastLineNum, startLineNum, lastLineNum, file, intermediateFile)
-	fpLog.write(cmd + '\n')
-	stdout, stderr, statusCode = runCommand.runCommand(cmd)
-	msg = '%sstatusCode: %s stderr: %s stdout: %s%s' % (CRT, statusCode, stderr, stdout, CRT)
-	fpLog.write(msg + '\n')
+        fpLog.write('FINDING proper part of the file\n')
+        cmd = "sed -n '%sq;%s,%sp' %s > %s" % (lastLineNum, startLineNum, lastLineNum, file, intermediateFile)
+        fpLog.write(cmd + '\n')
+        stdout, stderr, statusCode = runCommand.runCommand(cmd)
+        msg = '%sstatusCode: %s stderr: %s stdout: %s%s' % (CRT, statusCode, stderr, stdout, CRT)
+        fpLog.write(msg + '\n')
 
-	fpIn = open(intermediateFile, 'r')
-	fpOut = open(file, 'w') # overwrite the bad file with the good file
+        fpIn = open(intermediateFile, 'r')
+        fpOut = open(file, 'w') # overwrite the bad file with the good file
 
-	firstLine = 1
-	for line in fpIn.readlines():
-	    if firstLine:
-		index = string.find('Gene', line)
-		line = line[string.find(line, 'Gene'):]
-		firstLine = 0
-	    fpOut.write(line)
-	fpIn.close()
-	fpOut.close()
+        firstLine = 1
+        for line in fpIn.readlines():
+            if firstLine:
+                index = string.find('Gene', line)
+                line = line[string.find(line, 'Gene'):]
+                firstLine = 0
+            fpOut.write(line)
+        fpIn.close()
+        fpOut.close()
     else:
-	fpLog.write('Did not find dupe records\n')
+        fpLog.write('Did not find dupe records\n')
 
 # end checkEAEFile ------------------------------------------------------------
 
@@ -224,42 +222,42 @@ def downloadFiles():
         totalCt += 1
         expID = string.strip(r['accid'])
 
-	fpLog.write('%sDownload files for experiment ID: %s%s' % (CRT, expID, CRT))
+        fpLog.write('%sDownload files for experiment ID: %s%s' % (CRT, expID, CRT))
 
-	a_rc = downloadAES(expID)
-	if a_rc == 9:
+        a_rc = downloadAES(expID)
+        if a_rc == 9:
             fpLog.write('%s skipping AES file for %s with curl return code 9 Server denied you to change to the given directory%s' % (CRT, expID, CRT))
-	    failedAESList.append(expID)
-	    continue
+            failedAESList.append(expID)
+            continue
         elif a_rc == 78:
             fpLog.write('%s skipping AES file for %s with curl return code 78 RETR response: 550%s' % (CRT, expID, CRT))
-	    failedAESList.append(expID)
-	    continue
-	while a_rc != 0 and a_rc != 9 and a_rc != 78:
-	    fpLog.write('\ntry AES again\n')
-	    a_rc = downloadAES(expID)
+            failedAESList.append(expID)
+            continue
+        while a_rc != 0 and a_rc != 9 and a_rc != 78:
+            fpLog.write('\ntry AES again\n')
+            a_rc = downloadAES(expID)
 
-	e_rc = downloadEAE(expID)
-	if e_rc == 9:
-	    errorCt += 1
-	    fpLog.write('%s skipping EAE file for %s with curl return code 9 Server denied you to change to the given directory%s' % (CRT, expID, CRT))
-	    failedEAEList.append(expID)
-	    continue
-	elif e_rc == 78:
-	    errorCt += 1
-	    fpLog.write('%s skipping EAE file for %s with curl return code 78 RETR response: 550%s' % (CRT, expID, CRT))
-	    failedEAEList.append(expID)
-	    continue
-	elif e_rc != 0:
-	    errorCt += 1
-	    fpLog.write('%s skipping EAE file for %s with curl return code %s %s' % (CRT, expID, e_rc, CRT))
+        e_rc = downloadEAE(expID)
+        if e_rc == 9:
+            errorCt += 1
+            fpLog.write('%s skipping EAE file for %s with curl return code 9 Server denied you to change to the given directory%s' % (CRT, expID, CRT))
+            failedEAEList.append(expID)
+            continue
+        elif e_rc == 78:
+            errorCt += 1
+            fpLog.write('%s skipping EAE file for %s with curl return code 78 RETR response: 550%s' % (CRT, expID, CRT))
+            failedEAEList.append(expID)
+            continue
+        elif e_rc != 0:
+            errorCt += 1
+            fpLog.write('%s skipping EAE file for %s with curl return code %s %s' % (CRT, expID, e_rc, CRT))
             failedEAEList.append(expID)
             continue
 
-	successCt += 1
+        successCt += 1
 
     if errorCt > 0:
-	return 1
+        return 1
     return 0
 
 # end downloadFiles -----------------------------------------------------------
@@ -277,15 +275,15 @@ fpLog.write('%sTotal files successfully downloaded:  %s%s' % (CRT, successCt, CR
 if rc > 0:
     fpLog.write("%sDownload did not succeed on one or more experiments%s" % (CRT, CRT))
     if failedAESList:
-	fpLog.write('AES files not downloaded:%s' % CRT)
-	for e in failedAESList:
-	    fpLog.write('%s%s' % (e, CRT))
-	fpLog.write('Total: %s%s' % (len(failedAESList), CRT))
+        fpLog.write('AES files not downloaded:%s' % CRT)
+        for e in failedAESList:
+            fpLog.write('%s%s' % (e, CRT))
+        fpLog.write('Total: %s%s' % (len(failedAESList), CRT))
     if failedEAEList:
-	fpLog.write('EAE files not downloaded:%s' % CRT)
+        fpLog.write('EAE files not downloaded:%s' % CRT)
         for e in failedEAEList:
             fpLog.write('%s%s' % (e, CRT))
-	fpLog.write('Total: %s%s' % (len(failedEAEList), CRT))
+        fpLog.write('Total: %s%s' % (len(failedEAEList), CRT))
 
 fpLog.close()
 sys.exit(rc)
