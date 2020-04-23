@@ -92,7 +92,7 @@ cleanDir ${OUTPUTDIR}
 #
 # this script checks to see if the load needs to be run
 #
-./checkSet.py
+${PYTHON} ./checkSet.py
 STAT=$?
 echo "STAT: ${STAT}"
 if [ ${STAT} = 2 ]
@@ -128,7 +128,7 @@ ${MGD_DBSCHEMADIR}/table/GXD_HTSample_RNASeqSet_truncate.object >> ${LOG_DIAG} 2
 
 date | tee -a ${LOG_DIAG}
 echo "Loading Biological Replicates into Set tables" | tee -a ${LOG_DIAG}
-${RNASEQLOAD}/bin/loadBioReps.py
+${PYTHON} ${RNASEQLOAD}/bin/loadBioReps.py
 STAT=$?
 checkStatus ${STAT} "loadBioReps.py"
 
@@ -150,7 +150,7 @@ ${MGD_DBSCHEMADIR}/index/GXD_HTSample_RNASeqCombined_drop.object >> ${LOG_DIAG} 
 
 date | tee -a ${LOG_DIAG}
 echo "Running rnaseqload.py" | tee -a ${LOG_DIAG}
-${RNASEQLOAD}/bin/rnaseqload.py >> ${LOG_DIAG} 2>&1
+${PYTHON} ${RNASEQLOAD}/bin/rnaseqload.py >> ${LOG_DIAG} 2>&1
 STAT=$?
 checkStatus ${STAT} "rnaseqload.py"
 

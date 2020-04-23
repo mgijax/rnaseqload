@@ -59,7 +59,7 @@ fi
 
 # check the database for changes. If the RNA-Seq MGI_Set is different than 
 # the RNA-Seq experiments loaded, then run the download
-./checkSet.py
+${PYTHON} ./checkSet.py
 rc=$?
 #echo "rc: $rc"
 if [ $rc = 2 ]
@@ -90,7 +90,7 @@ fi
 date  >>  ${LOG_DOWNLOAD}
 
 echo "Downloading input files" 
-${RNASEQLOAD}/bin/downloadFiles.py >> ${LOG_DOWNLOAD} 2>&1
+${PYTHON} ${RNASEQLOAD}/bin/downloadFiles.py >> ${LOG_DOWNLOAD} 2>&1
 STAT=$?
 
 #
