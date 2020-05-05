@@ -164,6 +164,6 @@ ${MGD_DBSCHEMADIR}/index/GXD_HTSample_RNASeqCombined_create.object >> ${LOG_DIAG
 
 date | tee -a ${LOG_DIAG}
 echo "Grant Database Permissions" | tee -a ${LOG_DIAG}
-${PG_DBUTILS}/bin/grantPublicPerms.csh ${PG_DBSERVER} ${PG_DBNAME} >> ${LOG_DIAG} 2>&1
+${PG_DBUTILS}/bin/grantPublicPerms.csh ${PG_DBSERVER} ${PG_DBNAME} mgd >> ${LOG_DIAG} 2>&1
 
 shutDown
