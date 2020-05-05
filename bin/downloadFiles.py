@@ -35,7 +35,7 @@
 import os
 import mgi_utils
 import string
-import runCommand
+import subprocess
 import sys
 import db
 
@@ -114,7 +114,12 @@ def downloadAES(expID):
     #  Use "-C -" to tell curl to automatically find out  where/how  to
     #      resume  the  transfer. It then uses the given output/input files
     #      to figure that out. 
-    stdout, stderr, statusCode = runCommand.runCommand("curl -C - --retry 5 --retry-delay 5 --retry-max-time 0 --max-time 40  '%s'" % aesURL)
+    cmd = "curl -C - --retry 5 --retry-delay 5 --retry-max-time 0 --max-time 40  %s" % aesURL
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    stdout = result.stdout
+    stderr = result.stderr
+    statusCode = result.returncode
+
     if statusCode != 0:
         msg = '%s statusCode: %s stderr: %s%s' % (aesURL, statusCode, stderr, CRT)
         fpLog.write(msg)
@@ -124,6 +129,7 @@ def downloadAES(expID):
         fpAes.close()
 
     return 0
+
 # end downloadAES -------------------------------------------------------------
 
 def downloadEAE(expID):
@@ -132,10 +138,13 @@ def downloadEAE(expID):
     fpEae = open(eaeFile, 'w')
     eaeURL = eaeTemplate % expID
     msg = ''
-    #stdout, stderr, statusCode = runCommand.runCommand("curl --compressed --max-time 40 --retry 5 --retry-delay 5 --retry-max-time 0 '%s'" % eaeURL)
-    stdout, stderr, statusCode = runCommand.runCommand("curl -C - --max-time 40 --retry 5 --retry-delay 5 --retry-max-time 0 '%s'" % eaeURL)
-    #print '%s%s eae statusCode: %s%s' % (CRT, expID, statusCode, CRT)
-    #print 'eae stderr: %s%s' % (stderr, CRT)
+    cmd = "curl --compressed --max-time 40 --retry 5 --retry-delay 5 --retry-max-time 0 %s" % eaeURL
+    #print('cmd: %s' % cmd)
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    stdout = result.stdout
+    stderr = result.stderr
+    statusCode = result.returncode
+
     if statusCode != 0:
         msg = '%s statusCode: %s stderr: %s%s' % (eaeURL, statusCode, stderr, CRT)
         fpLog.write(msg)
@@ -156,11 +165,16 @@ def checkEAEFile(file):
     #
     fpLog.write('FINDING length of file\n')
     cmd = "cat %s | wc -l" % file
+
     fpLog.write(cmd + '\n')
 
-    stdout, stderr, statusCode = runCommand.runCommand(cmd)
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    stdout = result.stdout
+    stderr = result.stderr
+    statusCode = result.returncode
+
     lastLineNum = str.strip(stdout)
-    msg = '%sstatusCode: %s stderr: %s stdout: %s lastLineNum: %s%s' % (CRT, statusCode, stderr, stdout, lastLineNum, CRT)
+    msg = '%sstatusCode: %s stderr: %s lastLineNum: %s%s' % (CRT, statusCode, stderr, lastLineNum, CRT)
     fpLog.write(msg + '\n')
 
     #
@@ -169,15 +183,19 @@ def checkEAEFile(file):
     #
     fpLog.write('FINDING line numbers of Gene ID\n')
     cmd = "grep -n 'Gene ID' %s | cut -d: -f1" % file
-    fpLog.write(cmd+ '\n')
+    fpLog.write(cmd + '\n')
 
     startLineNum = 0 
-    stdout, stderr, statusCode = runCommand.runCommand(cmd)
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    stdout = result.stdout
+    stderr = result.stderr
+    statusCode = result.returncode
+
     if stdout:
         stdout = str.strip(stdout)
         startLineNum = stdout.split('\n')[-1]
 
-    msg = '%sstatusCode: %s stderr: %s stdout: %s startLineNum: %s%s' % (CRT, statusCode, stderr, stdout, startLineNum, CRT)
+    msg = '%sstatusCode: %s stderr: %s startLineNum: %s%s' % (CRT, statusCode, stderr, startLineNum, CRT)
     fpLog.write(msg  + '\n')
 
     #
@@ -190,8 +208,12 @@ def checkEAEFile(file):
         fpLog.write('FINDING proper part of the file\n')
         cmd = "sed -n '%sq;%s,%sp' %s > %s" % (lastLineNum, startLineNum, lastLineNum, file, intermediateFile)
         fpLog.write(cmd + '\n')
-        stdout, stderr, statusCode = runCommand.runCommand(cmd)
-        msg = '%sstatusCode: %s stderr: %s stdout: %s%s' % (CRT, statusCode, stderr, stdout, CRT)
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        stdout = result.stdout
+        stderr = result.stderr
+        statusCode = result.returncode
+
+        msg = '%sstatusCode: %s stderr: %s %s' % (CRT, statusCode, stderr, CRT)
         fpLog.write(msg + '\n')
 
         fpIn = open(intermediateFile, 'r')
