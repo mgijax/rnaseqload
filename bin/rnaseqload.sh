@@ -86,8 +86,10 @@ fi
 
 preload 
 
-# remove files from output directory
-cleanDir ${OUTPUTDIR}
+# remove files from output directory and the input directory where
+# the intermediate files are created.
+
+cleanDir ${OUTPUTDIR} ${INPUTDIR}
 
 #
 # this script checks to see if the load needs to be run

@@ -2,17 +2,46 @@
 
 # bash is required
 
+# join:
 # "-a 1" print lines from file1 (eae) with runID that are not in file2 (aes)
-# "-t $'\t'" specifies the input and output file field separator (default in ' '
-# "-1 2 -2 1" join on field 2 in file1 and filed 1 in file2
-# "-o 1.1,1.2,1.3,2.2"  the format of the output line e.t. 1.1 is field 1 from
+# "-t $'\t'" specifies the input and output file field separator (default is ' '
+# "-1 2 -2 1" join on field 2 in file1 and field 1 in file2
+# "-o 1.1,1.2,1.3,2.2"  the format of the output line e.g. 1.1 is field 1 from
 #   file1 and 2.2 is field 2 from file 2
-# each file is sorted and redireced into join - note that the sort syntax  and 
+#
+# each file is sorted and redirected into join - note that the sort syntax  and 
 #   $'\t' only works in bash
+#
+# sort:
+# "-k 2" sort on column 2
 #
 # eae = Expression Atlas Experiment file
 # aes = ArrayExpress Sample file
 #
-# usage: run_join <path to eae file> <path to eas file> <path to joined output file>
+# usage: run_join <path to eae file> <path to aes file> <path to joined output file>
 
-join -a 1 -t $'\t' -1 2 -2 1 -o 1.1,1.2,1.3,2.2 <(sort -k 2 $1) <(sort -k 1 $2) > $3
+# sort the files first
+file1Sorted="$1.sorted"
+file2Sorted="$2.sorted"
+date
+echo "sorting file 1"
+sort -k 2 $1 > $file1Sorted
+
+date
+echo "sorting file 2"
+sort -k 1 $2 > $file2Sorted
+
+# join the sorted files
+date
+echo "running join"
+join -a 1 -t $'\t' -1 2 -2 1 -o 1.1,1.2,1.3,2.2 $file1Sorted  $file2Sorted > $3
+
+date
+echo "removing sorted files"
+
+# rm the sorted files
+rm $file1Sorted
+rm $file2Sorted
+
+date
+echo "done"
