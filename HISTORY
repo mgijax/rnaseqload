@@ -1,3 +1,8 @@
+TAG: rnaseqload-6-0-15-13
+DATE: 05/05/2020
+STAFF: sc
+CHANGES: rnaseqload.sh fixed call to grantPublicPermissions
+
 TAG: rnaseqload-6-0-15-12
 TAG: rnaseqload-6-0-15-11
 DATE: 02/18/2020
