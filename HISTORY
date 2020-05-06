@@ -1,11 +1,19 @@
+TAG: rnaseqload-6-0-15-14
+DATE: 05/05/2020
+STAFF: sc
+CHANGES: rnaseqload.sh fixed call to grantPublicPermissions
+for some reason changed from tag 6-0-15-13 are not reflected
+on master in git, so I copied over those changes and they are
+in this tag
+
 TAG: rnaseqload-6-0-15-13
 DATE: 02/26/2020
 STAFF: sc
-CHANGES: 
+CHANGES:
 1) updated run_join to create separate sorted files,
    run the join, then delete the sorted files.
 2) added cleanDir INPUTDIR to clean out the old files as
-     when experiments changes old intermediate files 
+     when experiments changes old intermediate files
      were hanging around
 3) Added: bin/test_rnaseqload.py
        bin/test_rnaseqload.sh
