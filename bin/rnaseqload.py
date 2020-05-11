@@ -231,13 +231,9 @@ def init():
 
     db.useOneConnection(1)
 
-    results = db.sql('''select nextval('gxd_htsample_rnaseq_seq') as maxKey ''', 'auto')
-    rnaSeqKey = results[0]['maxKey']
-    #print 'rnaSeqKey: %s' % rnaSeqKey
-
-    results = db.sql('''select nextval('gxd_htsample_rnaseqcombined_seq') as maxKey ''', 'auto')
-    combinedKey = results[0]['maxKey']
-    #print 'combinedKey: %s' % combinedKey
+    # We have truncated the tables
+    rnaSeqKey = 1
+    combinedKey = 1
 
     results = db.sql('''select accid, _object_key
         from ACC_Accession
