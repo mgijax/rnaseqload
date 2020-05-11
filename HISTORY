@@ -1,3 +1,9 @@
+TAG: rnaseqload-6-0-15-15
+DATE: 05/11/2020
+STAFF: sc
+CHANGES: rnaseqload.py - set rnaseq table primary keys to 0 since
+    tables are truncated
+
 TAG: rnaseqload-6-0-15-14
 DATE: 05/05/2020
 STAFF: sc
