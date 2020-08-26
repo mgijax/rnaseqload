@@ -30,6 +30,11 @@ fi
 #  LOAD SPECIFIC SETTINGS
 #
 ###########################################################################
+# set to "test" if you want to force the load to run i.e. not check the 
+# experiment set against the experiments in the database.
+
+LOAD_MODE=test
+export LOAD_MODE
 
 #  Path name of the archive, logs, reports and output directories
 FILEDIR=${DATALOADSOUTPUT}/mgi/rnaseqload

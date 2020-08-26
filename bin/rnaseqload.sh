@@ -94,21 +94,24 @@ cleanDir ${OUTPUTDIR} ${INPUTDIR}
 #
 # this script checks to see if the load needs to be run
 #
-${PYTHON} ./checkSet.py
-STAT=$?
-echo "STAT: ${STAT}"
-if [ ${STAT} = 2 ]
+if [ "${LOAD_MODE}" != "test" ] 
 then
-    checkStatus ${STAT} "WARNING: RNA Seq Experiment Set is empty - skipping file download" 
-    shutDown
-    exit 0
-fi
+    ${PYTHON} ./checkSet.py
+    STAT=$?
+    echo "STAT: ${STAT}"
+    if [ ${STAT} = 2 ]
+    then
+        checkStatus ${STAT} "WARNING: RNA Seq Experiment Set is empty - skipping file download" 
+        shutDown
+        exit 0
+    fi
 
-if [ ${STAT} = 0 ]
-then
-    checkStatus ${STAT} "RNA Seq Experiment Set not updated - skipping file download" 
-    shutDown
-    exit 0
+    if [ ${STAT} = 0 ]
+    then
+        checkStatus ${STAT} "RNA Seq Experiment Set not updated - skipping file download" 
+        shutDown
+        exit 0
+    fi
 fi
 
 if [ -f ${DOWNLOAD_OK} ]
