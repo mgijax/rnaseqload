@@ -33,7 +33,7 @@ fi
 # set to "test" if you want to force the load to run i.e. not check the 
 # experiment set against the experiments in the database.
 
-LOAD_MODE=test
+LOAD_MODE=""
 export LOAD_MODE
 
 #  Path name of the archive, logs, reports and output directories
