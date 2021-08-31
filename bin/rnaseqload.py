@@ -248,12 +248,14 @@ def init():
     for r in results:
         JDOSampleSet.add(str.strip(r['name']))
 
-    results =  db.sql('''select name
-        from GXD_HTSample
-        where _Relevance_key = 20475450''', 'auto')
+    results =  db.sql('''select a.accid as exptID, s.name
+        from GXD_HTSample s, ACC_Accession a
+        where s._Relevance_key = 20475450
+        and s._experiment_key = a._object_key
+        and a._mgitype_key = 42
+        order by a.accid, s.name''', 'auto')
     for r in results:
-        relevantSampleSet.add(str.strip(r['name']))
-
+        relevantSampleSet.add('%s|%s' % (str.strip(r['exptID']), str.strip(r['name'])))
     results = db.sql('''select accid, _Object_key
         from ACC_Accession
         where _LogicalDB_key =  60
@@ -834,15 +836,14 @@ def createJoinedFile(joinedFile):
 
 def processJoinedFile(expID, joinedFile):
     global runIdNotInAEList, nonRelSkippedList, JDOSkippedList
-
+    print('joinedFile: %s' % joinedFile)
     start_time = time.time()
-
-    #print 'joinedFile: %s ' % joinedFile
     # {geneID: {sampleID:[tpm1, ...], ...}, ...}
     geneDict = {}
 
     fpJoined = open(joinedFile, 'r')
     line = fpJoined.readline()
+    
     while line:
         tokens = str.split(line, TAB)
         geneID = tokens[0]
@@ -855,7 +856,6 @@ def processJoinedFile(expID, joinedFile):
             sampleID = str.strip(tokens[3])
         except:
             sampleID = ''
-
         # some join files have empty column 4
         if sampleID == '':
             msg = '%s: %s' % (expID, runID)
@@ -867,7 +867,8 @@ def processJoinedFile(expID, joinedFile):
         # we do this here rather than excluding when create the aes pp file
         # so we may differentiate between sample id 1) not in database and
         # 2) a) not relevant b) in J:DO strain set
-        if sampleID not in relevantSampleSet:
+        lookupVal = '%s|%s' % (expID, sampleID)
+        if lookupVal not in relevantSampleSet:
             msg = '%s: %s' % (expID, sampleID)
             if msg not in  nonRelSkippedList:
                 nonRelSkippedList.append(msg)
