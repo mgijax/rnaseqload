@@ -53,6 +53,11 @@
 #
 #  Notes:  None
 #
+# HISTORY
+# 
+#       sc - fixed bug in determining non-relevant samples
+#         - https://mgi-jira.atlassian.net/browse/WTS2-514
+#         - more RNA seq data (plus more EA links) (TR13314)
 ###########################################################################
 
 import os	 	# for system to execute bcp, getenv
