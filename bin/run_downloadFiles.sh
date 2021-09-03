@@ -57,21 +57,27 @@ then
     touch ${LOG_DOWNLOAD}
 fi
 
-# check the database for changes. If the RNA-Seq MGI_Set is different than 
-# the RNA-Seq experiments loaded, then run the download
-${PYTHON} ./checkSet.py
-rc=$?
-#echo "rc: $rc"
-if [ $rc = 2 ]
+#
+# this script checks to see if the load needs to be run
+#
+if [ "${LOAD_MODE}" != "test" ]
 then
-    echo "WARNING: RNA Seq Experiment Set is empty - skipping file download" | tee -a ${LOG_DOWNLOAD}
-    exit 0
-fi
+    # check the database for changes. If the RNA-Seq MGI_Set is different than 
+    # the RNA-Seq experiments loaded, then run the download
+    ${PYTHON} ./checkSet.py
+    rc=$?
+    #echo "rc: $rc"
+    if [ $rc = 2 ]
+    then
+        echo "WARNING: RNA Seq Experiment Set is empty - skipping file download" | tee -a ${LOG_DOWNLOAD}
+        exit 0
+    fi
 
-if [ $rc = 0 ]
-then
-    echo "RNA Seq Experiment Set not updated - skipping file download" | tee -a ${LOG_DOWNLOAD}
-    exit 0
+    if [ $rc = 0 ]
+    then
+        echo "RNA Seq Experiment Set not updated - skipping file download" | tee -a ${LOG_DOWNLOAD}
+        exit 0
+    fi
 fi
 
 # RNA Seq Experiment set updated; rm the download_ok file if it exists
