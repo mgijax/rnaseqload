@@ -206,13 +206,22 @@ def checkEAEFile(file):
         intermediateFile = '%s.int' % file
 
         fpLog.write('FINDING proper part of the file\n')
-        cmd = "sed -n '%sq;%s,%sp' %s > %s" % (lastLineNum, startLineNum, lastLineNum, file, intermediateFile)
+        cmd = "sed -n '%sq;%s,%sp' %s > %s" % (int(lastLineNum)+1, int(startLineNum)-1, int(lastLineNum)+1, file, intermediateFile)
         fpLog.write(cmd + '\n')
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         stdout = result.stdout
         stderr = result.stderr
         statusCode = result.returncode
+        msg = '%sstatusCode: %s stderr: %s %s' % (CRT, statusCode, stderr, CRT)
+        fpLog.write(msg + '\n')
 
+        fpLog.write('SAVING copy of the file\n')
+        cmd = 'mv %s %s.bak' % (file, file)
+        fpLog.write(cmd + '\n')
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        stdout = result.stdout
+        stderr = result.stderr
+        statusCode = result.returncode
         msg = '%sstatusCode: %s stderr: %s %s' % (CRT, statusCode, stderr, CRT)
         fpLog.write(msg + '\n')
 

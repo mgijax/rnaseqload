@@ -1,7 +1,10 @@
+TAG: rnaseqload-6-0-17-2
 TAG: rnaseqload-6-0-17-1
 DATE: 08/31/2021
 STAFF: sc
 CHANGES: WTS2-514 - bug fix determining non-relevant samples
+    downloadFiles.py - bug fix when downloaded files has multiple entries so
+    last gene is included
 
 TAG: rnaseqload-6-0-16-3
 TAG: rnaseqload-6-0-16-2
