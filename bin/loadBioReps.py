@@ -125,12 +125,12 @@ def process():
         and hts._relevance_key = 20475450 --Yes
         and hts._experiment_key = t1._experiment_key''', None)
     db.sql('''create index idx2 ON temp2 (_emapa_key)''', None)
-    db.sql('''select n._object_key as _sample_key, nc.note 
+    db.sql('''select n._object_key as _sample_key, n.note 
         into temporary table temp4 
-        from mgi_note n, mgi_notechunk nc 
+        from mgi_note n
         where n._notetype_key = 1048 
         and n._mgitype_key = 43 
-        and nc._note_key = n._note_key''', None)
+        ''', None)
     db.sql('''create index idx4 on temp4 (_sample_key)''', None)
     results = db.sql('''select distinct  t2._experiment_key, t2._sample_key, t2.age,
             t2._organism_key, t2._sex_key, t2._stage_key, t2._emapa_key, t2._genotype_key, 
