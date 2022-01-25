@@ -35,7 +35,6 @@
 import os	 # for system to execute bcp, getenv
 import mgi_utils # for log start/end timestamp
 import loadlib	 # for bcp friendly date/timestamp
-import string
 import db
 import sys 	 # to flush stdout
 import time	 # used for its time.time() function (for timestamps)
