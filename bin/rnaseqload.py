@@ -67,6 +67,7 @@ import string
 import db
 import sys 	 	# to flush stdout
 import time	 	# used for its time.time() function (for timestamps)
+import subprocess
 import numpy as np	# used for stddev	
 import pandas as pd	# used for QN
 import quantileNormalize # module within this product
@@ -815,16 +816,24 @@ def createJoinedFile(joinedFile):
 
     start_time = time.time()
     cmd = "%s/run_join %s %s %s" % (binDir, currentEaePPFile, currentAesPPFile, joinedFile)
-    rc = os.system(cmd)
-    if rc != 0:
-        msg = 'join cmd did not succeed: %s%s' % (cmd, CRT)
-        fpDiag.write(msg)
+    #rc = os.system(cmd)
+    #if rc != 0:
+    #    msg = 'join cmd did not succeed: %s%s' % (cmd, CRT)
+    #    fpDiag.write(msg)
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    stdout = result.stdout
+    stderr = result.stderr
+    statusCode = result.returncode
+    if statusCode != 0:
+        msg = 'Joining %s and %s failed statusCode: %s stderr: %s%s' % (currentEaePPFile, currentAesPPFile, statusCode, stderr, CRT)
+        fpLog.write(msg)
+        return statusCode
+    else:
+        elapsed_time = time.time() - start_time
+        print('%sTIME: Creating the join file %s %s%s' % (CRT, joinedFile, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT))
+        sys.stdout.flush()
 
-    elapsed_time = time.time() - start_time
-    print('%sTIME: Creating the join file %s %s%s' % (CRT, joinedFile, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT))
-    sys.stdout.flush()
-
-    return 0
+        return 0
 
 # end createJoinedFile ()--------------------------------------------
 
@@ -1219,7 +1228,9 @@ def process():
         # Create the joined file from the two preprocessed (pp) files
         #
         joinedFile =  joinedPPTemplate % expID
-        createJoinedFile(joinedFile)
+        cjf_rc = createJoinedFile(joinedFile)
+        if cjf_rc != 0:
+            return 1 
 
         # process the joined file, creating dict by geneID
         # {geneID: {sampleID:[tpm1, ...], ...}, ...}
@@ -1410,7 +1421,8 @@ START_TIME = time.time()
 
 print('Start time: %s' %  mgi_utils.date())
 sys.stdout.flush()
-init()
+if init() != 0:
+     exit(1, 'Error in  init \n' )
 elapsed_time = time.time() - START_TIME
 print('TIME to run init function %s' %  time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
 sys.stdout.flush()
@@ -1418,7 +1430,8 @@ sys.stdout.flush()
 # -------------------------------------------------------------
 TIME = time.time()
 
-process()
+if process() != 0:
+     exit(1, 'Error in  process \n' )
 elapsed_time = time.time() - TIME
 print('TIME to run process function %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
 sys.stdout.flush()
@@ -1426,7 +1439,8 @@ sys.stdout.flush()
 # -------------------------------------------------------------
 TIME = time.time()
 
-writeQC()
+if writeQC() != 0:
+     exit(1, 'Error in writeQC \n' )
 elapsed_time = time.time() - TIME
 print('TIME to run writeQC function %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
 sys.stdout.flush()
