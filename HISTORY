@@ -1,3 +1,10 @@
+TAG: rnaseqload-6-0-21-1
+DATE: 07/25/2022
+STAFF: sc
+CHANGES:
+wts-930 run_join - change invocation from os.systerm to subprocess.run
+    so we can hopefully capture errors coming from that script
+
 TAG: rnaseqload-6-0-18-1
 DATE: 01/25/2022
 STAFF: lec
