@@ -1,7 +1,10 @@
+TAG: rnaseqload-6-0-22-2
 TAG: rnaseqload-6-0-22-1
 DATE: 08/13/2022
 STAFF: sc
 CHANGES: WTS2-492 - load new table gxd_htsample_rnaseqset_cache
+ - second tag reworked to do in batches of 200 seqset keys (3 sets + remainder)
+   because test server OS was killing the process when I was doing it in 2 batches
 
 TAG: rnaseqload-6-0-21-1
 DATE: 07/25/2022

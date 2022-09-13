@@ -83,53 +83,36 @@ def process():
     global assocKey
 
     TIME = time.time()
-
+    # currently 36724708 rnaseqset/rnaseqcombined pairs
+    # currently 706 bio replicates (gxd_htsample_rnaseqset records)
+    batchSize = 200
     results = db.sql('''select max(_rnaseqset_key) as ct
             from gxd_htsample_rnaseqset''', 'auto')
-    
-    ct = int(results[0]['ct'])
-    print ('ct: %s' % ct)
+   
+    totalCt = int(results[0]['ct'])
+    print ('totalCt: %s' % totalCt)
 
-    ct1 = ct//2
+    curStart = 1
+    curEnd = batchSize
+    while curStart <= totalCt: 
+        results = db.sql('''select * 
+                from rnaseqsetcombined
+                where _rnaseqset_key between %s and %s''' % (curStart, curEnd), 'auto')
 
-    # if odd number ct2 will be ct1 + 1
-    ct2 = ct - ct1
+        elapsed_time = time.time() - TIME
+        print('TIME to run query %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
+        sys.stdout.flush()
 
-    print ('count: %s ct1: %s ct2: %s' % (ct, ct1, ct2))
-
-    results = db.sql('''select * 
-            from rnaseqsetcombined
-            where _rnaseqset_key between 1 and %s''' % ct1, 'auto')
-
-    elapsed_time = time.time() - TIME
-    print('TIME to run query %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
-    sys.stdout.flush()
-
-    #
-    # Write to the bcp file part 1
-    #
-    for r in results:
-        combinedKey = r['_rnaseqcombined_key']
-        seqSetKey = r['_rnaseqset_key']
-        fpCache.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (assocKey, TAB, combinedKey, TAB, seqSetKey, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
-        assocKey +=1
-
-    results = db.sql('''select *
-            from rnaseqsetcombined
-            where _rnaseqset_key between %s and %s''' % (ct1 + 1, ct), 'auto')
-
-    elapsed_time = time.time() - TIME
-    print('TIME to run query %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
-    sys.stdout.flush()
-
-    #
-    # Write to the bcp file part 2
-    # 
-    for r in results:
-        combinedKey = r['_rnaseqcombined_key']
-        seqSetKey = r['_rnaseqset_key']
-        fpCache.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (assocKey, TAB, combinedKey, TAB, seqSetKey, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
-        assocKey +=1
+        #
+        # Write to the bcp file 
+        #
+        for r in results:
+            combinedKey = r['_rnaseqcombined_key']
+            seqSetKey = r['_rnaseqset_key']
+            fpCache.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (assocKey, TAB, combinedKey, TAB, seqSetKey, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+            assocKey +=1
+        curStart += batchSize
+        curEnd += batchSize
 
     fpCache.close()
 
