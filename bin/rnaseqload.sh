@@ -171,4 +171,10 @@ date | tee -a ${LOG_DIAG}
 echo "Grant Database Permissions" | tee -a ${LOG_DIAG}
 ${PG_DBUTILS}/bin/grantPublicPerms.csh ${PG_DBSERVER} ${PG_DBNAME} mgd >> ${LOG_DIAG} 2>&1
 
+date | tee -a ${LOG_DIAG}
+echo "Running loadSeqSetCache.sh" | tee -a ${LOG_DIAG}
+${RNASEQLOAD}/bin/loadSeqSetCache.sh >> ${LOG_DIAG} 2>&1
+STAT=$?
+checkStatus ${STAT} "loadSeqSetCache.sh"
+
 shutDown
