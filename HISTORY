@@ -1,3 +1,11 @@
+TAG: rnaseqload-6-0-22-3
+DATE: 10/21/2022
+STAFF: sc
+CHANGES: WTS2-1017 - data clean up: tweak RNA seq bioreplicate annotations in the front end
+Added: bin/reloadBioRepsAndCache.sh to reload the BioReps and the Cache - this
+   can be run adhoc whenever Connie needs to update sample emapa annotations
+   and/or notes
+
 TAG: rnaseqload-6-0-22-2
 TAG: rnaseqload-6-0-22-1
 DATE: 08/13/2022
