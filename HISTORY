@@ -1,3 +1,19 @@
+TAG: rnaseqload-6-0-26-1
+DATE: 09/02/2025
+STAFF: lec
+wts2-1720/sprt-38/import additional RNA-seq experiments into GXD
+        modified:   HISTORY
+        modified:   bin/rnaseqload.py
+        modified:   rnaseqload.config.default
+
+TAG: rnaseqload-6-0-26-?
+DATE: 08/26/2025
+STAFF: lec
+sprt-37/GXD HT RNA Seq  tables with Marker Withdrawal
+        modified:   HISTORY
+        new file:   bin/processWithdrawnMarkers.sh
+        modified:   bin/rnaseqload.sh
+
 TAG: rnaseqload-6-0-22-3
 DATE: 10/21/2022
 STAFF: sc

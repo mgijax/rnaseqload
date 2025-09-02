@@ -282,13 +282,16 @@ def init():
 
     db.sql('''create index idx1 on multiEns(accid)''')
 
-    results = db.sql('''select a.accid, m.symbol
+    results = db.sql('''
+        select a.accid, m.symbol
         from multiEns me, ACC_Accession a, MRK_Marker m
         where me.accid = a.accid
         and a._LogicalDB_key =  60
-                and a._MGIType_key = 2
-                and a.preferred = 1
-        and a._Object_key = m._Marker_key''', 'auto')
+        and a._MGIType_key = 2
+        and a.preferred = 1
+        and a._Object_key = m._Marker_key
+        and m._MarkerStatus_key = 1
+        ''', 'auto')
 
     for r in results:
         ensID = r['accid']
@@ -307,13 +310,16 @@ def init():
     
     db.sql('create index idx2 on multi(_Object_key)')
     
-    results = db.sql('''select a.accid, m.symbol
+    results = db.sql('''
+        select a.accid, m.symbol
         from ACC_Accession a, multi mm, MRK_Marker m
         where a._MGIType_key = 2
         and a._LogicalDB_key = 60
         and a._Object_key = mm._Object_key
         and a._Object_key = m._Marker_key
-        order by m.symbol''', 'auto')
+        and m._MarkerStatus_key = 1
+        order by m.symbol
+        ''', 'auto')
 
     for r in results:
         ensID = r['accid']

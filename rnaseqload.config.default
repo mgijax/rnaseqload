@@ -44,7 +44,6 @@ RPTDIR=${FILEDIR}/reports
 OUTPUTDIR=${FILEDIR}/output
 INPUTDIR=${FILEDIR}/input
 RAW_INPUTDIR=${FILEDIR}/raw_input
-
 export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR RAW_INPUTDIR
 
 # Complete path name of the rnaseqload log files
@@ -54,19 +53,18 @@ LOG_DIAG=${LOGDIR}/rnaseqload.diag.log
 LOG_CUR=${LOGDIR}/rnaseqload.cur.log
 LOG_VAL=${LOGDIR}/rnaseqload.val.log
 LOG_DOWNLOAD=${LOGDIR}/downloadFiles.log
-
 export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL LOG_DOWNLOAD
 
 # Array Express Sample File Templates
-AES_URL_TEMPLATE="https://www.ebi.ac.uk/arrayexpress/files/%s/%s.sdrf.txt"
+AES_URL_TEMPLATE="https://ftp.ebi.ac.uk/biostudies/fire/%s/%s/%s/Files/%s.sdrf.txt"
 # Name of local file fetched from URL 
 AES_LOCAL_FILE_TEMPLATE=${RAW_INPUTDIR}/%s.aes.txt
 # Name of pre-processed local file
 AES_PP_FILE_TEMPLATE=${INPUTDIR}/%s.aes.pp.txt
+export AES_URL_TEMPLATE AES_LOCAL_FILE_TEMPLATE AES_PP_FILE_TEMPLATE
 
 # if this file exists then there is a full data set
 DOWNLOAD_OK=${RAW_INPUTDIR}/download_ok
-
 export DOWNLOAD_OK
 
 # Expression Atlas Experiment File Templates
@@ -75,31 +73,24 @@ EAE_URL_TEMPLATE="ftp://ftp.ebi.ac.uk/pub/databases/arrayexpress/data/atlas/rnas
 EAE_LOCAL_FILE_TEMPLATE=${RAW_INPUTDIR}/%s.eae.txt
 # Name of pre-processed local file
 EAE_PP_FILE_TEMPLATE=${INPUTDIR}/%s.eae.pp.txt
-
-export AES_URL_TEMPLATE AES_LOCAL_FILE_TEMPLATE AES_PP_FILE_TEMPLATE
 export EAE_URL_TEMPLATE EAE_PP_FILE_TEMPLATE EAE_LOCAL_FILE_TEMPLATE
 
 # the two *_PP_* files joined
 JOINED_PP_FILE_TEMPLATE=${INPUTDIR}/%s.joined.txt
-
 export JOINED_PP_FILE_TEMPLATE
 
 # rna-seq and combined bcp files
 RNASEQ_BCP=rnaseq.bcp
 COMBINED_BCP=combined.bcp
-
 export RNASEQ_BCP COMBINED_BCP
 
 # cutoff for aveStdDev - report/skip
 STDDEV_CUTOFF=0.7
-
 export STDDEV_CUTOFF
 
 #  The name of the job stream for the load
 JOBSTREAM=rnaseqload
-
 export JOBSTREAM
-
 
 ###########################################################################
 #
@@ -109,10 +100,8 @@ export JOBSTREAM
 
 #  The name of the load for the subject of an email notification
 MAIL_LOADNAME="GXD RNA-Seq Load"
-
 #  Recipient list for mailing the log files (comma-separated)
 #MAIL_LOG_PROC="mgiadmin"
-
 export MAIL_LOADNAME MAIL_LOG_PROC
 
 INSTALLDIR=${RNASEQLOAD}

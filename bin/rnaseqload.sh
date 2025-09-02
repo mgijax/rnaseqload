@@ -91,6 +91,10 @@ preload
 
 cleanDir ${OUTPUTDIR} ${INPUTDIR}
 
+date | tee -a ${LOG_DIAG}
+echo "Process Withdrawn Markers" | tee -a ${LOG_DIAG}
+${RNASEQLOAD}/bin/processWithdrawnMarkers.sh >> ${LOG_DIAG} 2>&1
+
 #
 # this script checks to see if the load needs to be run
 #
