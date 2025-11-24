@@ -290,7 +290,7 @@ def init():
         and a._MGIType_key = 2
         and a.preferred = 1
         and a._Object_key = m._Marker_key
-        and m._MarkerStatus_key = 1
+        and m._Marker_Status_key = 1
         ''', 'auto')
 
     for r in results:
@@ -317,7 +317,7 @@ def init():
         and a._LogicalDB_key = 60
         and a._Object_key = mm._Object_key
         and a._Object_key = m._Marker_key
-        and m._MarkerStatus_key = 1
+        and m._Marker_Status_key = 1
         order by m.symbol
         ''', 'auto')
 
