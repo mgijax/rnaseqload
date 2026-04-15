@@ -94,8 +94,8 @@ def init():
     #memberKey = results[0]['maxKey']
     #print 'memberKey: %s' % memberKey
 
-    setKey = 1
-    memberKey = 1
+    setKey = 707
+    memberKey = 2128
 
     return 0
 
@@ -113,6 +113,7 @@ def process():
     and sm._Object_key = a._Object_key
     and a._MGIType_key = 42 --GXD_HTExperiment
     and a._LogicalDB_key = 189
+           and a.accid = 'E-ENAD-15'
     and a.preferred = 1''', None)
     db.sql('''create index idx1 on temp1 (_experiment_key)''', None)
     db.sql('''select t1.*, hts._sample_key, 
@@ -146,8 +147,12 @@ def process():
         orgKey = r['_organism_key']
         sexKey = r['_sex_key']
         emapaKey = r['_emapa_key']
+       
         stageKey = r['_stage_key']
+        stageKey = stageKey or 27
         genotypeKey = r['_genotype_key']
+        if emapaKey == None:
+            continue
         note = r['note']
         if note == None:
             note = ''

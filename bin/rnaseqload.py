@@ -72,6 +72,14 @@ import numpy as np	# used for stddev
 import pandas as pd	# used for QN
 import quantileNormalize # module within this product
 
+import numpy as np	# used for stddev	
+import pandas as pd	# used for QN
+from scRNASeq import SCRNASeq
+from scPseudobulkConfig import SCPseudobulkConfig
+import logging as log
+
+log.basicConfig(level=log.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
 # paths to input and two output files
 logDir =  os.getenv('LOGDIR')
 inputDir =  os.getenv('INPUTDIR')
@@ -128,6 +136,11 @@ eaePPTemplate  =  '%s' % os.getenv('EAE_PP_FILE_TEMPLATE')
 # the joined PP files template
 joinedPPTemplate = '%s' % os.getenv('JOINED_PP_FILE_TEMPLATE')
 
+scRNAInputFileTemplate = os.getenv('SCRNA_INPUT_FILE_TEMPLATE')
+scRNAQNInputFileTemplate = os.getenv('SCRNA_QN_INPUT_FILE_TEMPLATE')
+scRNAQNOutputFileTemplate = os.getenv('SCRNA_QN_OUT_FILE_TEMPLATE')
+scRNAMatrixOutputFileTemplate = os.getenv('SCRNA_MATRIX_OUT_FILE_TEMPLATE')
+
 # GXT HT Experiment IDs in the database
 #experimentInDbSet = set()
 experimentInDbDict = {}
@@ -142,6 +155,7 @@ relevantSampleSet = set()
 # used to see if the ensembl ID is in the database
 # Sets are faster; lists are sequential scan
 ensemblMarkerSet = set()
+ensemblGeneDict = {}  #gene to markerKey dict
 
 # ensembl IDs assoc w/markers, to get the marker Key
 # if multi markers, the last marker will be stored
@@ -233,13 +247,17 @@ def init():
     global experimentInDbDict, sampleInDbList, JDOSampleSet
     global relevantSampleSet, ensemblMarkerSet, ensemblSequenceSet
     global multiEnsemblMarkerDict, multiMarkerEnsemblDict, symbolToMultiEnsIdDict
-    global rnaSeqKey, combinedKey, ensemblMarkerDict, rnaSeqSetResults
+    global rnaSeqKey, combinedKey, ensemblMarkerDict, ensemblGeneDict, rnaSeqSetResults
 
     db.useOneConnection(1)
 
     # We have truncated the tables
-    rnaSeqKey = 1
-    combinedKey = 1
+    rnaSeqKey = 110642287
+    combinedKey = 36724709
+    # delete previous data
+    obj = db.sql('''DELETE FROM GXD_HTSample_RNASeq where _rnaseq_key >= %s ''' % rnaSeqKey, 'auto')
+    obj2 = db.sql('''DELETE FROM GXD_HTSample_RNASeqCombined where _rnaseqcombined_key >= %s ''' % combinedKey, 'auto')
+    db.commit()    
 
     results = db.sql('''select accid, _object_key
         from ACC_Accession
@@ -271,6 +289,7 @@ def init():
         accid = r['accid']
         ensemblMarkerSet.add(accid)
         ensemblMarkerDict[accid] = r['_Object_key']
+        ensemblGeneDict[r['_Object_key']] = accid
 
     db.sql('''select accid
         into temporary table multiEns
@@ -864,6 +883,7 @@ def processJoinedFile(expID, joinedFile):
     fpJoined = open(joinedFile, 'r')
     line = fpJoined.readline()
     
+    line_count = 0    
     while line:
         tokens = str.split(line, TAB)
         geneID = tokens[0]
@@ -908,6 +928,10 @@ def processJoinedFile(expID, joinedFile):
             geneDict[geneID][sampleID] = []
         geneDict[geneID][sampleID].append(float(tpm))
         line = fpJoined.readline()
+
+        line_count += 1
+        if line_count % 1_000 == 0:
+            log.info(f"processed joinedFile {line_count:,} rows")        
 
     elapsed_time = time.time() - start_time
     print('%sTIME: Processing the join file %s %s%s' % (CRT, joinedFile, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT))
@@ -1193,6 +1217,9 @@ def process():
     #
     for r in rnaSeqSetResults:
         expID = str.strip(r['accid'])
+#        if expID != 'E-ERAD-169':
+        if expID != 'E-ENAD-15':
+            continue        
 
         # load the list of sampleIDS and their keys from the database 
         # for current experiment there can be > 1
@@ -1209,49 +1236,74 @@ def process():
         # preprocess the aes file for this expID (run, sample)
         #
         sys.stdout.flush()
-        rc = ppAESFile(expID)
-        if rc != 0:
-            print('''preprocessing AES file returned rc %s, 
+
+        joinedFile = joinedPPTemplate % expID
+        scrnaseq = None
+        if SCRNASeq.is_single_cell(expID):
+            scrnaseq = SCRNASeq(expID)
+            # scrnaseq.download()
+            # scrnaseq.createJoinedFile(
+            #     joinedFile, multiMarkerEnsemblDict, multiEnsemblMarkerDict,
+            #     ensemblMarkerSet, ensemblSequenceSet
+            # )
+            # tissue = 'Bladder';
+            # organism_part = 'urinary bladder'
+            # cell_type = 'bladder cell'
+
+            # scRNAFile = scRNAInputFileTemplate % (tissue.replace(' ', '_'), organism_part.replace(' ', '_'), cell_type.replace(' ', '_'))
+            # replisetDict = scrnaseq.getBioReplicates(db, expID, tissue, organism_part, cell_type)
+            # aveTPMDict = scrnaseq.calcTPMAveSD(expID, scRNAFile, multiMarkerEnsemblDict, multiEnsemblMarkerDict,
+            #     ensemblMarkerSet, ensemblSequenceSet, ensemblMarkerDict, replisetDict)
+            scPseudobulkConfig = SCPseudobulkConfig.get_pseudobulk_id(SCPseudobulkConfig.PSEUDOBULK_ID_SEX_2_group)
+            scRNAFile = scRNAInputFileTemplate % scPseudobulkConfig['joined_file_name']
+            pseudobulkInfo = scrnaseq.getPseudobulkInfo(db, scPseudobulkConfig['replicate_query'])
+            replisetDict = scrnaseq.toReplicates(pseudobulkInfo)
+            aveTPMDict = scrnaseq.calcTPMAveSD(expID, scRNAFile, multiMarkerEnsemblDict, multiEnsemblMarkerDict,
+                ensemblMarkerSet, ensemblSequenceSet, ensemblMarkerDict, pseudobulkInfo, replisetDict)
+        else:
+            rc = ppAESFile(expID)
+            if rc != 0:
+                print('''preprocessing AES file returned rc %s, 
+                            skipping file for %s''' % (rc, expID))
+                continue
+
+            # preprocess the eae file for this expID (gene, run, tpm)
+            #
+            sys.stdout.flush()
+            rc = ppEAEFile(expID)
+            if rc != 0:
+                print('''preprocessing EAE file returned rc %s, 
                         skipping file for %s''' % (rc, expID))
-            continue
+                continue
 
-        # preprocess the eae file for this expID (gene, run, tpm)
-        #
-        sys.stdout.flush()
-        rc = ppEAEFile(expID)
-        if rc != 0:
-            print('''preprocessing EAE file returned rc %s, 
-                    skipping file for %s''' % (rc, expID))
-            continue
+            # check for AES runIDs not in the EAE file
+            #
+            diff = aesRunIdSet.difference(eaeRunIdSet)
+            if len(diff):
+                diffString = ', '.join(diff)
+                runIdNotInEAList.append('%s: %s' % (expID, diffString))
 
-        # check for AES runIDs not in the EAE file
-        #
-        diff = aesRunIdSet.difference(eaeRunIdSet)
-        if len(diff):
-            diffString = ', '.join(diff)
-            runIdNotInEAList.append('%s: %s' % (expID, diffString))
+            # Create the joined file from the two preprocessed (pp) files
+            #
+            joinedFile =  joinedPPTemplate % expID
+            cjf_rc = createJoinedFile(joinedFile)
+            if cjf_rc != 0:
+                return 1 
 
-        # Create the joined file from the two preprocessed (pp) files
-        #
-        joinedFile =  joinedPPTemplate % expID
-        cjf_rc = createJoinedFile(joinedFile)
-        if cjf_rc != 0:
-            return 1 
+            # process the joined file, creating dict by geneID
+            # {geneID: {sampleID:[tpm1, ...], ...}, ...}
+            #
+            geneDict = processJoinedFile(expID, joinedFile)
+            
+            # {sampleKey:{markerKey:aveTPM, ...}, 
+            #	sampleKey2:{markerKey:aveTPM, ...}, ...}
+            aveTPMDict = calcTPMAveSD(expID, geneDict)
+            #print 'aveTPMDict keys: %s' % aveTPMDict.keys()
+            if not aveTPMDict: # nothing to normalize
+                continue
 
-        # process the joined file, creating dict by geneID
-        # {geneID: {sampleID:[tpm1, ...], ...}, ...}
-        #
-        geneDict = processJoinedFile(expID, joinedFile)
-        
-        # {sampleKey:{markerKey:aveTPM, ...}, 
-        #	sampleKey2:{markerKey:aveTPM, ...}, ...}
-        aveTPMDict = calcTPMAveSD(expID, geneDict)
-        #print 'aveTPMDict keys: %s' % aveTPMDict.keys()
-        if not aveTPMDict: # nothing to normalize
-            continue
-
-        # {attributeKey:set(sampleKeys), ...}
-        replisetDict = getBioReplicates(expID)
+            # {attributeKey:set(sampleKeys), ...}
+            replisetDict = getBioReplicates(expID)
         # number of genes
         numRows = 0 # set this later when we know!
 
@@ -1309,7 +1361,19 @@ def process():
                 replisetAveTpmDict[sampleKey] = aveTPMDict[sampleKey]
             # Now QN them
             qnInput =  pd.DataFrame(replisetAveTpmDict)
+            log.info(f"quantileNormalize: {key} : {totalSamples} samples")
             qnOutput = quantileNormalize.qn(qnInput, list(replisetAveTpmDict.keys()))
+            log.info(f"qnOutput shape: {qnOutput.shape}, {qnOutput.memory_usage(deep=True).sum() / 1024**3:.2f}GB")
+
+            if scrnaseq:
+                num_of_samples = scrnaseq.find_num_of_samples(pseudobulkInfo, key)
+                scRNAQNInputFile = scRNAQNInputFileTemplate % (scPseudobulkConfig['name'], f"{key}_{num_of_samples}_samples")
+                scRNAQNOutputFile = scRNAQNOutputFileTemplate % (scPseudobulkConfig['name'], f"{key}_{num_of_samples}_samples")
+                custom_header = scrnaseq.find_sample_name_by_keys(pseudobulkInfo, qnInput.columns)
+
+                row_label = [f"{ensemblGeneDict[idx]}" for idx in qnInput.index]
+                qnInput.to_csv(scRNAQNInputFile, index=row_label, header=custom_header, index_label='gene')
+                qnOutput.to_csv(scRNAQNOutputFile, index=row_label, header=custom_header, index_label='gene')
 
             # {sampleKey:{markerKey:qnAveTPM, ...},
             #       sampleKey2:{markerKey:qnAveTPM, ...}, ...}
@@ -1394,11 +1458,24 @@ def process():
             #print '\nRow 3 of matrix'
             #print matrix[2]
 
+            if scrnaseq:
+                columns = ["marker_key"]
+                num_of_samples = scrnaseq.find_num_of_samples(pseudobulkInfo, key)
+                sample_names = scrnaseq.find_sample_name_by_keys(pseudobulkInfo, sampleSet)
+                for sample_name in sample_names:
+                    columns.append(sample_name)
+                columns.append("avg_tpm_per_gene")
+                columns.append("num_of_bioreplicates")
+                scRNAMatrixOutputFile = scRNAMatrixOutputFileTemplate % (scPseudobulkConfig['name'], key)
+                row_label = [f"{ensemblGeneDict[idx]}" for idx in qnInput.index]
+                df = pd.DataFrame(matrix, columns=columns, index=row_label)
+                df.to_csv(scRNAMatrixOutputFile, index_label='gene')            
+
         # write out bcp for all replisets of this experiment
         writeBCP(expID, matrixList)
 
     # we've processed all experiments, now execute bcp
-    execBCP()
+ #   execBCP()
     return 0
 
 # end process ()--------------------------------------------
