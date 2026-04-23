@@ -1,21 +1,18 @@
 import os
 import gzip
 import ftplib
-import shutil
 import pandas as pd
 import random
-from scipy.io import mmread
-from scipy import sparse
-import numpy as np
 import logging as log
 import psutil
-import time
 import csv
 from decimal import Decimal
+from pseudobulkConfig import PseudobulkConfig
 
 log.basicConfig(level=log.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-class SCRNASeq:
+class PseudobulkExpt:
+
     def __init__(self, exp_id):
         self.exp_id = exp_id
         self.ftp_host = "ftp.ebi.ac.uk"
@@ -29,6 +26,7 @@ class SCRNASeq:
         ]
 
         self.base_dir = os.getenv("RAW_INPUTDIR")
+        self.config = None
 
     @staticmethod
     def is_single_cell(exp_id):
@@ -211,13 +209,6 @@ class SCRNASeq:
             log.info(f"Replicate: {replicateKey}: num_of_samples = {num_of_samples} ({list(sample_key_set)[:3]})")
         return pseudobulkInfo
 
-    def toReplicates(self, pseudobulkInfo):
-        replisetDict = {}
-        for key in pseudobulkInfo:
-            row = pseudobulkInfo[key]
-            replisetDict[key] = row['sample_keys']
-        return replisetDict
-
     def getBioReplicates(self, db, expID, tissue, organism_part, cell_type):
         query ='''
             SELECT distinct concat_ws('|', tissue, organism_part, cell_type, sex, 
@@ -254,39 +245,10 @@ class SCRNASeq:
     def sql_escape(self, val):
         if val is None:
             return 'NULL'
-        return "'" + str(val).replace("'", "''") + "'"
-    
-    def find_sample_key(self, pseudobulkInfo, colName):
-        for key in pseudobulkInfo:
-            row = pseudobulkInfo[key]
-            sample_key_names = row['sample_key_names']
-            for key_name in sample_key_names:
-                parts = key_name.split("|")
-                if parts[1].lower() == colName.lower():
-                    return int(parts[0])
-                
-    def find_sample_name_by_keys(self, pseudobulkInfo, sampleKeys):
-        sampleNames = []
-        for sampleKey in sampleKeys:
-            sampleName = None
-            for key in pseudobulkInfo:
-                row = pseudobulkInfo[key]
-                sample_key_names = row['sample_key_names']
-                for key_name in sample_key_names:
-                    parts = key_name.split("|")
-                    if int(parts[0]) == int(sampleKey):
-                        sampleName = parts[1]
-            sampleNames.append(sampleName)
-        return sampleNames          
-                
-    def find_num_of_samples(self, pseudobulkInfo, key):
-        row = pseudobulkInfo[key]
-        if row:
-            return int(row['num_of_samples'])             
-
+        return "'" + str(val).replace("'", "''") + "'"     
 
     def calcTPMAveSD(self, expID, scRNAFile, multiMarkerEnsemblDict, multiEnsemblMarkerDict,
-                         ensemblMarkerSet, ensemblSequenceSet, ensemblMarkerDict, pseudobulkInfo, replisetDict):
+                         ensemblMarkerSet, ensemblSequenceSet, ensemblMarkerDict):
         aveTPMDict = {}
         log.info('calcTPMAveSD: %s' % expID)
 
@@ -299,7 +261,7 @@ class SCRNASeq:
             for idx, colName in enumerate(header):
                 if idx == 0:
                     continue
-                sampleKey = self.find_sample_key(pseudobulkInfo, colName)
+                sampleKey = self.config.findSampleKey(colName)
                 if sampleKey:
                     indexSampleKeyDict[idx] = sampleKey
                     indexSampleNameDict[idx] = colName
@@ -310,13 +272,10 @@ class SCRNASeq:
                 gene_id = row[0]
                 if not self.isValidGene(gene_id, multiMarkerEnsemblDict, multiEnsemblMarkerDict,
                             ensemblMarkerSet, ensemblSequenceSet):
-                        log.info(f"Skip {gene_id}")
+                        #log.info(f"Skip {gene_id}")
                         continue
                 markerKey = ensemblMarkerDict[gene_id]
-                log.info(f"aveTPMDict {gene_id}")
-                if gene_id == 'ENSMUSG00000000028':
-                    t = 'dd'
-
+                #log.info(f"aveTPMDict {gene_id}")
                 for idx, value in enumerate(row):
                     if idx == 0:
                         continue
@@ -330,83 +289,102 @@ class SCRNASeq:
                     aveTPMDict[sampleKey][markerKey] = Decimal(value)
                     #log.info(f"{gene_id} {sampleKey} {markerKey}: {value }") 
                 
-        return aveTPMDict        
+        return aveTPMDict      
+
+    def toPivotSql(self, pivotFields):
+        pivotSql = ''
+        for i, item in enumerate(pivotFields):
+            if i > 0:
+                pivotSql += ",\n"
+            if isinstance(item, list):
+                nameAs = ''
+                for i, name in enumerate(item):
+                    if i > 0:
+                        nameAs += PseudobulkConfig.AND
+                    nameAs += name
+            else:
+                nameAs = item
+            pivotSql += f'COALESCE(MAX(tpm_round) FILTER (WHERE bioreplicate_name = \'{nameAs}\'), 0)  AS "{nameAs}"'
+        return pivotSql
+
+    def toCaseSql(self, pivotFields):
+        caseSql = "CASE "
+        for item in pivotFields:
+            if isinstance(item, list):
+                nameAs = ''
+                caseSql += f"WHEN individual IN ("
+                for i, name in enumerate(item):
+                    if i > 0:
+                        nameAs += PseudobulkConfig.AND
+                        caseSql += ","
+                    nameAs += name
+                    caseSql += f"'{name}'"
+                caseSql += f") THEN '{nameAs}' "
+
+            else:
+                caseSql += f"WHEN individual IN ('{item}') THEN '{item}' "
+        caseSql += " END"
+        return caseSql   
     
-    def create_pseudobulk_file(self, db, output_dir, pseduobulk_option, tissue, organism_part, cell_type):
+    def createPseudobulkFile(self, db):
 
-        tissue_clean = tissue.lower().replace(" ", "_")
-        organism_part_clean = organism_part.lower().replace(" ", "_")
+        tissue = self.config.bulkData["tissue"]
+        organismPart = self.config.bulkData["organismPart"]
 
-        pseduobulk_table_name = f'tm_pseduobulk_{pseduobulk_option.lower()}__{tissue_clean}__{organism_part_clean}'
-        rpk_sum_table = f'{pseduobulk_table_name}_rpk_sum'
-        output_file = f'{output_dir}Pseudobulk_Option_{pseduobulk_option}__{tissue_clean}__{organism_part_clean}.csv'
+        pseudobulkTableName = self.config.getPseudobulkTableName()
+        rpkSumTable = f'{pseudobulkTableName}_rpk_sum'
+        outputFile = self.config.getPseudobulkDataFile()
 
-        bioreplicate_name_field = ''
-        select_fields = ''
-        if pseduobulk_option == 'A':
-            bioreplicate_name_field = 'individual'
-            select_fields = '''
-                COALESCE(MAX(tpm_round) FILTER (WHERE bioreplicate_name = '3_38_F'), 0)  AS "3_38_F",
-                COALESCE(MAX(tpm_round) FILTER (WHERE bioreplicate_name = '3_56_F'), 0)  AS "3_56_F",
-                COALESCE(MAX(tpm_round) FILTER (WHERE bioreplicate_name = '3_39_F'), 0)  AS "3_39_F",
-                COALESCE(MAX(tpm_round) FILTER (WHERE bioreplicate_name = '3_8_M'), 0)   AS "3_8_M",
-                COALESCE(MAX(tpm_round) FILTER (WHERE bioreplicate_name = '3_9_M'), 0)   AS "3_9_M",
-                COALESCE(MAX(tpm_round) FILTER (WHERE bioreplicate_name = '3_10_M'), 0)  AS "3_10_M",
-                COALESCE(MAX(tpm_round) FILTER (WHERE bioreplicate_name = '3_11_M'), 0)  AS "3_11_M"
-            '''
+        if os.path.exists(outputFile):
+            log.info(f"Existing, Skipping creating file: {outputFile}")
+            # return outputFile
+
+        pivotSql = ''
+        caseSql = ''
+        if self.config.runOption["optionName"] == 'A':
+            caseSql = 'individual'
+            pivotFields = self.config.bulkData["pivotAFields"]
+            pivotSql = self.toPivotSql(pivotFields)          
         else:
-            bioreplicate_name_field = '''
-                CASE
-                    WHEN individual IN ('3_38_F', '3_56_F') THEN '3_38_F_and_3_56_F'
-                    WHEN individual IN ('3_8_M', '3_9_M') THEN '3_8_M_and_3_9_M'
-                    ELSE individual
-                END
-            '''
-            select_fields = '''
-                COALESCE(MAX(tpm_round) FILTER (WHERE bioreplicate_name = '3_38_F_and_3_56_F'), 0)  AS "3_38_F_and_3_56_F",
-                COALESCE(MAX(tpm_round) FILTER (WHERE bioreplicate_name = '3_39_F'), 0)             AS "3_39_F",
-                COALESCE(MAX(tpm_round) FILTER (WHERE bioreplicate_name = '3_8_M_and_3_9_M'), 0)    AS "3_8_M_and_3_9_M",
-                COALESCE(MAX(tpm_round) FILTER (WHERE bioreplicate_name = '3_10_M_and_3_11_M'), 0)  AS "3_10_M_and_3_11_M"
-            '''
-
-
+            pivotFields = self.config.bulkData["pivotBFields"]
+            pivotSql = self.toPivotSql(pivotFields)
+            caseSql = self.toCaseSql(pivotFields)
 
         query = '''
-            DROP TABLE IF EXISTS {rpk_sum_table};
-            DROP TABLE IF EXISTS {pseduobulk_table_name};
+            DROP TABLE IF EXISTS {rpkSumTable};
+            DROP TABLE IF EXISTS {pseudobulkTableName};
 
             WITH data AS (
                 SELECT g.gene, grp.individual, SUM(g.value) AS count_sum,
-                    {bioreplicate_name_field} AS bioreplicate_name
+                    {caseSql} AS bioreplicate_name
                 FROM tm_gene_expression g
                 JOIN tm_group grp 
                     ON g.group_id = grp.group_id
                     AND grp.cell_type is not null
                     AND LOWER(grp.tissue) = {tissue}
-                    AND LOWER(grp.organism_part) = {organism_part}
-                    -- AND grp.cell_type = 'bladder cell'         
+                    AND LOWER(grp.organism_part) = {organismPart}    
                 GROUP BY g.gene, grp.individual
             )
             SELECT d.gene, d.bioreplicate_name, SUM(d.count_sum)::bigint AS count_sum, g.gene_length, 
             0.0 rpk, 0.0 tpm, 0.0  tpm_round
-            INTO {pseduobulk_table_name}
+            INTO {pseudobulkTableName}
             FROM data d JOIN tm_gene_info g on g.gene = d.gene  
             GROUP BY d.gene, bioreplicate_name, g.gene_length
             ORDER BY d.gene;
 
-            UPDATE {pseduobulk_table_name} SET rpk = count_sum / (gene_length / 1000.0);
+            UPDATE {pseudobulkTableName} SET rpk = count_sum / (gene_length / 1000.0);
 
             SELECT distinct bioreplicate_name, sum(rpk) rpk_sum
-            into {rpk_sum_table}
-            FROM {pseduobulk_table_name}
+            into {rpkSumTable}
+            FROM {pseudobulkTableName}
             GROUP by bioreplicate_name;
 
-            UPDATE {pseduobulk_table_name} t
+            UPDATE {pseudobulkTableName} t
             SET tpm = (t.rpk / s.rpk_sum) * 1000000.0
-            FROM {rpk_sum_table} s
+            FROM {rpkSumTable} s
             WHERE t.bioreplicate_name = s.bioreplicate_name;
 
-            UPDATE {pseduobulk_table_name} t
+            UPDATE {pseudobulkTableName} t
             SET tpm_round = CASE
                 WHEN tpm >= 1 THEN ROUND(tpm)
                 WHEN tpm > 0 THEN ROUND(
@@ -417,13 +395,11 @@ class SCRNASeq:
             END;           
 
         '''.format(
-                pseduobulk_table_name=pseduobulk_table_name,
-                rpk_sum_table=rpk_sum_table,
-                output_file=output_file,
-                bioreplicate_name_field=bioreplicate_name_field,
+                pseudobulkTableName=pseudobulkTableName,
+                rpkSumTable=rpkSumTable,
+                caseSql=caseSql,
                 tissue=self.sql_escape(tissue.lower()),
-                organism_part=self.sql_escape(organism_part.lower()),
-                cell_type=self.sql_escape(cell_type) 
+                organismPart=self.sql_escape(organismPart.lower())
         )
         log.info(query)
         db.sql(query, 'auto')
@@ -432,13 +408,13 @@ class SCRNASeq:
         query = '''
             SELECT 
                 gene,
-                {select_fields}
+                {pivotSql}
             FROM {pseduobulk_table_name}
             GROUP BY gene
             ORDER BY gene
         '''.format(
-                pseduobulk_table_name=pseduobulk_table_name,
-                select_fields=select_fields
+                pseduobulk_table_name=pseudobulkTableName,
+                pivotSql=pivotSql
         )
         log.info(query)
         results = db.sql(query, 'auto')        
@@ -446,15 +422,59 @@ class SCRNASeq:
             r.myDict if hasattr(r, "myDict") else dict(r)
             for r in results
         ])
-        df.to_csv(output_file, index=False)
-        log.info(f"Export: {output_file}")
+        df.to_csv(outputFile, index=False)
+        log.info(f"Export: {outputFile}")
 
+        return outputFile
+    
+    def writeQNInputOutputFile(self, key, qnInput, qnOutput, ensemblGeneDict):
+        scRNAQNInputFile = self.config.getQNInputFile(key)
+        scRNAQNOutputFile = self.config.getQNOutputFile(key)
+        customHeader = self.config.findSampleNames(qnInput.columns)
 
-#
-# Main
-#
+        rowLabel = [f"{ensemblGeneDict[idx]}" for idx in qnInput.index]
+        qnInput.to_csv(scRNAQNInputFile, index=rowLabel, header=customHeader, index_label='gene')
+        qnOutput.to_csv(scRNAQNOutputFile, index=rowLabel, header=customHeader, index_label='gene')
 
-# scrna = SCRNASeq("E-ENAD-15")
-# scrna.download()
+    def writeMatrixFile(self, key, sampleSet, qnInput, ensemblGeneDict, matrix, pseudobulkMatrix):
+        matrixLabel = f'{self.config.getShortLabel()}_{key}'
+        columns = ["marker_key"]
+        pseudobulkColumns = ["gene"]
+        sampleNames = self.config.findSampleNames(sampleSet)
+        for sampleName in sampleNames:
+            columns.append(sampleName)
+            pseudobulkColumns.append(f'{matrixLabel}_{sampleName}_bulk_avg')
+            pseudobulkColumns.append(f'{matrixLabel}_{sampleName}_qn_avg')
+        columns.append("replicate_group_avg")
+        pseudobulkColumns.append(f'{matrixLabel}_replicate_group_avg')
+        columns.append("num_of_bioreplicates")
 
-# scrna.createJoinedFile()
+        scRNAMatrixOutputFile = self.config.getReplicateGroupAvgFile(key)
+        rowLabel = [f"{ensemblGeneDict[idx]}" for idx in qnInput.index]
+        df = pd.DataFrame(matrix, columns=columns, index=rowLabel)
+        df.to_csv(scRNAMatrixOutputFile, index_label='gene')
+
+        return pd.DataFrame(pseudobulkMatrix, columns=pseudobulkColumns)
+    
+    def writeMergedMatrixFile(self, pseudobulkDataframeList):
+        merged_df = None
+
+        for df in pseudobulkDataframeList:
+            if merged_df is None:
+                merged_df = df
+            else:
+                merged_df = pd.merge(merged_df, df, on="gene", how="outer")
+
+        merged_df = merged_df.sort_values("gene").reset_index(drop=True)
+        print(merged_df)
+
+        # write detail file
+        output_file = os.path.join(self.config.dataDir, self.config.getAllMergedFile())
+        merged_df.to_csv(output_file, index=False)
+
+        # write brief file
+        # keep gene + every column containing replicate_group_avg
+        cols_to_keep = ["gene"] + [col for col in merged_df.columns if "replicate_group_avg" in col]
+        df_brief = merged_df[cols_to_keep]
+        output_file = os.path.join(self.config.dataDir, self.config.getAllMergedFileTpmOnly())
+        df_brief.to_csv(output_file, index=False) 

@@ -74,8 +74,8 @@ import quantileNormalize # module within this product
 
 import numpy as np	# used for stddev	
 import pandas as pd	# used for QN
-from scRNASeq import SCRNASeq
-from scPseudobulkConfig import SCPseudobulkConfig
+from pseudobulkExpt import PseudobulkExpt
+from pseudobulkConfig import PseudobulkConfig
 import logging as log
 
 log.basicConfig(level=log.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -135,11 +135,6 @@ eaePPTemplate  =  '%s' % os.getenv('EAE_PP_FILE_TEMPLATE')
 
 # the joined PP files template
 joinedPPTemplate = '%s' % os.getenv('JOINED_PP_FILE_TEMPLATE')
-
-scRNAInputFileTemplate = os.getenv('SCRNA_INPUT_FILE_TEMPLATE')
-scRNAQNInputFileTemplate = os.getenv('SCRNA_QN_INPUT_FILE_TEMPLATE')
-scRNAQNOutputFileTemplate = os.getenv('SCRNA_QN_OUT_FILE_TEMPLATE')
-scRNAMatrixOutputFileTemplate = os.getenv('SCRNA_MATRIX_OUT_FILE_TEMPLATE')
 
 # GXT HT Experiment IDs in the database
 #experimentInDbSet = set()
@@ -1219,29 +1214,51 @@ def process():
         expID = str.strip(r['accid'])
 #        if expID != 'E-ERAD-169':
         if expID != 'E-ENAD-15':
-            continue        
+            continue 
 
-        # load the list of sampleIDS and their keys from the database 
-        # for current experiment there can be > 1
-        loadSampleInDbDict(expID)
+        if PseudobulkExpt.is_single_cell(expID):
+            pseudobulkDataframeList = []
+            pseudobulkExpt = PseudobulkExpt(expID)
+            # run all of structure
+            for bulkData in PseudobulkConfig.BULK_DATA_LIST:
+                for runOption in PseudobulkConfig.RUN_OPTIONS:
+                    pseudobulkExpt.config = PseudobulkConfig(bulkData, runOption)
+                    log.info(f"Process: {pseudobulkExpt.config.getLabel()}")
+                    dfs = process_one_experiment(expID, pseudobulkExpt)
+                    pseudobulkDataframeList.extend(dfs)
+                
+            # run one structure
+            # pseudobulkExpt.config = PseudobulkConfig(PseudobulkConfig.findBulk("Intestine"), PseudobulkConfig.findOption("A"))
+            # dfs = process_one_experiment(expID, pseudobulkExpt)
+            # pseudobulkDataframeList.extend(dfs)
 
-        # the list of matrices for this experiment, one per repliset
-        matrixList = []
+            pseudobulkExpt.writeMergedMatrixFile(pseudobulkDataframeList)
+        else:
+            process_one_experiment(expID)
 
-        # report if expID not in the database and skip
-        #
-        if expID not in experimentInDbDict:
-            experimentNotInDbList.append(expID)
-            continue
-        # preprocess the aes file for this expID (run, sample)
-        #
-        sys.stdout.flush()
+    return 0
 
-        joinedFile = joinedPPTemplate % expID
-        scrnaseq = None
-        if SCRNASeq.is_single_cell(expID):
-            scrnaseq = SCRNASeq(expID)
-            # scrnaseq.download()
+def process_one_experiment(expID, pseudobulkExpt=None):
+    # load the list of sampleIDS and their keys from the database 
+    # for current experiment there can be > 1
+    loadSampleInDbDict(expID)
+
+    # the list of matrices for this experiment, one per repliset
+    matrixList = []
+    pseudobulkDataframeList = []
+
+    # report if expID not in the database and skip
+    #
+    if expID not in experimentInDbDict:
+        experimentNotInDbList.append(expID)
+        return
+    # preprocess the aes file for this expID (run, sample)
+    #
+    sys.stdout.flush()
+
+    joinedFile = joinedPPTemplate % expID
+    if pseudobulkExpt:
+           # scrnaseq.download()
             # scrnaseq.createJoinedFile(
             #     joinedFile, multiMarkerEnsemblDict, multiEnsemblMarkerDict,
             #     ensemblMarkerSet, ensemblSequenceSet
@@ -1254,229 +1271,223 @@ def process():
             # replisetDict = scrnaseq.getBioReplicates(db, expID, tissue, organism_part, cell_type)
             # aveTPMDict = scrnaseq.calcTPMAveSD(expID, scRNAFile, multiMarkerEnsemblDict, multiEnsemblMarkerDict,
             #     ensemblMarkerSet, ensemblSequenceSet, ensemblMarkerDict, replisetDict)
-            scPseudobulkConfig = SCPseudobulkConfig.get_pseudobulk_id(SCPseudobulkConfig.PSEUDOBULK_ID_SEX_2_group)
-            scRNAFile = scRNAInputFileTemplate % scPseudobulkConfig['joined_file_name']
-            pseudobulkInfo = scrnaseq.getPseudobulkInfo(db, scPseudobulkConfig['replicate_query'])
-            replisetDict = scrnaseq.toReplicates(pseudobulkInfo)
-            aveTPMDict = scrnaseq.calcTPMAveSD(expID, scRNAFile, multiMarkerEnsemblDict, multiEnsemblMarkerDict,
-                ensemblMarkerSet, ensemblSequenceSet, ensemblMarkerDict, pseudobulkInfo, replisetDict)
-        else:
-            rc = ppAESFile(expID)
-            if rc != 0:
-                print('''preprocessing AES file returned rc %s, 
-                            skipping file for %s''' % (rc, expID))
-                continue
 
-            # preprocess the eae file for this expID (gene, run, tpm)
-            #
-            sys.stdout.flush()
-            rc = ppEAEFile(expID)
-            if rc != 0:
-                print('''preprocessing EAE file returned rc %s, 
+        scRNAFile = pseudobulkExpt.createPseudobulkFile(db)
+        replisetDict = pseudobulkExpt.config.getReplicates()
+        aveTPMDict = pseudobulkExpt.calcTPMAveSD(expID, scRNAFile, multiMarkerEnsemblDict, multiEnsemblMarkerDict,
+            ensemblMarkerSet, ensemblSequenceSet, ensemblMarkerDict) 
+    else:
+        rc = ppAESFile(expID)
+        if rc != 0:
+            print('''preprocessing AES file returned rc %s, 
                         skipping file for %s''' % (rc, expID))
-                continue
+            return
 
-            # check for AES runIDs not in the EAE file
-            #
-            diff = aesRunIdSet.difference(eaeRunIdSet)
-            if len(diff):
-                diffString = ', '.join(diff)
-                runIdNotInEAList.append('%s: %s' % (expID, diffString))
+        # preprocess the eae file for this expID (gene, run, tpm)
+        #
+        sys.stdout.flush()
+        rc = ppEAEFile(expID)
+        if rc != 0:
+            print('''preprocessing EAE file returned rc %s, 
+                    skipping file for %s''' % (rc, expID))
+            return
 
-            # Create the joined file from the two preprocessed (pp) files
-            #
-            joinedFile =  joinedPPTemplate % expID
-            cjf_rc = createJoinedFile(joinedFile)
-            if cjf_rc != 0:
-                return 1 
+        # check for AES runIDs not in the EAE file
+        #
+        diff = aesRunIdSet.difference(eaeRunIdSet)
+        if len(diff):
+            diffString = ', '.join(diff)
+            runIdNotInEAList.append('%s: %s' % (expID, diffString))
 
-            # process the joined file, creating dict by geneID
-            # {geneID: {sampleID:[tpm1, ...], ...}, ...}
-            #
-            geneDict = processJoinedFile(expID, joinedFile)
-            
-            # {sampleKey:{markerKey:aveTPM, ...}, 
-            #	sampleKey2:{markerKey:aveTPM, ...}, ...}
-            aveTPMDict = calcTPMAveSD(expID, geneDict)
-            #print 'aveTPMDict keys: %s' % aveTPMDict.keys()
-            if not aveTPMDict: # nothing to normalize
-                continue
+        # Create the joined file from the two preprocessed (pp) files
+        #
+        joinedFile =  joinedPPTemplate % expID
+        cjf_rc = createJoinedFile(joinedFile)
+        if cjf_rc != 0:
+            return 1 
 
-            # {attributeKey:set(sampleKeys), ...}
-            replisetDict = getBioReplicates(expID)
-        # number of genes
-        numRows = 0 # set this later when we know!
-
-        # Preprocess the replisetDict:
-        # a) remove samples in the db not in input
-        # b) # samples is  used to determine # columns in the matrix
-        for key in replisetDict:
-            sampleSet = replisetDict[key]
-            newSet = set()	
-            for sampleKey in sampleSet:
-                # if we find samples in DB not in aveTPMDict we need to 
-                # remove from the set
-                # remember - QC can kick out some samples
-                # qnOutputDict is produced from aveTPMDict so don't need
-                # to check it too
-                if sampleKey not in aveTPMDict:
-                    #print 'sampleKey: %s for expID: %s not in aveTPMDict' % \
-                    #    (sampleKey, expID)
-                    #sampleSet.remove(sampleKey) # can't do this get 
-                        # RuntimeError: Set changed size during iteration
-                        # Create a new set
-                    #print 'removing %s from sampleSet' % sampleKey
-                    continue
-                newSet.add(sampleKey)
-                # set this only once, all samples have same number of genes
-                if numRows == 0: 
-                    numRows = len(aveTPMDict[sampleKey])
-            # in case we changed the sampleSet, reset the new set in the Dict
-            #print 'Adding newSet %s to replisetDict key: %s' % (newSet, key)
-            replisetDict[key] = newSet
-
-        # now we have removed any kicked out samples from replisetDict
-        # recall 'key' is our compound key of all attributes
-        for key in replisetDict:
-            #print 'process replisetDict key: %s' % key
-            # gather all the numBioReplicates by rowNum
-            #  {rowNum:numBioReplicates, ...}
-            numBioReplDict = {}
-           
-            sampleSet = replisetDict[key]
-
-            # if the sample set is empty then we skip this repliset
-            if not sampleSet:
-                #print 'no samples for this repliset'
-                continue
-
-            #print 'process replisetDict sampleSet: %s' % sampleSet
-            totalSamples = len(sampleSet)
-
-            #
-            # get the aveTPMs for this repliset so we may QN them
-            #
-            replisetAveTpmDict = {}
-            for sampleKey in sampleSet:
-                replisetAveTpmDict[sampleKey] = aveTPMDict[sampleKey]
-            # Now QN them
-            qnInput =  pd.DataFrame(replisetAveTpmDict)
-            log.info(f"quantileNormalize: {key} : {totalSamples} samples")
-            qnOutput = quantileNormalize.qn(qnInput, list(replisetAveTpmDict.keys()))
-            log.info(f"qnOutput shape: {qnOutput.shape}, {qnOutput.memory_usage(deep=True).sum() / 1024**3:.2f}GB")
-
-            if scrnaseq:
-                num_of_samples = scrnaseq.find_num_of_samples(pseudobulkInfo, key)
-                scRNAQNInputFile = scRNAQNInputFileTemplate % (scPseudobulkConfig['name'], f"{key}_{num_of_samples}_samples")
-                scRNAQNOutputFile = scRNAQNOutputFileTemplate % (scPseudobulkConfig['name'], f"{key}_{num_of_samples}_samples")
-                custom_header = scrnaseq.find_sample_name_by_keys(pseudobulkInfo, qnInput.columns)
-
-                row_label = [f"{ensemblGeneDict[idx]}" for idx in qnInput.index]
-                qnInput.to_csv(scRNAQNInputFile, index=row_label, header=custom_header, index_label='gene')
-                qnOutput.to_csv(scRNAQNOutputFile, index=row_label, header=custom_header, index_label='gene')
-
-            # {sampleKey:{markerKey:qnAveTPM, ...},
-            #       sampleKey2:{markerKey:qnAveTPM, ...}, ...}
-            qnOutputDict = qnOutput.to_dict()
-
-            #print 'process replisetDict key: %s samples: %s numBioReplicates: %s' % (key, sampleSet, len(sampleSet))
-            
-            # gather all the QN TPMs for averaging across all samples of a gene
-            # rowNum = gene, we use number so we can sort the dict keys to 
-            # assign the proper aveQNTPM to the proper gene (note python 3.* has
-            # 'OrderedDict'
-            # {rowNum:[list of qnTPM for the gene], ...}
-            aveQNTpmDict = {}
-
-            # 1  + number of samples  + 2
-            # gene + total samples + qn tpm across all samples +
-            # num bio replicates
-            numColumns = 1 + totalSamples + 2
-
-            # now our sampleSet, numColumns, numRows are set and correct
-            #  create an empty matrix with str.data type
-            matrix = np.empty((numRows, numColumns), dtype='object')
-
-            # now we pull everything into a 2-D matrix from aveTPMDict 
-            # and qnOutputDict for each biological replicate set for easy bcp 
-            # file creation
-            currentColumnNum = 1    # The first sample column
-            currentRowNum = 0       # the first row
-            
-            for sampleKey in sampleSet:
-                #print 'next sampleKey: %s' % sampleKey
-                try:
-                    # {markerKey:aveTPM, ...}
-                    aveTpmByGeneDict = aveTPMDict[sampleKey]
-                except:
-                    # this shouldn't happend because we synced things up
-                    # above
-                    'sampleKey %s not in aveTPMDict' % sampleKey
-
-                # {markerKey:qnAveTPM, ...}
-                qnTpmByGeneDict  = qnOutputDict[sampleKey]
+        # process the joined file, creating dict by geneID
+        # {geneID: {sampleID:[tpm1, ...], ...}, ...}
+        #
+        geneDict = processJoinedFile(expID, joinedFile)
         
-                for mKey in aveTpmByGeneDict:
-                    # add number of replicates to dict by row number (gene )
-                    numBioReplDict[currentRowNum] = totalSamples
+        # {sampleKey:{markerKey:aveTPM, ...}, 
+        #	sampleKey2:{markerKey:aveTPM, ...}, ...}
+        aveTPMDict = calcTPMAveSD(expID, geneDict)
+        #print 'aveTPMDict keys: %s' % aveTPMDict.keys()
+        if not aveTPMDict: # nothing to normalize
+            return
 
-                    aveTPM = aveTpmByGeneDict[mKey]
-                    qnTPM = round(qnTpmByGeneDict[mKey], 2)
-                    sampleValues = '%s%s%s%s%s' % (sampleKey, PIPE, aveTPM, PIPE, qnTPM)
-                    # create/add to the list of qnTPM for the gene that will
-                    # will be processed later after we have built up the matrix
-                    # with its genes and sample aveTPM and qnTPM
-                    if currentRowNum not in aveQNTpmDict:
-                        aveQNTpmDict[currentRowNum] = []
-                    aveQNTpmDict[currentRowNum].append(qnTPM)
-                    matrix[currentRowNum][0] = mKey
-                    matrix[currentRowNum][currentColumnNum] = sampleValues
-                    #print 'matrix[%s][%s]: %s' % (currentRowNum, currentColumnNum, matrix[currentRowNum][currentColumnNum])
-                    currentRowNum += 1
-                currentRowNum = 0
-                currentColumnNum += 1
+        # {attributeKey:set(sampleKeys), ...}
+        replisetDict = getBioReplicates(expID)
+    # number of genes
+    numRows = 0 # set this later when we know!
 
-            # add the ave QN to the matrix for each gene
-            for rowNum in aveQNTpmDict:
-                ave = calcAve(aveQNTpmDict[rowNum], 1)
-                if ave >= 1:
-                    ave = int(round(ave, 0)) # if >1 round then truncate decimal
-                matrix[rowNum][numColumns - 2] = ave
+    # Preprocess the replisetDict:
+    # a) remove samples in the db not in input
+    # b) # samples is  used to determine # columns in the matrix
+    for key in replisetDict:
+        sampleSet = replisetDict[key]
+        newSet = set()	
+        for sampleKey in sampleSet:
+            # if we find samples in DB not in aveTPMDict we need to 
+            # remove from the set
+            # remember - QC can kick out some samples
+            # qnOutputDict is produced from aveTPMDict so don't need
+            # to check it too
+            if sampleKey not in aveTPMDict:
+                #print 'sampleKey: %s for expID: %s not in aveTPMDict' % \
+                #    (sampleKey, expID)
+                #sampleSet.remove(sampleKey) # can't do this get 
+                    # RuntimeError: Set changed size during iteration
+                    # Create a new set
+                #print 'removing %s from sampleSet' % sampleKey
+                continue
+            newSet.add(sampleKey)
+            # set this only once, all samples have same number of genes
+            if numRows == 0: 
+                numRows = len(aveTPMDict[sampleKey])
+        # in case we changed the sampleSet, reset the new set in the Dict
+        #print 'Adding newSet %s to replisetDict key: %s' % (newSet, key)
+        replisetDict[key] = newSet
 
-            # add the number of bio  replicates to matrix for each gene
-            for rowNum in numBioReplDict:
-                matrix[rowNum][numColumns - 1] = numBioReplDict[rowNum]
-            # Now matrix is complete
-            matrixList.append(matrix)
+    # now we have removed any kicked out samples from replisetDict
+    # recall 'key' is our compound key of all attributes
+    for key in replisetDict:
+        #print 'process replisetDict key: %s' % key
+        # gather all the numBioReplicates by rowNum
+        #  {rowNum:numBioReplicates, ...}
+        numBioReplDict = {}
+        
+        sampleSet = replisetDict[key]
 
-            #print 'Row 1 of matrix:'
-            #print  matrix[0]
+        # if the sample set is empty then we skip this repliset
+        if not sampleSet:
+            #print 'no samples for this repliset'
+            continue
 
-            #print '\nRow 2 of matrix'
-            #print matrix[1]
-            
-            #print '\nRow 3 of matrix'
-            #print matrix[2]
+        #print 'process replisetDict sampleSet: %s' % sampleSet
+        totalSamples = len(sampleSet)
 
-            if scrnaseq:
-                columns = ["marker_key"]
-                num_of_samples = scrnaseq.find_num_of_samples(pseudobulkInfo, key)
-                sample_names = scrnaseq.find_sample_name_by_keys(pseudobulkInfo, sampleSet)
-                for sample_name in sample_names:
-                    columns.append(sample_name)
-                columns.append("avg_tpm_per_gene")
-                columns.append("num_of_bioreplicates")
-                scRNAMatrixOutputFile = scRNAMatrixOutputFileTemplate % (scPseudobulkConfig['name'], key)
-                row_label = [f"{ensemblGeneDict[idx]}" for idx in qnInput.index]
-                df = pd.DataFrame(matrix, columns=columns, index=row_label)
-                df.to_csv(scRNAMatrixOutputFile, index_label='gene')            
+        #
+        # get the aveTPMs for this repliset so we may QN them
+        #
+        replisetAveTpmDict = {}
+        for sampleKey in sampleSet:
+            replisetAveTpmDict[sampleKey] = aveTPMDict[sampleKey]
+        # Now QN them
+        qnInput =  pd.DataFrame(replisetAveTpmDict)
+        log.info(f"quantileNormalize: {key} : {totalSamples} samples")
+        qnOutput = quantileNormalize.qn(qnInput, list(replisetAveTpmDict.keys()))
+        log.info(f"qnOutput shape: {qnOutput.shape}, {qnOutput.memory_usage(deep=True).sum() / 1024**3:.2f}GB")
 
-        # write out bcp for all replisets of this experiment
-        writeBCP(expID, matrixList)
+        if pseudobulkExpt:
+            pseudobulkExpt.writeQNInputOutputFile(key, qnInput, qnOutput, ensemblGeneDict)
+
+        # {sampleKey:{markerKey:qnAveTPM, ...},
+        #       sampleKey2:{markerKey:qnAveTPM, ...}, ...}
+        qnOutputDict = qnOutput.to_dict()
+
+        #print 'process replisetDict key: %s samples: %s numBioReplicates: %s' % (key, sampleSet, len(sampleSet))
+        
+        # gather all the QN TPMs for averaging across all samples of a gene
+        # rowNum = gene, we use number so we can sort the dict keys to 
+        # assign the proper aveQNTPM to the proper gene (note python 3.* has
+        # 'OrderedDict'
+        # {rowNum:[list of qnTPM for the gene], ...}
+        aveQNTpmDict = {}
+
+        # 1  + number of samples  + 2
+        # gene + total samples + qn tpm across all samples +
+        # num bio replicates
+        numColumns = 1 + totalSamples + 2
+
+        # now our sampleSet, numColumns, numRows are set and correct
+        #  create an empty matrix with str.data type
+        matrix = np.empty((numRows, numColumns), dtype='object')
+        pseudobulkMatrix = np.empty((numRows, 2*totalSamples + 2), dtype='object')
+
+        # now we pull everything into a 2-D matrix from aveTPMDict 
+        # and qnOutputDict for each biological replicate set for easy bcp 
+        # file creation
+        currentColumnNum = 1    # The first sample column
+        currentPseudobulkColumnNum = 1    # The first sample column
+        currentRowNum = 0       # the first row
+        
+        for sampleKey in sampleSet:
+            #print 'next sampleKey: %s' % sampleKey
+            try:
+                # {markerKey:aveTPM, ...}
+                aveTpmByGeneDict = aveTPMDict[sampleKey]
+            except:
+                # this shouldn't happend because we synced things up
+                # above
+                'sampleKey %s not in aveTPMDict' % sampleKey
+
+            # {markerKey:qnAveTPM, ...}
+            qnTpmByGeneDict  = qnOutputDict[sampleKey]
+    
+            for mKey in aveTpmByGeneDict:
+                # add number of replicates to dict by row number (gene )
+                numBioReplDict[currentRowNum] = totalSamples
+
+                aveTPM = aveTpmByGeneDict[mKey]
+                qnTPM = round(qnTpmByGeneDict[mKey], 2)
+                sampleValues = '%s%s%s%s%s' % (sampleKey, PIPE, aveTPM, PIPE, qnTPM)
+                # create/add to the list of qnTPM for the gene that will
+                # will be processed later after we have built up the matrix
+                # with its genes and sample aveTPM and qnTPM
+                if currentRowNum not in aveQNTpmDict:
+                    aveQNTpmDict[currentRowNum] = []
+                aveQNTpmDict[currentRowNum].append(qnTPM)
+                matrix[currentRowNum][0] = mKey
+                matrix[currentRowNum][currentColumnNum] = sampleValues
+
+                pseudobulkMatrix[currentRowNum][0] = ensemblGeneDict[mKey]
+                pseudobulkMatrix[currentRowNum][currentPseudobulkColumnNum] = aveTPM
+                pseudobulkMatrix[currentRowNum][currentPseudobulkColumnNum+1] = qnTPM
+
+                #print 'matrix[%s][%s]: %s' % (currentRowNum, currentColumnNum, matrix[currentRowNum][currentColumnNum])
+                currentRowNum += 1
+            currentRowNum = 0
+            currentColumnNum += 1
+            currentPseudobulkColumnNum += 2
+
+        # add the ave QN to the matrix for each gene
+        for rowNum in aveQNTpmDict:
+            ave = calcAve(aveQNTpmDict[rowNum], 1)
+            if ave >= 1:
+                ave = int(round(ave, 0)) # if >1 round then truncate decimal
+            matrix[rowNum][numColumns - 2] = ave
+            pseudobulkMatrix[rowNum][currentPseudobulkColumnNum] = ave
+
+        # add the number of bio  replicates to matrix for each gene
+        for rowNum in numBioReplDict:
+            matrix[rowNum][numColumns - 1] = numBioReplDict[rowNum]
+        # Now matrix is complete
+        matrixList.append(matrix)
+
+        #print 'Row 1 of matrix:'
+        #print  matrix[0]
+
+        #print '\nRow 2 of matrix'
+        #print matrix[1]
+        
+        #print '\nRow 3 of matrix'
+        #print matrix[2]
+
+        if pseudobulkExpt:
+            pseudoDf = pseudobulkExpt.writeMatrixFile(key, sampleSet, qnInput, ensemblGeneDict, matrix, pseudobulkMatrix)
+            pseudobulkDataframeList.append(pseudoDf)
+
+    # write out bcp for all replisets of this experiment
+    writeBCP(expID, matrixList)
 
     # we've processed all experiments, now execute bcp
  #   execBCP()
-    return 0
+
+
+    return pseudobulkDataframeList
 
 # end process ()--------------------------------------------
 

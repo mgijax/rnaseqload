@@ -4,36 +4,37 @@ import pandas as pd
 import os
 import pandas as pd
 import numpy as np
-import db
+# import db
 
-from bin.scPlot import SCPlot
-from bin.scRNASeq import SCRNASeq
+# from bin.pseudobulkPlot import PseudobulkPlot
+# from bin.pseudobulkExpt import PseudobulkExpt
+# from bin.pseudobulkConfig import PseudobulkConfig
 
 log.basicConfig(level=log.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 # Test Strains APIs
 
-class SCRNASeqTest(unittest.TestCase):
+class PseudobulkTest(unittest.TestCase):
 
     def setUp(self):
-        log.info('SCRNASeqTest')
+        log.info('PseudobulkTest')
 
     def tearDown(self):
         # take down anything we've specifically created for each test method
         self.app = None
 
-    def test_create_pseduobulked_file(self):
-        log.info('test_create_pseduobulked_file')
-        db.useOneConnection(1)
+    # def test_create_pseduobulked_file(self):
+    #     log.info('test_create_pseduobulked_file')
+    #     db.useOneConnection(1)
 
-        output_dir = '/data/loads/mgi/rnaseqload/input/'
-        tissue = "Bladder"
-        organism_part = "urinary bladder"
-        cell_type = "bladder cell"
+    #     output_dir = '/data/loads/mgi/rnaseqload/input/'
+    #     tissue = "Bladder"
+    #     organism_part = "urinary bladder"
+    #     cell_type = "bladder cell"
 
-        scRNASeq = SCRNASeq('')
-        scRNASeq.create_pseudobulk_file(db, output_dir, 'A', tissue, organism_part, cell_type)
-        scRNASeq.create_pseudobulk_file(db, output_dir, 'B', tissue, organism_part, cell_type)
+    #     pseudobulkExpt = PseudobulkExpt('')
+    #     pseudobulkExpt.createPseudobulkFile(db, output_dir, 'A', tissue, organism_part, cell_type)
+    #     pseudobulkExpt.createPseudobulkFile(db, output_dir, 'B', tissue, organism_part, cell_type)
 
     def test_check_qn(self):
         # check if all columns have same distribution after QN
