@@ -4,15 +4,14 @@ import pandas as pd
 import os
 import pandas as pd
 import numpy as np
-# import db
+import db
 
-# from bin.pseudobulkPlot import PseudobulkPlot
-# from bin.pseudobulkExpt import PseudobulkExpt
-# from bin.pseudobulkConfig import PseudobulkConfig
+from bin.pseudobulkPlot import PseudobulkPlot
+from bin.pseudobulkExpt import PseudobulkExpt
+from bin.pseudobulkConfig import PseudobulkConfig
 
 log.basicConfig(level=log.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-# Test Strains APIs
 
 class PseudobulkTest(unittest.TestCase):
 
@@ -23,18 +22,16 @@ class PseudobulkTest(unittest.TestCase):
         # take down anything we've specifically created for each test method
         self.app = None
 
-    # def test_create_pseduobulked_file(self):
-    #     log.info('test_create_pseduobulked_file')
-    #     db.useOneConnection(1)
+    def test_create_pseduobulked_file(self):
+        log.info('test_create_pseduobulked_file')
+        db.useOneConnection(1)
 
-    #     output_dir = '/data/loads/mgi/rnaseqload/input/'
-    #     tissue = "Bladder"
-    #     organism_part = "urinary bladder"
-    #     cell_type = "bladder cell"
+        pseudobulkExpt = PseudobulkExpt('')
+        pseudobulkExpt.config = PseudobulkConfig(PseudobulkConfig.findBulk("Intestine"), PseudobulkConfig.findOption("A"))
 
-    #     pseudobulkExpt = PseudobulkExpt('')
-    #     pseudobulkExpt.createPseudobulkFile(db, output_dir, 'A', tissue, organism_part, cell_type)
-    #     pseudobulkExpt.createPseudobulkFile(db, output_dir, 'B', tissue, organism_part, cell_type)
+        pseudobulkDataFile = pseudobulkExpt.createPseudobulkFile(db)
+
+        log.info(f'createPseudobulkFile: {pseudobulkDataFile }')
 
     def test_check_qn(self):
         # check if all columns have same distribution after QN

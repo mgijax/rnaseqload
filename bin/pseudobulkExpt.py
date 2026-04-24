@@ -7,7 +7,7 @@ import logging as log
 import psutil
 import csv
 from decimal import Decimal
-from pseudobulkConfig import PseudobulkConfig
+from .pseudobulkConfig import PseudobulkConfig
 
 log.basicConfig(level=log.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 

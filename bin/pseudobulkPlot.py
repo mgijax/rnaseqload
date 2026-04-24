@@ -349,18 +349,6 @@ def main():
     # scPlot.plot_distribution_compare('Option_B_QN_input_female_(2_samples).csv', 'Option_B_QN_output_female_(2_samples).csv', 'Option B Female', 'Option_B_Female_Distribution.png')
     # scPlot.plot_distribution_compare('Option_B_QN_input_male_(2_samples).csv', 'Option_B_QN_output_male_(2_samples).csv', 'Option B Male', 'Option_B_Male_Distribution.png')
  
-
-    
-
-
-
-
-
-
-
-
-
-
     # scPlot.boxplot('Raw for 2 Group Female (3 Samples)', 'sex_2_group_QN_input_female_3.csv') 
     # scPlot.boxplot('Boxplot for 2 Group Female (3 Samples)', 'sex_2_group_QN_output_female_3.csv') 
     # scPlot.boxplot('Boxplot for 2 Group Male (3 Samples)', 'sex_2_group_QN_output_male_3.csv') 
