@@ -27,7 +27,7 @@ class PseudobulkTest(unittest.TestCase):
         db.useOneConnection(1)
 
         pseudobulkExpt = PseudobulkExpt('')
-        pseudobulkExpt.config = PseudobulkConfig(PseudobulkConfig.findBulk("Intestine"), PseudobulkConfig.findOption("A"))
+        pseudobulkExpt.config = PseudobulkConfig(PseudobulkConfig.findBulk("Bladder"), PseudobulkConfig.findOption("A"))
 
         pseudobulkDataFile = pseudobulkExpt.createPseudobulkFile(db)
 

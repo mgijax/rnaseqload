@@ -1219,6 +1219,8 @@ def process():
         if PseudobulkExpt.is_single_cell(expID):
             pseudobulkDataframeList = []
             pseudobulkExpt = PseudobulkExpt(expID)
+            pseudobulkExpt.isDeleteTempTables = True
+            pseudobulkExpt.isWriteDetailFiles = False
             # run all of structure
             for bulkData in PseudobulkConfig.BULK_DATA_LIST:
                 for runOption in PseudobulkConfig.RUN_OPTIONS:

@@ -122,7 +122,7 @@ class PseudobulkConfig:
         return self.toFile(f'All_Structure_Detail.csv')
 
     def getAllMergedFileTpmOnly(self):
-        return self.toFile(f'All_Structure_Avg_Only.csv')
+        return self.toFile(f'All_Structure_Avg_Only_batch_2.csv')
 
     @staticmethod
     def findBulk(name):
@@ -137,7 +137,7 @@ class PseudobulkConfig:
                 return option
 
     BULK_DATA_LIST = []
-    bData = {
+    Bladder = {
         "name": "Bladder__urinary_bladder",
         "shortName": "Bladder",
         "tissue": "Bladder",
@@ -145,9 +145,8 @@ class PseudobulkConfig:
         "pivotAFields": ["3_38_F", "3_39_F", "3_56_F", "3_8_M", "3_9_M", "3_10_M"],
         "pivotBFields": [["3_38_F", "3_56_F"], "3_39_F", ["3_8_M", "3_9_M"], "3_10_M"]
     }
-    BULK_DATA_LIST.append(bData)
 
-    bData = {
+    Pancreas = {
         "name": "Pancreas__endocrine_pancreas",
         "shortName": "Pancreas",
         "tissue": "Pancreas",
@@ -155,9 +154,8 @@ class PseudobulkConfig:
         "pivotAFields": ["3_38_F", "3_39_F", "3_8_M", "3_10_M"],
         "pivotBFields": ["3_38_F", "3_39_F", "3_8_M", "3_10_M"]
     }
-    BULK_DATA_LIST.append(bData)    
 
-    bData = {
+    Fat_gonadal = {
         "name": "Fat__gonadal_fat_pad",
         "shortName": "Fat_gonadal",
         "tissue": "Fat",
@@ -165,9 +163,8 @@ class PseudobulkConfig:
         "pivotAFields": ["3_38_F", "3_39_F", "3_56_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
         "pivotBFields": [["3_38_F", "3_56_F"], "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
     }
-    BULK_DATA_LIST.append(bData)    
 
-    bData = {
+    Fat_interscapular = {
         "name": "Fat__interscapular_brown_adipose_tissue",
         "shortName": "Fat_interscapular",
         "tissue": "Fat",
@@ -175,17 +172,89 @@ class PseudobulkConfig:
         "pivotAFields": ["3_38_F", "3_39_F", "3_56_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
         "pivotBFields": [["3_38_F", "3_56_F"], "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
     }
-    BULK_DATA_LIST.append(bData)  
 
-    bData = {
+    Intestine_ascending = {
         "name": "Large_Intestine__ascending_colon",
-        "shortName": "Intestine",
+        "shortName": "Intestine_ascending",
         "tissue": "Large_Intestine",
         "organismPart": "ascending colon",
         "pivotAFields": ["3_38_F", "3_39_F", "3_56_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
         "pivotBFields": [["3_38_F", "3_56_F"], "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
     }
-    BULK_DATA_LIST.append(bData)       
+    BULK_DATA_LIST.append(Bladder)
+    BULK_DATA_LIST.append(Pancreas)    
+    BULK_DATA_LIST.append(Fat_gonadal)    
+    BULK_DATA_LIST.append(Fat_interscapular) 
+    BULK_DATA_LIST.append(Intestine_ascending)
+
+    heart_left = {
+        "name": "Heart_Left_Ventricle",
+        "shortName": "Heart__Left_Ventricle",
+        "tissue": "Heart",
+        "organismPart": "heart left ventricle",
+        "pivotAFields": ["3_38_F", "3_39_F", "3_56_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
+        "pivotBFields": [["3_38_F", "3_56_F"], "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
+    }
+    heart_heart = {
+        "name": "Heart_Heart",
+        "shortName": "Heart_Heart",
+        "tissue": "Heart",
+        "organismPart": "heart",
+        "pivotAFields": ["3_38_F", "3_39_F", "3_10_M", "3_11_M"],
+        "pivotBFields": ["3_38_F", "3_39_F", "3_10_M", "3_11_M"]
+    }
+    heart_all = {
+        "name": "Heart_All",
+        "shortName": "Heart_All",
+        "tissue": "Heart",
+        "organismPart": "",
+        "pivotAFields": ["3_38_F", "3_39_F", "3_56_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
+        "pivotBFields": [["3_38_F", "3_56_F"], "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
+    }
+    Intestine_all = {
+        "name": "Large_Intestine__All",
+        "shortName": "Intestine_All",
+        "tissue": "Large_Intestine",
+        "organismPart": "",
+        "pivotAFields": ["3_38_F", "3_39_F", "3_56_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
+        "pivotBFields": [["3_38_F", "3_56_F"], "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
+    }
+    liver = {
+        "name": "Liver",
+        "shortName": "Liver",
+        "tissue": "Liver",
+        "organismPart": "liver",
+        "pivotAFields": ["3_56_F", "3_57_F", "3_9_M", "3_11_M"],
+        "pivotBFields": ["3_56_F", "3_57_F", "3_9_M", "3_11_M"]
+    }
+    spleen = {
+        "name": "Spleen",
+        "shortName": "Spleen",
+        "tissue": "Spleen",
+        "organismPart": "spleen",
+        "pivotAFields": ["3_38_F", "3_39_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
+        "pivotBFields": ["3_38_F", "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
+    }
+    lung = {
+        "name": "Lung",
+        "shortName": "Lung",
+        "tissue": "Lung",
+        "organismPart": "lung",
+        "pivotAFields": ["3_38_F", "3_39_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
+        "pivotBFields": ["3_38_F", "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
+    }
+
+    # BULK_DATA_LIST.append(heart_left)
+    # BULK_DATA_LIST.append(heart_heart)
+    # BULK_DATA_LIST.append(heart_all)
+    # BULK_DATA_LIST.append(Intestine_all)
+    # BULK_DATA_LIST.append(liver)
+    # BULK_DATA_LIST.append(spleen)
+    # BULK_DATA_LIST.append(lung)
+
+
+
+
 
     RUN_OPTIONS = []
     optionA = {

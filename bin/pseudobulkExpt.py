@@ -7,7 +7,7 @@ import logging as log
 import psutil
 import csv
 from decimal import Decimal
-from .pseudobulkConfig import PseudobulkConfig
+from bin.pseudobulkConfig import PseudobulkConfig
 
 log.basicConfig(level=log.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
@@ -27,6 +27,9 @@ class PseudobulkExpt:
 
         self.base_dir = os.getenv("RAW_INPUTDIR")
         self.config = None
+        self.isDeleteTempTables = False
+        self.isWriteDetailFiles = False
+
 
     @staticmethod
     def is_single_cell(exp_id):
@@ -350,6 +353,10 @@ class PseudobulkExpt:
             pivotSql = self.toPivotSql(pivotFields)
             caseSql = self.toCaseSql(pivotFields)
 
+        organismPartCause = ''
+        if organismPart and len(organismPart) > 0:
+            organismPartCause = f"AND LOWER(grp.organism_part) = {self.sql_escape(organismPart.lower())}"
+
         query = '''
             DROP TABLE IF EXISTS {rpkSumTable};
             DROP TABLE IF EXISTS {pseudobulkTableName};
@@ -362,7 +369,7 @@ class PseudobulkExpt:
                     ON g.group_id = grp.group_id
                     AND grp.cell_type is not null
                     AND LOWER(grp.tissue) = {tissue}
-                    AND LOWER(grp.organism_part) = {organismPart}    
+                    {organismPartCause}    
                 GROUP BY g.gene, grp.individual
             )
             SELECT d.gene, d.bioreplicate_name, SUM(d.count_sum)::bigint AS count_sum, g.gene_length, 
@@ -399,12 +406,11 @@ class PseudobulkExpt:
                 rpkSumTable=rpkSumTable,
                 caseSql=caseSql,
                 tissue=self.sql_escape(tissue.lower()),
-                organismPart=self.sql_escape(organismPart.lower())
+                organismPartCause=organismPartCause
         )
         log.info(query)
         db.sql(query, 'auto')
-        db.commit() 
-
+       
         query = '''
             SELECT 
                 gene,
@@ -425,9 +431,21 @@ class PseudobulkExpt:
         df.to_csv(outputFile, index=False)
         log.info(f"Export: {outputFile}")
 
+        if self.isDeleteTempTables:
+            query = '''
+                DROP TABLE IF EXISTS {rpkSumTable};
+                DROP TABLE IF EXISTS {pseudobulkTableName};            
+            '''.format(
+                    pseudobulkTableName=pseudobulkTableName,
+                    rpkSumTable=rpkSumTable)
+            db.sql(query, 'auto')
+        db.commit()         
+
         return outputFile
     
     def writeQNInputOutputFile(self, key, qnInput, qnOutput, ensemblGeneDict):
+        if not self.isWriteDetailFiles:
+            return
         scRNAQNInputFile = self.config.getQNInputFile(key)
         scRNAQNOutputFile = self.config.getQNOutputFile(key)
         customHeader = self.config.findSampleNames(qnInput.columns)
@@ -436,7 +454,7 @@ class PseudobulkExpt:
         qnInput.to_csv(scRNAQNInputFile, index=rowLabel, header=customHeader, index_label='gene')
         qnOutput.to_csv(scRNAQNOutputFile, index=rowLabel, header=customHeader, index_label='gene')
 
-    def writeMatrixFile(self, key, sampleSet, qnInput, ensemblGeneDict, matrix, pseudobulkMatrix):
+    def writeMatrixFile(self, key, sampleSet, qnInput, ensemblGeneDict, matrix, pseudobulkMatrix):      
         matrixLabel = f'{self.config.getShortLabel()}_{key}'
         columns = ["marker_key"]
         pseudobulkColumns = ["gene"]
@@ -451,8 +469,9 @@ class PseudobulkExpt:
 
         scRNAMatrixOutputFile = self.config.getReplicateGroupAvgFile(key)
         rowLabel = [f"{ensemblGeneDict[idx]}" for idx in qnInput.index]
-        df = pd.DataFrame(matrix, columns=columns, index=rowLabel)
-        df.to_csv(scRNAMatrixOutputFile, index_label='gene')
+        if self.isWriteDetailFiles:  
+            df = pd.DataFrame(matrix, columns=columns, index=rowLabel)
+            df.to_csv(scRNAMatrixOutputFile, index_label='gene')
 
         return pd.DataFrame(pseudobulkMatrix, columns=pseudobulkColumns)
     
@@ -469,8 +488,9 @@ class PseudobulkExpt:
         print(merged_df)
 
         # write detail file
-        output_file = os.path.join(self.config.dataDir, self.config.getAllMergedFile())
-        merged_df.to_csv(output_file, index=False)
+        if self.isWriteDetailFiles:
+            output_file = os.path.join(self.config.dataDir, self.config.getAllMergedFile())
+            merged_df.to_csv(output_file, index=False)
 
         # write brief file
         # keep gene + every column containing replicate_group_avg

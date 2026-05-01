@@ -300,9 +300,9 @@ class PseudobulkPlot:
         mx = max(A_mean.max(), B_mean.max())
         plt.plot([0,mx],[0,mx],'r--')
 
-        plt.xlabel("Group A")
-        plt.ylabel("Group B")
-        plt.title("A vs B")
+        plt.xlabel("Option A")
+        plt.ylabel("Option B")
+        plt.title("Option A vs Option B")
         plt.savefig(f"{outdir}/all_A_vs_B.png", dpi=300, bbox_inches="tight")
         plt.close()
 
@@ -318,7 +318,7 @@ class PseudobulkPlot:
 
         plt.figure(figsize=(12,8))
         sns.heatmap(df_log.loc[top_genes], cmap="magma")
-        plt.title("Top A vs B Genes")
+        plt.title("Top Option A vs Option B Genes")
         plt.savefig(f"{outdir}/all_A_vs_B_top_genes.png", dpi=300, bbox_inches="tight")
         plt.close()
 
