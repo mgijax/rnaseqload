@@ -1,0 +1,19 @@
+#!/bin/csh -f
+
+#
+# default configuration file
+#
+
+source ${SETLOAD}/Configuration
+
+setenv SETMODE		load
+#setenv SETMODE		preview
+
+setenv LOADDIR          /data/loads/mgi/rnaseqload/setload
+setenv SETOUTPUTDIR     ${LOADDIR}
+setenv SETDATADIR       ${LOADDIR}
+setenv SETINPUTFILE	${SETDATADIR}/baselinesetload.txt
+setenv SETLOG		${SETDATADIR}/baselinesetload.log
+setenv SETNAME		"Baseline RNASeq Load Experiment"
+setenv SETTYPE		"GXD HT Experiment"  # MGI Type
+setenv CREATEDBY	"cms"
