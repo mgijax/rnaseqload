@@ -26,6 +26,8 @@ where s.name = 'Baseline RNASeq Load Experiment'
 and s._set_key = m._set_key
 and s._mgitype_key = a._mgitype_key
 and m._object_key = a._object_key
+and a._logicaldb_key = 189
+and a.preferred = 1
 ;
 EOSQL
 
