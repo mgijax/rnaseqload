@@ -19,17 +19,17 @@ else
     exit 1
 fi
 
-LASTRUN_FILE=${BASELINERAW_INPUTDIR}/lastrun
-if [ -f ${LASTRUN_FILE} ]
-then
-        echo "LASTRUN_FILE exists - skipping load" | tee -a ${SNPMARKER_LOG}
-        exit 0
-fi
-
 if [ -f ${BASELINELOG_DOWNLOAD} ]
     rm -rf ${BASELINELOG_DOWNLOAD}
 then
     touch ${BASELINELOG_DOWNLOAD}
+fi
+
+LASTRUN_FILE=${BASELINERAW_INPUTDIR}/lastrun
+if [ -f ${LASTRUN_FILE} ]
+then
+        echo "LASTRUN_FILE exists - skipping load" | tee -a ${BASELINELOG_DOWNLOAD}
+        exit 0
 fi
 
 date | tee -a ${BASELINELOG_DOWNLOAD}
