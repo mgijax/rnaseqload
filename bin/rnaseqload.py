@@ -250,9 +250,9 @@ def init():
     rnaSeqKey = 110642287
     combinedKey = 36724709
     # delete previous data
-    obj = db.sql('''DELETE FROM GXD_HTSample_RNASeq where _rnaseq_key >= %s ''' % rnaSeqKey, 'auto')
-    obj2 = db.sql('''DELETE FROM GXD_HTSample_RNASeqCombined where _rnaseqcombined_key >= %s ''' % combinedKey, 'auto')
-    db.commit()    
+    # obj = db.sql('''DELETE FROM GXD_HTSample_RNASeq where _rnaseq_key >= %s ''' % rnaSeqKey, 'auto')
+    # obj2 = db.sql('''DELETE FROM GXD_HTSample_RNASeqCombined where _rnaseqcombined_key >= %s ''' % combinedKey, 'auto')
+    # db.commit()    
 
     results = db.sql('''select accid, _object_key
         from ACC_Accession
@@ -1129,7 +1129,7 @@ def calcTPMAveSD(expID, geneDict):
 #
 
 def execBCP ():
-
+    global bcpCommandList
     # execute all the bcp files
     for bcpCmd in bcpCommandList:
         fpDiag.write('%s\n' % bcpCmd)
@@ -1142,6 +1142,9 @@ def execBCP ():
     db.sql('''select setval('gxd_htsample_rnaseqcombined_seq', (select max(_rnaseqcombined_key) from gxd_htsample_rnaseqcombined))''', None)
 
     db.commit()
+
+    # dump executed one
+    bcpCommandList.clear()
 
     return 0
 
@@ -1483,11 +1486,13 @@ def process_one_experiment(expID, pseudobulkExpt=None):
             pseudobulkDataframeList.append(pseudoDf)
 
     # write out bcp for all replisets of this experiment
-    writeBCP(expID, matrixList)
+    if pseudobulkExpt:
+        writeBCP(f'{expID}_{pseudobulkExpt.config.getShortLabel()}', matrixList)
+    else:
+        writeBCP(expID, matrixList)
 
     # we've processed all experiments, now execute bcp
- #   execBCP()
-
+    execBCP()
 
     return pseudobulkDataframeList
 

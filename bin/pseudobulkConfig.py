@@ -1,6 +1,6 @@
 import logging as log
 import os
-from itertools import count
+import db
 
 log.basicConfig(level=log.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
@@ -16,7 +16,7 @@ class PseudobulkConfig:
         self.initReplicateGroup()
 
     def initReplicateGroup(self):
-        counter = count(1)
+        db.useOneConnection(1)
         female = {"groupName": "Female",
                   "replicates": []
                   }
@@ -43,14 +43,27 @@ class PseudobulkConfig:
                 group = female
             else:
                 group = male
+
+            sampleName = f'{self.bulkData["shortName"]}_{self.runOption["optionName"]}_{name}'
+            sampleKey = self.findHTSampleKey(db, sampleName)
+            log.info(f'sampleKey: {sampleKey}')
             group["replicates"].append(
                 {
                     "replicateName": name,
-                    "sampleKey": next(counter)
+                    "sampleKey": sampleKey
                 }
             )
 
         self.runOption["replicateGroups"] = replicateGroups
+    
+    def findHTSampleKey(self, db, sampleName):
+        query = '''
+            SELECT _sample_key FROM gxd_htsample WHERE _experiment_key = 99680 AND name = '{sampleName}'
+        '''.format(sampleName = sampleName)
+        # log.info(query)
+        results = db.sql(query, 'auto')
+        for r in results:
+            return r["_sample_key"]        
 
     def findReplicateGroup(self, groupName):
         for replicateGroup in self.runOption["replicateGroups"]:
@@ -188,15 +201,15 @@ class PseudobulkConfig:
     BULK_DATA_LIST.append(Intestine_ascending)
 
     heart_left = {
-        "name": "Heart_Left_Ventricle",
-        "shortName": "Heart__Left_Ventricle",
+        "name": "Heart__Left_Ventricle",
+        "shortName": "Heart_Left_Ventricle",
         "tissue": "Heart",
         "organismPart": "heart left ventricle",
         "pivotAFields": ["3_38_F", "3_39_F", "3_56_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
         "pivotBFields": [["3_38_F", "3_56_F"], "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
     }
     heart_heart = {
-        "name": "Heart_Heart",
+        "name": "Heart__Heart",
         "shortName": "Heart_Heart",
         "tissue": "Heart",
         "organismPart": "heart",
@@ -204,7 +217,7 @@ class PseudobulkConfig:
         "pivotBFields": ["3_38_F", "3_39_F", "3_10_M", "3_11_M"]
     }
     heart_all = {
-        "name": "Heart_All",
+        "name": "Heart__All",
         "shortName": "Heart_All",
         "tissue": "Heart",
         "organismPart": "",
@@ -244,17 +257,13 @@ class PseudobulkConfig:
         "pivotBFields": ["3_38_F", "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
     }
 
-    # BULK_DATA_LIST.append(heart_left)
-    # BULK_DATA_LIST.append(heart_heart)
-    # BULK_DATA_LIST.append(heart_all)
-    # BULK_DATA_LIST.append(Intestine_all)
-    # BULK_DATA_LIST.append(liver)
-    # BULK_DATA_LIST.append(spleen)
-    # BULK_DATA_LIST.append(lung)
-
-
-
-
+    BULK_DATA_LIST.append(heart_left)
+    BULK_DATA_LIST.append(heart_heart)
+    BULK_DATA_LIST.append(heart_all)
+    BULK_DATA_LIST.append(Intestine_all)
+    BULK_DATA_LIST.append(liver)
+    BULK_DATA_LIST.append(spleen)
+    BULK_DATA_LIST.append(lung)
 
     RUN_OPTIONS = []
     optionA = {

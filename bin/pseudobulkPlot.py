@@ -201,7 +201,7 @@ class PseudobulkPlot:
         # =========================
         # 1. Load data
         # =========================
-        inputFile = os.path.join(self.input_dir, "All_Structure_Avg_Only.csv")
+        inputFile = os.path.join(self.input_dir, "All_Structure_Avg_Only_batch_2.csv")
         df = pd.read_csv(inputFile)
         df = df.set_index("gene")
         df = df.apply(pd.to_numeric, errors="coerce").fillna(0)
