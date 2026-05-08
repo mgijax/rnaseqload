@@ -24,9 +24,9 @@
 #	 8.  PG_DBUTILS - for path to bcpin.csh script
 #	 9.  AES_LOCAL_FILE_TEMPLATE - path and template for processed aes files
 #	 10. AES_PP_FILE_TEMPLATE - preprocessed to just runID, sampleID
-#	 11. EAE_EAT_PP_FILE_TEMPLATE - path and template for processed eae files
-#    12. EAE_EAG_PP_FILE_TEMPLATE - path and template for processed eae files
-#    13. EAE_AES_PP_FILE_TEMPLATE - path and template for processed eae files
+#	 11. EAE_TPMS_PP_FILE_TEMPLATE - path and template for processed eae files
+#    12. EAE_GROUP_PP_FILE_TEMPLATE - path and template for processed eae files
+#    13. AES_SDRF_PP_FILE_TEMPLATE - path and template for processed eae files
 #
 # Inputs:
 #	1. Database: Baseline RNASeq Experiment set
@@ -40,29 +40,12 @@
 #	 3. bcp files - one per experiment
 #	 4. curator and diagnostic log
 # 
-# Exit Codes:
-#
-#      0:  Successful completion
-#      1:  An exception occurred
-#
-#  Assumes:  Nothing
-#
-#  Notes:  None
-#
-# HISTORY
-# 
-#       sc - fixed bug in determining non-relevant samples
-#         - https://mgi-jira.atlassian.net/browse/WTS2-514
-#         - more RNA seq data (plus more EA links) (TR13314)
 ###########################################################################
 
 import os	 	# for system to execute bcp, getenv
 import sys 	 	# to flush stdout
 import time	 	# used for its time.time() function (for timestamps)
-import subprocess
-import numpy as np	# used for stddev	
-import pandas as pd	# used for QN
-import quantileNormalize # module within this product
+import xml.etree.ElementTree as ET
 import db
 import mgi_utils 	# for log start/end timestamp
 import loadlib	 	# for bcp friendly date/timestamp
@@ -72,7 +55,6 @@ logDir =  os.getenv('LOGDIR')
 inputDir =  os.getenv('BASELINEINPUTDIR')
 rawInputDir = os.getenv('BASELINERAW_INPUTDIR')
 outputDir = os.getenv('BASELINEOUTPUTDIR')
-binDir = '%s/bin' % os.getenv('INSTALLDIR')
 
 # curation and diagnostic logs
 fpCur = open (os.getenv('LOG_CUR'), 'a')
@@ -93,9 +75,6 @@ combinedTable = 'GXD_HTSample_RNASeqCombined'
 stdDevCutoff = float(os.getenv('STDDEV_CUTOFF'))
 highAveStdDevList = []
 
-# {expID|sampleID:[list of all tpm aveSD for sample], ...}
-sampleAveSDDict = {}
-
 # special report for Richard
 fpStudentRpt = open('%s/studentRnaSeq.txt' % outputDir, 'w')
 
@@ -110,15 +89,14 @@ loaddate = loadlib.loaddate
 # rnaseqload MGI_User
 createdByKey = 1613
 
-# ArrayExpress Sample File Template  - name of file stored locally
-#aesTemplate = '%s' % os.getenv('AES_LOCAL_FILE_TEMPLATE')
-# ArrayExpress Sample File Preprocessed Template
-#aesPPTemplate = '%s' % os.getenv('AES_PP_FILE_TEMPLATE')
-
 # Expression Atlas Experiment file Template - name of file stored locally
-eatTemplate = '%s' % os.getenv('EAE_EAT_LOCAL_FILE_TEMPLATE')
-# Expression Atlas Experiment file Preprocessed Template
-eatPPTemplate = '%s' % os.getenv('EAE_EAT_PP_FILE_TEMPLATE')
+tpmsTemplate = '%s' % os.getenv('EAE_TPMS_LOCAL_FILE_TEMPLATE')
+tpmsPPTemplate = '%s' % os.getenv('EAE_TPMS_PP_FILE_TEMPLATE')
+groupTemplate = '%s' % os.getenv('EAE_GROUP_LOCAL_FILE_TEMPLATE')
+groupPPTemplate = '%s' % os.getenv('EAE_GROUP_PP_FILE_TEMPLATE')
+
+# the experients that will be processed 
+expIDToProcess = set()
 
 # GXT HT Experiment IDs in the database
 experimentInDbDict = {}
@@ -138,23 +116,9 @@ multiMarkerEnsemblDict = {}
 # ensembl IDs assoc w/ >1 marker
 multiEnsemblMarkerDict = {}
 
-# > 1 Ens IDs for a marker
-symbolToMultiEnsIdDict = {} # {symbol:[list of ensIDs], ...}
-
-#
-# Level bins
-#
-HIGH = 50430889
-MED = 50430890
-LOW = 50430891
-BELOW_CUTOFF = 50430892
- 
 #
 # QC data structures
 #
-
-# number of experiments in Connie's input file
-exptCt = 0
 
 # expIDs in File not in database
 experimentNotInDbList = []
@@ -390,20 +354,6 @@ def closeCombinedBcp():
 # end closeCombinedBcp() -------------------------------------------------
 
 #
-# Purpose: calculates the average of numList
-# Returns: the calculated average
-# 
-def calcAve(numList, precision):
-    tSum = sum(numList)
-    tLen =  max(len(numList), 1)
-    ave = tSum / tLen
-    fAve = float(ave)
-
-    return round(fAve, precision)
-
-# end calcAve () -------------------------------------------------
-
-#
 # Purpose: writes all QC in various data structures to the curation log with proper
 #       header and total count
 # Returns: 0
@@ -496,41 +446,45 @@ def writeQC():
 # end writeQC ()--------------------------------------------
 
 #
-# Purpose: creates file descriptors and reads the Expression Atlas file pulling out
-#       the Gene ID, Run ID and TPM. Writes to the EAE preprocessed intermediate file
-# Returns: 0 if successful, 1 if EAE file does not exist, 2 if AES file is empty
-#       3 if and additional header is found within the file. This indicates a bad download
-#	Once we decouple and augment the download of these files, this error should not happen
+# Purpose: creates EAE_GROUP_PP_FILE_TEMPLATE file in BASELINEINPUTDIR folder for given expID
+# Returns:
 # Assumes: Nothing
 # Effects: creates file in filesystem
 # Throws: Nothing
 #
+# format:
+#   ensembm ID
+#   marker key
+#   marker symbol
+#   g1 = 3rd value
+#   g2 = 3rd value
+#
 
-def ppEAETpmFile(expID):
+def ppEAETpmsFile(expID):
 
-    global multiMarkerEnsemblList, eaePPFile
+    global multiMarkerEnsemblList
     global ensemblNotInMGIList, ensemblIsOrphanList
     global multiEnsemblMarkerList
 
-    print('in ppEAETpmFile(expID): %s' % expID)
+    print('in ppEAETpmsFile(expID): %s' % expID)
     start_time = time.time()
 
-    #  create eae input file descriptor for this experiment
-    eaeFile = eatTemplate % expID
+    #  read the input file
+    eaeFile = tpmsTemplate % expID
     print('eaeFile: %s' % eaeFile)
     try:
         fpEae = open(eaeFile, 'r')
     except:
         return 1 # file does not exist
 
-    # path the preprocessed file for this experiment
-    eaePPFile = eaePPTemplate % expID
+    #  create the output file
+    ppFile = tpmsPPTemplate % expID
     try:
-        fpPP = open(eaePPFile, 'w')
+        fpPP = open(ppFile, 'w')
     except:
         return 1 # file does not exist
 
-    # process each gene and it's sample tpm's
+    # iterate thru the fpEae input file
     for line in fpEae.readlines():
 
         tokens = str.split(line, TAB)
@@ -576,6 +530,67 @@ def ppEAETpmFile(expID):
 
         # write to the fpPP file
         fpPP.write('%s\t%s\t%s\t%s\t%s\n' % (ensemblID, markerKey, markerSymbol, g1, g2))
+        expIDToProcess.add(expID)
+
+    fpEae.close();
+    fpPP.close();
+    elapsed_time = time.time() - start_time
+    print('%sTIME: Processing Runs from the EAE file %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)) 
+
+    return 0
+
+# end ppEAETpmsFile ()--------------------------------------------
+
+#
+# Purpose: creates EAE_GROUP_PP_FILE_TEMPLATE file in BASELINEINPUTDIR folder for given expID
+# Returns:
+# Assumes: Nothing
+# Effects: creates file in filesystem
+# Throws: Nothing
+#
+# format:
+# 	group ID 
+# 	label 
+# 	Run IDs
+#
+
+def ppEAEGroupFile(expID):
+
+    print('in ppEAEGroupFile(expID): %s' % expID)
+    start_time = time.time()
+
+    #  read the input file
+    eaeFile = groupTemplate % expID
+    print('eaeFile: %s' % eaeFile)
+
+    #  create the output file
+    ppFile = groupPPTemplate % expID
+    try:
+        fpPP = open(ppFile, 'w')
+    except:
+        return 1 # file does not exist
+
+    # iterate thru the eaeFile xml file
+    #        <assay_group id="g1" label="brown adipose tissue">
+    #            <assay>ERR4193656</assay>
+    #            <assay>ERR4193654</assay>
+    #            <assay>ERR4193655</assay>
+    #        </assay_group>
+
+    tree = ET.parse(eaeFile)
+    root = tree.getroot()
+    assay_groups = root.findall('.//assay_group')
+    for ag in assay_groups:
+        id = ag.get('id')
+        label = ag.get('label')
+        runids = []
+        for child in ag:
+            print(child.tag, child.text)
+            runids.append(child.text)
+
+        # write to the fpPP output file
+        #print('%s\t%s\t%s\n' % (id, label, runids))
+        fpPP.write('%s\t%s\t%s\n' % (id, label, '|'.join(runids)))
 
     fpPP.close();
     elapsed_time = time.time() - start_time
@@ -583,29 +598,8 @@ def ppEAETpmFile(expID):
 
     return 0
 
-# end ppEAETpmFile ()--------------------------------------------
-
-#
-# Purpose: calculate the level for the average QN TPM
-# Returns: proper level key for aveQnTpm
-# Assumes: Nothing
-# Effects: 
-# Throws: Nothing
-#
-def calcLevel(aveQnTpm):
-    level = None
-    if aveQnTpm < 0.5:	
-        level = BELOW_CUTOFF 
-    elif aveQnTpm >=  0.5 and aveQnTpm <= 10:
-        level = LOW
-    elif aveQnTpm >=  11 and aveQnTpm <= 1000:
-        level = MED
-    else:  # aveQnTpm > 1000:
-        level = HIGH
-
-    return  level
-# end calcLevel ------------------------------------------------------------------
-        
+# end ppEAEGroupFile ()--------------------------------------------
+ 
 #
 # Purpose: creates RNASeq and Combined bcp files from a list of matrices (2-dimensional
 #       arrays) created by another function
@@ -631,39 +625,6 @@ def writeBCP(expID, matrixList):
     # counts in the bcp file
     combinedLineCt = 0
     rnaSeqLineCt = 0 
-
-    for matrix in matrixList:
-        for row in matrix:
-            print(row)
-            rowLen = len(row)
-            # position 0 is always markerKey
-            # position rowLen -1 is # Biological Replicates
-            # position rowLen - 2 is ave QN TPM (all samples)
-            markerKey =  row[0] 
-            numBioRepl = row[-1]
-            aveQnTpm = row[-2]
-            #print('avQnTpm: %s' % aveQnTpm)
-            levelKey = calcLevel(aveQnTpm)
-            #print('levelKey: %s' % levelKey)
-            line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (combinedKey, TAB, markerKey, TAB, levelKey, TAB, numBioRepl, TAB, aveQnTpm, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT)
-            #print('combined: %s' %line)
-            fpCombinedBcp.write(line)
-            combinedLineCt += 1
-
-            # positions 1 to rowLen-2 are samples: sampleKey|aveTPM|qnTpm
-            # to get samples we iterate over rowLen-3 starting with i+1 
-            for i in range(rowLen-3):
-                #print('next sample: %s' % row[i+1])
-                sampleKey, aveTpm, qnTpm = str.split(row[i+1], PIPE)
-                line = '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (rnaSeqKey, TAB, sampleKey, TAB, combinedKey, TAB, markerKey, TAB, aveTpm, TAB, qnTpm, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT)
-                #print('rnaseq: %s' % line)
-                fpRnaSeqBcp.write(line)
-                rnaSeqLineCt += 1
-                rnaSeqKey += 1
-            combinedKey +=1
-
-    closeCombinedBcp()
-    closeRnaSeqBcp()
 
     # gather bcp commands in a List so we can execute them together at the
     # end of processing
@@ -741,16 +702,28 @@ def process():
             experimentNotInDbList.append(expID)
             continue
 
-        # preprocess the eae file for this expID (gene, run, tpm)
+        # preprocess the eae/tpms file for this expID
+        #sys.stdout.flush()
+        #rc = ppEAETpmsFile(expID)
+        #if rc != 0:
+        #    print('''preprocessing EAE tpms file returned rc %s, skipping file for %s''' % (rc, expID))
+        #    continue
+
+        #if expID not in expIDToProcess:
+        #    print('''ppEAETpmsFile had issues, skipping ppEAEGroupFile file processing for %s''' % (expID))
+        #    continue
+            
+        # preprocess the eae/group file for this expID
         sys.stdout.flush()
-        rc = ppEAETpmFile(expID)
+        rc = ppEAEGroupFile(expID)
         if rc != 0:
-            print('''preprocessing EAE TPM file returned rc %s, skipping file for %s''' % (rc, expID))
+            print('''preprocessing EAE group file returned rc %s, skipping file for %s''' % (rc, expID))
             continue
 
-    # we've processed all experiments, now execute bcp
-    #execBCP()
-
+        if expID not in expIDToProcess:
+            print('''ppEAEGroupFile had issues, skipping XXXX file processing for %s''' % (expID))
+            continue
+            
     return 0
 
 # end process ()--------------------------------------------
