@@ -76,7 +76,7 @@ EAE_EAT_URL_TEMPLATE="ftp.ebi.ac.uk/pub/databases/microarray/data/atlas/experime
 # Expression Atlas -configuration.xml (EAG) Template
 EAE_EAG_URL_TEMPLATE="ftp.ebi.ac.uk/pub/databases/microarray/data/atlas/experiments/%s/%s-configuration.xml"
 # ArrayExpress file: .sdrf (AES) Template
-EAE_AES_URL_TEMPLATE="ftp.ebi.ac.uk/pub/databases/microarray/data/experiment/%s/%s/%s.sdrf.txt"
+EAE_AES_URL_TEMPLATE="ftp.ebi.ac.uk/biostudies/fire/%s/%s/%s/Files/%s.sdrf.txt"
 # Name of pre-processed local file
 EAE_PP_FILE_TEMPLATE=${INPUTDIR}/%s.eae.pp.txt
 export EAE_EAT_URL_TEMPLATE EAE_EAG_URL_TEMPLATE EAE_AES_URL_TEMPLATE

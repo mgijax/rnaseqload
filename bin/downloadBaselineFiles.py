@@ -127,11 +127,13 @@ def downloadEAG(expID):
 # end downloadEAG -------------------------------------------------------------
 
 def downloadAES(expID):
-    # GEOD/E-GEOD-22130/E-GEOD-22130.sdrf.txt
 
+    # E-GEOD-22131 = E, GEOD, 22131 -> 131 last 3 characters
     tokens = expID.split('-')
     print(tokens)
-    eaeURL = aesTemplate % (tokens[1], expID, expID)
+    a = tokens[0] + '-' + tokens[1] + '-'
+    b = tokens[2][-3:]
+    eaeURL = aesTemplate % (a, b, expID, expID)
     outputFile = rawInputDir + '/' + expID + '.sdrf.txt'
     cmd = ['wget', eaeURL]
     cmd.extend(['-O', outputFile])
