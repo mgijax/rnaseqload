@@ -7,9 +7,9 @@
 # Env Vars:
 #	 1. LOGDIR 
 #	 2. BASELINERAW_INPUTDIR - files are downloaded to this directory
-#	 3a. EAE_EAT_URL_TEMPLATE - url template for Expression Atlas
-#	 3b. EAE_EAG_URL_TEMPLATE - url template for Expression Atlas
-#	 3c. EAE_AES_URL_TEMPLATE - url template for Expression Atlas
+#	 3a. EAE_TPMS_URL_TEMPLATE - url template for Expression Atlas
+#	 3b. EAE_GROUP_URL_TEMPLATE - url template for Expression Atlas
+#	 3c. AES_SDRF_URL_TEMPLATE - url template for Expression Atlas
 #	 4. DOWNLOAD_OK - if exists then error-free download
 #
 # Inputs:
@@ -49,12 +49,12 @@ fpLog = None
 CRT = '\n'
 
 # Expression Atlas Experiment file URL Templage
-eatTemplate  = os.getenv('EAE_EAT_URL_TEMPLATE')
-eatLocalFileTemplate = os.getenv('EAE_EAT_LOCAL_FILE_TEMPLATE')
-eagTemplate  = os.getenv('EAE_EAG_URL_TEMPLATE')
-eagLocalFileTemplate = os.getenv('EAE_EAG_LOCAL_FILE_TEMPLATE')
-aesTemplate  = os.getenv('EAE_AES_URL_TEMPLATE')
-aesLocalFileTemplate = os.getenv('EAE_AES_LOCAL_FILE_TEMPLATE')
+eatTemplate  = os.getenv('EAE_TPMS_URL_TEMPLATE')
+eatLocalFileTemplate = os.getenv('EAE_TPMS_LOCAL_FILE_TEMPLATE')
+eagTemplate  = os.getenv('EAE_GROUP_URL_TEMPLATE')
+eagLocalFileTemplate = os.getenv('EAE_GROUP_LOCAL_FILE_TEMPLATE')
+aesTemplate  = os.getenv('AES_SDRF_URL_TEMPLATE')
+aesLocalFileTemplate = os.getenv('AES_SDRF_LOCAL_FILE_TEMPLATE')
 
 # number of files unable to be downloaded
 errorCt = 0
@@ -90,7 +90,7 @@ def init():
 
 # end init() -------------------------------------------------------------
 
-def downloadEAT(expID):
+def downloadTPMS(expID):
 
     eaeURL = eatTemplate % (expID, expID)
     outputFile = rawInputDir + '/' + expID + '-tpms.tsv'
@@ -106,9 +106,9 @@ def downloadEAT(expID):
 
     return statusCode
 
-# end downloadEAT -------------------------------------------------------------
+# end downloadTPMS -------------------------------------------------------------
 
-def downloadEAG(expID):
+def downloadGROUP(expID):
 
     eaeURL = eagTemplate % (expID, expID)
     outputFile = rawInputDir + '/' + expID + '-configuration.xml'
@@ -124,7 +124,7 @@ def downloadEAG(expID):
 
     return statusCode
 
-# end downloadEAG -------------------------------------------------------------
+# end downloadGROUP -------------------------------------------------------------
 
 def downloadAES(expID):
 
@@ -163,14 +163,14 @@ def downloadFiles():
 
         fpLog.write('%sDownload files for experiment ID: %s%s' % (CRT, expID, CRT))
 
-        e_rc = downloadEAT(expID)
+        e_rc = downloadTPMS(expID)
         if e_rc != 0:
             errorCt += 1
             fpLog.write('%s skipping EAE file for %s with wget return code %s %s' % (CRT, expID, e_rc, CRT))
             failedList.append(expID)
             continue
 
-        e_rc = downloadEAG(expID)
+        e_rc = downloadGROUP(expID)
         if e_rc != 0:
             errorCt += 1
             fpLog.write('%s skipping EAE file for %s with wget return code %s %s' % (CRT, expID, e_rc, CRT))
