@@ -73,6 +73,22 @@ then
 fi
 
 #
+# Create the baseline input
+#
+if [ ! -d ${BASELINEINPUTDIR} ]
+then
+    mkdir -p ${BASELINEINPUTDIR}
+fi
+
+#
+# Create the baseline output
+#
+if [ ! -d ${BASELINEOUTPUTDIR} ]
+then
+    mkdir -p ${BASELINEOUTPUTDIR}
+fi
+
+#
 # Create the baseline raw inputDir if it does not exist
 #
 if [ ! -d ${BASELINERAW_INPUTDIR} ]

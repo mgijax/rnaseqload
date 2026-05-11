@@ -94,6 +94,8 @@ tpmsTemplate = '%s' % os.getenv('EAE_TPMS_LOCAL_FILE_TEMPLATE')
 tpmsPPTemplate = '%s' % os.getenv('EAE_TPMS_PP_FILE_TEMPLATE')
 groupTemplate = '%s' % os.getenv('EAE_GROUP_LOCAL_FILE_TEMPLATE')
 groupPPTemplate = '%s' % os.getenv('EAE_GROUP_PP_FILE_TEMPLATE')
+aesTemplate = '%s' % os.getenv('AES_SDRF_LOCAL_FILE_TEMPLATE')
+aesTemplate = '%s' % os.getenv('AES_SDRF_PP_FILE_TEMPLATE')
 
 # the experients that will be processed 
 expIDToProcess = set()
@@ -446,7 +448,7 @@ def writeQC():
 # end writeQC ()--------------------------------------------
 
 #
-# Purpose: creates EAE_GROUP_PP_FILE_TEMPLATE file in BASELINEINPUTDIR folder for given expID
+# Purpose: creates EAE_TPMS_PP_FILE_TEMPLATE file in BASELINEINPUTDIR folder for given expID
 # Returns:
 # Assumes: Nothing
 # Effects: creates file in filesystem
@@ -601,6 +603,61 @@ def ppEAEGroupFile(expID):
 # end ppEAEGroupFile ()--------------------------------------------
  
 #
+# Purpose: creates AES_SDRF_PP_FILE_TEMPLATE file in BASELINEINPUTDIR folder for given expID
+# Returns:
+# Assumes: Nothing
+# Effects: creates file in filesystem
+# Throws: Nothing
+#
+# format:
+# 1 Source Name     
+# 2 Comment[ENA_SAMPLE]     
+# 34 Comment[ENA_RUN]        
+#
+
+def ppAESSdrfFile(expID):
+
+    print('in ppAESSdrfFile(expID): %s' % expID)
+    start_time = time.time()
+
+    #  read the input file
+    eaeFile = aesTemplate % expID
+    print('eaeFile: %s' % eaeFile)
+    try:
+        fpEae = open(eaeFile, 'r')
+    except:
+        return 1 # file does not exist
+
+    #  create the output file
+    ppFile = aesPPTemplate % expID
+    try:
+        fpPP = open(ppFile, 'w')
+    except:
+        return 1 # file does not exist
+
+    # iterate thru the fpEae input file
+    for line in fpEae.readlines():
+
+        tokens = str.split(line, TAB)
+
+        if tokens[0] == 'Source Name':
+            continue
+
+        sourceName = tokens[0]
+        enaSample = tokens[1]
+        enaRun = tokens[33]
+        print(sourceName, enaSample, enaRun)
+
+
+    fpAes.close();
+    fpPP.close();
+    elapsed_time = time.time() - start_time
+    print('%sTIME: Processing Runs from the EAE file %s %s%s' % (CRT, expID, time.strftime("%H:%M:%S", time.gmtime(elapsed_time)), CRT)) 
+
+    return 0
+
+# end ppAESSdrfFile ()--------------------------------------------
+#
 # Purpose: creates RNASeq and Combined bcp files from a list of matrices (2-dimensional
 #       arrays) created by another function
 # Returns: 0 if successful
@@ -710,7 +767,7 @@ def process():
         #    continue
 
         #if expID not in expIDToProcess:
-        #    print('''ppEAETpmsFile had issues, skipping ppEAEGroupFile file processing for %s''' % (expID))
+        #    print('''ppEAETpmsFile has issues, skipping remaining file processing for %s''' % (expID))
         #    continue
             
         # preprocess the eae/group file for this expID
@@ -720,10 +777,13 @@ def process():
             print('''preprocessing EAE group file returned rc %s, skipping file for %s''' % (rc, expID))
             continue
 
-        if expID not in expIDToProcess:
-            print('''ppEAEGroupFile had issues, skipping XXXX file processing for %s''' % (expID))
+        # preprocess the aes/sdrf file for this expID
+        sys.stdout.flush()
+        rc = ppAESSdrfFile(expID)
+        if rc != 0:
+            print('''preprocessing AES sdrf file returned rc %s, skipping file for %s''' % (rc, expID))
             continue
-            
+
     return 0
 
 # end process ()--------------------------------------------
