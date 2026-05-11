@@ -47,6 +47,8 @@ rawRunList = []
 # run -> sample
 runToSampleDict = {}
 
+# 
+
 #
 # Purpose: init lookups
 # Returns: 0
@@ -72,6 +74,38 @@ def init():
     return 0
 
 # end init() -------------------------------------------------
+
+#
+# Purpose: loads a lookup of samples in the db for the given experiment
+#       because sample names are not uniq across experiments
+# Returns: 1 if environment variable not set
+# Assumes: Nothing
+# Effects: queries a database
+# Throws: Nothing
+#
+def loadSampleInDbDict(expID):
+    # ArrayExpress (excludes GEO) GXD HT Sample names for expID in the database
+    # {sampleID:[sampleKey1, sampleKeyN], ...}
+    global sampleInDbDict
+    sampleInDbDict = {}
+
+    results = db.sql('''select hts.name, hts._Sample_key
+        from GXD_HTSample hts, ACC_Accession a
+        where hts._Experiment_key = a._Object_key
+        and a._MGIType_key = 42 -- experiment
+        and a._LogicalDB_key = 189 --ArrayExpress
+        and a.preferred = 1
+        and a.accID = '%s' ''' % expID, 'auto')
+    for r in results:
+        key = r['name']
+        value = r['_Sample_key']
+        if key not in sampleInDbDict:
+            sampleInDbDict[key] = []
+        sampleInDbDict[key].append(value)
+
+    return 0
+
+# end loadSampleInDbDict() -------------------------------------------------
 
 #
 # Purpose: creates EAE_TPMS_PP_FILE_TEMPLATE file in BASELINEINPUTDIR folder for given expID
@@ -222,6 +256,9 @@ def ppAESSdrfFile(expID):
         print ('skipping: missing header: %s\n' % (expID))
         return 1
 
+    # load sampleInDbDict() for expID
+    loadSampleInDbDict(expID)
+
     # find the idx of the columns we want - they are not ordered
     #
     enaSampleIDX = None
@@ -260,7 +297,7 @@ def ppAESSdrfFile(expID):
             print('skipping: could not find ENA_RUN in header: %s\n' % (expID))
             return 1
 
-        if str.find(sourceSample, 'ERS') == -1:
+        if str.find(sourceSample, 'ERS') == -1 and str.find(sourceSample, 'SRS') == -1:
             sourceSample = enaSample
 
         if enaRunIDX != None:
@@ -274,6 +311,13 @@ def ppAESSdrfFile(expID):
         if enaRun in rawRunList:
             #print('skipping : enaRun already processed : %s,%s' % (expID, enaRun))
             continue
+
+        if sourceSample not in sampleInDbDict:
+            if enaSample != None and enaSample in sampleInDbDict:
+                sourceSample = enaSample
+            else:
+                print('skipping sample is not in MGI: %s, sourceSample = %s, enaSample = %s\n' % (expID, sourceSample, str(enaSample)))
+                continue
 
         rawRunList.append(enaRun)
 
