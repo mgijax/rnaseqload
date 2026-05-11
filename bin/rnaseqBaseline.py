@@ -20,7 +20,7 @@
 #	4. Configuration (see rnaseqload.config)
 #
 # Outputs:
-#	 1. preprocessed file for each experiment aes and eae
+#	 1. processPreed file for each experiment aes and eae
 # 
 ###########################################################################
 
@@ -43,8 +43,6 @@ rawRunList = []
 # which samples to this run belong to
 # run -> sample
 runToSampleDict = {}
-
-# 
 
 #
 # Purpose: init lookups
@@ -75,14 +73,17 @@ def init():
 #
 # Purpose: loads a lookup of samples in the db for the given experiment
 #       because sample names are not uniq across experiments
-# Returns: 1 if environment variable not set
+# Returns: 0
 # Assumes: Nothing
 # Effects: queries a database
 # Throws: Nothing
 #
 def loadSampleInDbDict(expID):
+    #
     # ArrayExpress (excludes GEO) GXD HT Sample names for expID in the database
     # {sampleID:[sampleKey1, sampleKeyN], ...}
+    #
+
     global sampleInDbDict
     sampleInDbDict = {}
 
@@ -108,7 +109,7 @@ def loadSampleInDbDict(expID):
 
 #
 # Purpose: creates EAE_TPMS_PP_FILE_TEMPLATE file in BASELINEINPUTDIR folder for given expID
-# Returns:
+# Returns: 0 if successful, 1 if unsuccessful
 # Assumes: Nothing
 # Effects: creates file in filesystem
 # Throws: Nothing
@@ -170,67 +171,10 @@ def ppEAETpmsFile(expID):
 # end ppEAETpmsFile ()--------------------------------------------
 
 #
-# Purpose: creates EAE_GROUP_PP_FILE_TEMPLATE file in BASELINEINPUTDIR folder for given expID
-# Returns:
+# Purpose: Reads the aesTemplate(AES_SDRF_LOCAL_FILE_TEMPLATE) and processes the runID -> Sample ID match
+# Returns: 0 if successful, 1 if unsuccessful
 # Assumes: Nothing
-# Effects: creates file in filesystem
-# Throws: Nothing
-#
-# format:
-# 	group ID 
-# 	label 
-# 	Run IDs
-#
-
-def ppEAEGroupFile(expID):
-
-    print('in ppEAEGroupFile(expID): %s' % expID)
-
-    #  read the input file
-    eaeFile = groupTemplate % expID
-    print('eaeFile: %s' % eaeFile)
-
-    #  create the output file
-    ppFile = groupPPTemplate % expID
-    try:
-        fpPP = open(ppFile, 'w')
-    except:
-        return 1 # file does not exist
-
-    # iterate thru the eaeFile xml file
-    #        <assay_group id="g1" label="brown adipose tissue">
-    #            <assay>ERR4193656</assay>
-    #            <assay>ERR4193654</assay>
-    #            <assay>ERR4193655</assay>
-    #        </assay_group>
-
-    tree = ET.parse(eaeFile)
-    root = tree.getroot()
-    assay_groups = root.findall('.//assay_group')
-    for ag in assay_groups:
-        id = ag.get('id')
-        label = ag.get('label')
-        runids = []
-        for child in ag:
-            #print(child.tag, child.text)
-            # write to the fpPP output file
-            runID = child.text
-            sampleID = 'missing'
-            if runID in runToSampleDict:
-                sampleID = runToSampleDict[runID][0]
-            fpPP.write('%s\t%s\t%s\t%s\n' % (id, label, runID, sampleID))
-
-    fpPP.close();
-
-    return 0
-
-# end ppEAEGroupFile ()--------------------------------------------
- 
-#
-# Purpose: creates the run to sample relationship : runToSampleDict
-# Returns:
-# Assumes: Nothing
-# Effects: creates file in filesystem
+# Effects: creates the runToSampleDict file (runID -> Sample ID)
 # Throws: Nothing
 #
 
@@ -331,15 +275,76 @@ def ppAESSdrfFile(expID):
 
 # end ppAESSdrfFile ()--------------------------------------------
 
-# Purpose: main processing function. 
-#   Gets the list of experiment IDs from the 'Baseline RNASeq Load Experiment' set 
-#   Processes experiments one by one
+#
+# Purpose: Reads groupTermplate (EAE_GROUP_LOCAL_FILE_TEMPLATE) and runToSampleDict()
+# Returns: 0 if successful, 1 if unsuccessful
+# Assumes: Nothing
+# Effects: creates EAE_GROUP_PP_FILE_TEMPLATE file in BASELINEINPUTDIR folder for given expID
+# Throws: Nothing
+#
+# format:
+# 	group ID 
+# 	label 
+# 	Run IDs
+#   Sample IDs
+#
+
+def ppEAEGroupFile(expID):
+
+    print('in ppEAEGroupFile(expID): %s' % expID)
+
+    #  read the input file
+    eaeFile = groupTemplate % expID
+    print('eaeFile: %s' % eaeFile)
+
+    #  create the output file
+    ppFile = groupPPTemplate % expID
+    try:
+        fpPP = open(ppFile, 'w')
+    except:
+        return 1 # file does not exist
+
+    #
+    # eaeFile is in XML format
+    #
+    # iterate thru the eaeFile xml file
+    #        <assay_group id="g1" label="brown adipose tissue">
+    #            <assay>ERR4193656</assay>
+    #            <assay>ERR4193654</assay>
+    #            <assay>ERR4193655</assay>
+    #        </assay_group>
+
+    tree = ET.parse(eaeFile)
+    root = tree.getroot()
+    assay_groups = root.findall('.//assay_group')
+    for ag in assay_groups:
+        id = ag.get('id')
+        label = ag.get('label')
+        runids = []
+        for child in ag:
+            #print(child.tag, child.text)
+            runID = child.text
+            sampleID = 'missing'
+            if runID in runToSampleDict:
+                sampleID = runToSampleDict[runID][0]
+            fpPP.write('%s\t%s\t%s\t%s\n' % (id, label, runID, sampleID))
+
+    fpPP.close();
+
+    return 0
+
+# end ppEAEGroupFile ()--------------------------------------------
+ 
+#
+# Purpose: pre processing
+#   read EAE tpms, group and AES sdrf files
+#   generate tpms output file, group output file
 # Returns: 0 if successful; handles return codes from all functions it calls 
 # Assumes: Nothing
 # Effects:
 # Throws: Nothing
 #
-def process():
+def processPre():
     global rawRunList
 
     #
@@ -349,39 +354,72 @@ def process():
 
         expID = str.strip(r['accid'])
 
-        # preprocess the eae/tpms file for this expID
-        #rc = ppEAETpmsFile(expID)
-        #if rc != 0:
-        #    print('preprocessing EAE tpms file returned rc %s, skipping file for %s' % (rc, expID))
-        #    continue
-
-        # preprocess the aes/sdrf file for this expID to create the runToSampleDict
-        rc = ppAESSdrfFile(expID)
+        # processPre the eae/tpms file for this expID
+        rc = ppEAETpmsFile(expID)
         if rc != 0:
-            print('preprocessing AES sdrf file returned rc %s, skipping file for %s' % (rc, expID))
+            print('processing EAE tpms file returned rc %s, skipping file for %s' % (rc, expID))
             continue
 
-        # preprocess the eae/group file for this expID
+        # processPre the aes/sdrf file for this expID to create the runToSampleDict
+        rc = ppAESSdrfFile(expID)
+        if rc != 0:
+            print('processing AES sdrf file returned rc %s, skipping file for %s' % (rc, expID))
+            continue
+
+        # processPre the eae/group file for this expID
         rc = ppEAEGroupFile(expID)
         if rc != 0:
-            print('preprocessing EAE group file returned rc %s, skipping file for %s' % (rc, expID))
+            print('processing EAE group file returned rc %s, skipping file for %s' % (rc, expID))
             continue
 
     #print(runToSampleDict)
     return 0
 
-# end process ()--------------------------------------------
+# end processPrep ()--------------------------------------------
+
+#
+# Purpose: Delete, Process and Load new GXD_HTSample_RNASet & GXD_HTSample_RNANetMember data
+# Returns: 0 if successful; handles return codes from all functions it calls 
+# Assumes: Nothing
+# Effects:
+# Throws: Nothing
+#
+def processRNASet():
+
+    # delete existing Baseline GXD_HTSample_RNASet, GXD_HTSample_RNANetMember
+
+    # use loadBioReps.py because we're excluding this data
+    # select approate samples of interest
+
+    # create bcp files
+
+    # load bcp files
+
+    return 0
+
+# end processSet()--------------------------------------------
 
 #
 # Main
 #
 
-print('Start time: %s' %  mgi_utils.date())
+print('start time: %s' %  mgi_utils.date())
 if init() != 0:
-     exit(1, 'Error in  init \n')
+     exit(1, 'Error in init()\n')
 
-if process() != 0:
-     exit(1, 'Error in  process \n')
+print('part 1: preprocoessing start time: %s' %  mgi_utils.date())
+if processPre() != 0:
+     exit(1, 'Error in processPre()\n')
+print('part 1: processPreing end time: %s' %  mgi_utils.date())
 
-print('End time: %s' %  mgi_utils.date())
+print('part 2: rnaset, rnasetmember start time: %s' %  mgi_utils.date())
+if processRNASet() != 0:
+     exit(1, 'Error in processRNASet()\n')
+print('part 2: rnaset, rnasetmember end time: %s' %  mgi_utils.date())
 
+#
+# part 3
+# load rnaseq, rnaseqcombined
+#
+
+print('final end time: %s' %  mgi_utils.date())

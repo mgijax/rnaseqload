@@ -41,6 +41,7 @@ and a._Object_key = gs._Experiment_key
 select * from toDelete;
 --delete from gxd_htsample_rnaseq using toDelete where toDelete._sample_key = gxd_htsample_rnaseq._sample_key;
 
+
 EOSQL
 
 echo "Baseline Processing" 
