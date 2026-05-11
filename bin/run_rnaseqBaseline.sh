@@ -21,7 +21,7 @@ fi
 
 echo "Baseline Processing" 
 rm -rf ${BASELINELOG}
-${PYTHON} ${RNASEQLOAD}/bin/rnaseqBaselineload.py >> ${BASELINELOG} 2>&1
+${PYTHON} ${RNASEQLOAD}/bin/rnaseqBaseline.py >> ${BASELINELOG} 2>&1
 STAT=$?
 
 date | tee -a ${BASELINELOG_DOWNLOAD}
