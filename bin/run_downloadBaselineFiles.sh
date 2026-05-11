@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # Purpose:
-#	Download the MGI_Set.name = "Baseline RNASeq Load Experiment"
+#	Download Baseline AES & EAE files
 #
 
 cd `dirname $0`
