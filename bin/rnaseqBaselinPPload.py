@@ -12,7 +12,6 @@
 #	 INSTALLDIR - for path to run_join script	 
 #	 LOG_CUR - curation log
 #	 LOG_DIAG - diagnostic log
-#	 AES_PP_FILE_TEMPLATE - preprocessed to just runID, sampleID
 #	 EAE_TPMS_PP_FILE_TEMPLATE - path and template for processed eae files
 #    EAE_GROUP_PP_FILE_TEMPLATE - path and template for processed eae files
 #    AES_SDRF_PP_FILE_TEMPLATE - path and template for processed eae files
@@ -40,7 +39,13 @@ tpmsPPTemplate = '%s' % os.getenv('EAE_TPMS_PP_FILE_TEMPLATE')
 groupTemplate = '%s' % os.getenv('EAE_GROUP_LOCAL_FILE_TEMPLATE')
 groupPPTemplate = '%s' % os.getenv('EAE_GROUP_PP_FILE_TEMPLATE')
 aesTemplate = '%s' % os.getenv('AES_SDRF_LOCAL_FILE_TEMPLATE')
-aesPPTemplate = '%s' % os.getenv('AES_SDRF_PP_FILE_TEMPLATE')
+
+# unique set of raw samples
+rawRunList = []
+
+# which samples to this run belong to
+# run -> sample
+runToSampleDict = {}
 
 #
 # Purpose: init lookups
@@ -175,11 +180,12 @@ def ppEAEGroupFile(expID):
         runids = []
         for child in ag:
             #print(child.tag, child.text)
-            runids.append(child.text)
-
-        # write to the fpPP output file
-        #print('%s\t%s\t%s\n' % (id, label, runids))
-        fpPP.write('%s\t%s\t%s\n' % (id, label, '|'.join(runids)))
+            # write to the fpPP output file
+            runID = child.text
+            sampleID = 'missing'
+            if runID in runToSampleDict:
+                sampleID = runToSampleDict[runID][0]
+            fpPP.write('%s\t%s\t%s\t%s\n' % (id, label, runID, sampleID))
 
     fpPP.close();
 
@@ -188,19 +194,16 @@ def ppEAEGroupFile(expID):
 # end ppEAEGroupFile ()--------------------------------------------
  
 #
-# Purpose: creates AES_SDRF_PP_FILE_TEMPLATE file in BASELINEINPUTDIR folder for given expID
+# Purpose: creates the run to sample relationship : runToSampleDict
 # Returns:
 # Assumes: Nothing
 # Effects: creates file in filesystem
 # Throws: Nothing
 #
-# format:
-# 1 Source Name     
-# 2 Comment[ENA_SAMPLE]     
-# 34 Comment[ENA_RUN]        
-#
 
 def ppAESSdrfFile(expID):
+
+    global rawRunList, runToSampleDict
 
     print('in ppAESSdrfFile(expID): %s' % expID)
 
@@ -209,13 +212,6 @@ def ppAESSdrfFile(expID):
     print('aesFile: %s' % aesFile)
     try:
         fpAes = open(aesFile, 'r')
-    except:
-        return 1 # file does not exist
-
-    #  create the output file
-    ppFile = aesPPTemplate % expID
-    try:
-        fpPP = open(ppFile, 'w')
     except:
         return 1 # file does not exist
 
@@ -228,9 +224,9 @@ def ppAESSdrfFile(expID):
 
     # find the idx of the columns we want - they are not ordered
     #
-    sourceSampleIDX = None
     enaSampleIDX = None
-    runIDX = None
+    enaSampleIDX = None
+    enaRunIDX = None
     for idx, colName in enumerate(headerList):
         colName = str.strip(colName)
         if str.find(colName, 'Source Name') != -1:
@@ -248,30 +244,47 @@ def ppAESSdrfFile(expID):
         if tokens[0] == 'Source Name':
             continue
 
-        print(tokens)
-        print(len(tokens))
+        #print(tokens)
 
-        sourceName = ''
-        enaSample = ''
-        enaRun = ''
+        sourceSample = None
+        enaSample = None
+        enaRun = None
+
+        if sourceSampleIDX != None:
+            sourceSample = str.strip(tokens[sourceSampleIDX])
+
+        if enaSampleIDX != None:
+            enaSample = str.strip(tokens[enaSampleIDX])
 
         if enaRunIDX == None:
             print('skipping: could not find ENA_RUN in header: %s\n' % (expID))
             return 1
 
-        try:
-            sourceName = str.strip(tokens[sourceSampleIDX])
-            enaSample = str.strip(tokens[enaSampleIDX])
+        if str.find(sourceSample, 'ERS') == -1:
+            sourceSample = enaSample
+
+        if enaRunIDX != None:
             enaRun = str.strip(tokens[enaRunIDX])
-        except:
-            print('skipping : missing sourceName : %s, enaSample : %s, enaRun : %s\n' % (sourceName, enaSample, enaRun))
+
+        if sourceSample == None or enaRun == None:
+            print('skipping : missing sourceSample : %s, enaRun : %s\n' % (sourceSample, enaRun))
             return 1
             
-        #print(sourceName, enaSample, enaRun)
-        fpPP.write('%s\t%s\t%s\n' %(sourceName, enaSample, enaRun))
+        # skip of this source is a duplicate
+        if enaRun in rawRunList:
+            #print('skipping : enaRun already processed : %s,%s' % (expID, enaRun))
+            continue
+
+        rawRunList.append(enaRun)
+
+        print('Source/Run: ', sourceSample, enaRun)
+        key = enaRun
+        value = sourceSample
+        if key not in runToSampleDict:
+            runToSampleDict[key] = []
+        runToSampleDict[key].append(value)
 
     fpAes.close();
-    fpPP.close();
 
     return 0
 
@@ -286,12 +299,13 @@ def ppAESSdrfFile(expID):
 # Throws: Nothing
 #
 def process():
-    global experimentNotInDbList
+    global rawRunList
 
     #
     # for each expID in the MGI_Set:
     #
     for r in rnaSeqSetResults:
+
         expID = str.strip(r['accid'])
 
         # preprocess the eae/tpms file for this expID
@@ -300,18 +314,19 @@ def process():
         #    print('preprocessing EAE tpms file returned rc %s, skipping file for %s' % (rc, expID))
         #    continue
 
-        # preprocess the eae/group file for this expID
-        #rc = ppEAEGroupFile(expID)
-        #if rc != 0:
-        #    print('preprocessing EAE group file returned rc %s, skipping file for %s' % (rc, expID))
-        #    continue
-
-        # preprocess the aes/sdrf file for this expID
+        # preprocess the aes/sdrf file for this expID to create the runToSampleDict
         rc = ppAESSdrfFile(expID)
         if rc != 0:
             print('preprocessing AES sdrf file returned rc %s, skipping file for %s' % (rc, expID))
             continue
 
+        # preprocess the eae/group file for this expID
+        rc = ppEAEGroupFile(expID)
+        if rc != 0:
+            print('preprocessing EAE group file returned rc %s, skipping file for %s' % (rc, expID))
+            continue
+
+    #print(runToSampleDict)
     return 0
 
 # end process ()--------------------------------------------
