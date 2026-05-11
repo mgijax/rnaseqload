@@ -34,31 +34,23 @@ import xml.etree.ElementTree as ET
 import db
 import mgi_utils 	# for log start/end timestamp
 
-# paths to input and two output files
-logDir = os.getenv('BASELINELOG_PP')
-inputDir = os.getenv('BASELINEINPUTDIR')
-rawInputDir = os.getenv('BASELINERAW_INPUTDIR')
-outputDir = os.getenv('BASELINEOUTPUTDIR')
-
 # Expression Atlas Experiment file Template - name of file stored locally
 tpmsTemplate = '%s' % os.getenv('EAE_TPMS_LOCAL_FILE_TEMPLATE')
 tpmsPPTemplate = '%s' % os.getenv('EAE_TPMS_PP_FILE_TEMPLATE')
 groupTemplate = '%s' % os.getenv('EAE_GROUP_LOCAL_FILE_TEMPLATE')
 groupPPTemplate = '%s' % os.getenv('EAE_GROUP_PP_FILE_TEMPLATE')
 aesTemplate = '%s' % os.getenv('AES_SDRF_LOCAL_FILE_TEMPLATE')
-aesTemplate = '%s' % os.getenv('AES_SDRF_PP_FILE_TEMPLATE')
+aesPPTemplate = '%s' % os.getenv('AES_SDRF_PP_FILE_TEMPLATE')
 
 #
-# Purpose:  create db connection, init lookups
+# Purpose: init lookups
 # Returns: 0
 # Assumes: Nothing
 # Effects: opens a database connection, queries a database
 # Throws: Nothing
 #
 def init():
-    global fpLog, rnaSeqSetResults
-
-    fpLog = open (logDir, 'w')
+    global rnaSeqSetResults
 
     # create the result set of ids to load
     rnaSeqSetResults = db.sql('''
@@ -93,11 +85,11 @@ def init():
 
 def ppEAETpmsFile(expID):
 
-    fpLog.write('in ppEAETpmsFile(expID): %s' % expID)
+    print('in ppEAETpmsFile(expID): %s' % expID)
 
     #  read the input file
     eaeFile = tpmsTemplate % expID
-    fpLog.write('eaeFile: %s' % eaeFile)
+    print('eaeFile: %s' % eaeFile)
     try:
         fpEae = open(eaeFile, 'r')
     except:
@@ -123,16 +115,14 @@ def ppEAETpmsFile(expID):
         g1All = str.strip(tokens[2])
         g2All = str.strip(tokens[3])
         
-        #fpLog.write(tokens)
+        #print(tokens)
         tokensG1 = g1All.split(',')
         tokensG2 = g2All.split(',')
         g1 = tokensG1[2]
         g2 = tokensG2[2]
-        markerKey = ensemblMarkerDict[ensemblID][0]['_object_key']
-        #fpLog.write(markerKey, g1, g2)
 
         # write to the fpPP file
-        fpPP.write('%s\t%s\t%s\t%s\t%s\n' % (ensemblID, markerKey, markerSymbol, g1, g2))
+        fpPP.write('%s\t%s\t%s\t%s\n' % (ensemblID, markerSymbol, g1, g2))
 
     fpEae.close();
     fpPP.close();
@@ -156,11 +146,11 @@ def ppEAETpmsFile(expID):
 
 def ppEAEGroupFile(expID):
 
-    fpLog.write('in ppEAEGroupFile(expID): %s' % expID)
+    print('in ppEAEGroupFile(expID): %s' % expID)
 
     #  read the input file
     eaeFile = groupTemplate % expID
-    fpLog.write('eaeFile: %s' % eaeFile)
+    print('eaeFile: %s' % eaeFile)
 
     #  create the output file
     ppFile = groupPPTemplate % expID
@@ -184,11 +174,11 @@ def ppEAEGroupFile(expID):
         label = ag.get('label')
         runids = []
         for child in ag:
-            fpLog.write(child.tag, child.text)
+            #print(child.tag, child.text)
             runids.append(child.text)
 
         # write to the fpPP output file
-        #fpLog.write('%s\t%s\t%s\n' % (id, label, runids))
+        #print('%s\t%s\t%s\n' % (id, label, runids))
         fpPP.write('%s\t%s\t%s\n' % (id, label, '|'.join(runids)))
 
     fpPP.close();
@@ -212,13 +202,13 @@ def ppEAEGroupFile(expID):
 
 def ppAESSdrfFile(expID):
 
-    fpLog.write('in ppAESSdrfFile(expID): %s' % expID)
+    print('in ppAESSdrfFile(expID): %s' % expID)
 
     #  read the input file
-    eaeFile = aesTemplate % expID
-    fpLog.write('eaeFile: %s' % eaeFile)
+    aesFile = aesTemplate % expID
+    print('aesFile: %s' % aesFile)
     try:
-        fpEae = open(eaeFile, 'r')
+        fpAes = open(aesFile, 'r')
     except:
         return 1 # file does not exist
 
@@ -229,18 +219,56 @@ def ppAESSdrfFile(expID):
     except:
         return 1 # file does not exist
 
+    # process the header line
+    #
+    headerList = str.split(fpAes.readline(), '\t')
+    if headerList == ['']: # means file is empty
+        print ('skipping: missing header: %s\n' % (expID))
+        return 1
+
+    # find the idx of the columns we want - they are not ordered
+    #
+    sourceSampleIDX = None
+    enaSampleIDX = None
+    runIDX = None
+    for idx, colName in enumerate(headerList):
+        colName = str.strip(colName)
+        if str.find(colName, 'Source Name') != -1:
+            sourceSampleIDX = idx
+        elif str.find(colName, 'ENA_SAMPLE') != -1:
+            enaSampleIDX = idx
+        elif str.find(colName, 'ENA_RUN') != -1:
+            enaRunIDX = idx
+    
     # iterate thru the fpEae input file
-    for line in fpEae.readlines():
+    for line in fpAes.readlines():
 
         tokens = str.split(line, '\t')
 
         if tokens[0] == 'Source Name':
             continue
 
-        sourceName = tokens[0]
-        enaSample = tokens[1]
-        enaRun = tokens[33]
-        fpLog.write(sourceName, enaSample, enaRun)
+        print(tokens)
+        print(len(tokens))
+
+        sourceName = ''
+        enaSample = ''
+        enaRun = ''
+
+        if enaRunIDX == None:
+            print('skipping: could not find ENA_RUN in header: %s\n' % (expID))
+            return 1
+
+        try:
+            sourceName = str.strip(tokens[sourceSampleIDX])
+            enaSample = str.strip(tokens[enaSampleIDX])
+            enaRun = str.strip(tokens[enaRunIDX])
+        except:
+            print('skipping : missing sourceName : %s, enaSample : %s, enaRun : %s\n' % (sourceName, enaSample, enaRun))
+            return 1
+            
+        #print(sourceName, enaSample, enaRun)
+        fpPP.write('%s\t%s\t%s\n' %(sourceName, enaSample, enaRun))
 
     fpAes.close();
     fpPP.close();
@@ -267,24 +295,21 @@ def process():
         expID = str.strip(r['accid'])
 
         # preprocess the eae/tpms file for this expID
-        sys.stdout.flush()
-        rc = ppEAETpmsFile(expID)
-        if rc != 0:
-            fpLog.write('''preprocessing EAE tpms file returned rc %s, skipping file for %s''' % (rc, expID))
-            continue
+        #rc = ppEAETpmsFile(expID)
+        #if rc != 0:
+        #    print('preprocessing EAE tpms file returned rc %s, skipping file for %s' % (rc, expID))
+        #    continue
 
         # preprocess the eae/group file for this expID
-        sys.stdout.flush()
-        rc = ppEAEGroupFile(expID)
-        if rc != 0:
-            fpLog.write('''preprocessing EAE group file returned rc %s, skipping file for %s''' % (rc, expID))
-            continue
+        #rc = ppEAEGroupFile(expID)
+        #if rc != 0:
+        #    print('preprocessing EAE group file returned rc %s, skipping file for %s' % (rc, expID))
+        #    continue
 
         # preprocess the aes/sdrf file for this expID
-        sys.stdout.flush()
         rc = ppAESSdrfFile(expID)
         if rc != 0:
-            fpLog.write('''preprocessing AES sdrf file returned rc %s, skipping file for %s''' % (rc, expID))
+            print('preprocessing AES sdrf file returned rc %s, skipping file for %s' % (rc, expID))
             continue
 
     return 0
@@ -295,13 +320,12 @@ def process():
 # Main
 #
 
-fpLog.write('Start time: %s' %  mgi_utils.date())
+print('Start time: %s' %  mgi_utils.date())
 if init() != 0:
-     exit(1, 'Error in  init \n' )
+     exit(1, 'Error in  init \n')
 
 if process() != 0:
-     exit(1, 'Error in  process \n' )
+     exit(1, 'Error in  process \n')
 
-fpLog.write('End time: %s' %  mgi_utils.date())
-fpLog.close()
+print('End time: %s' %  mgi_utils.date())
 

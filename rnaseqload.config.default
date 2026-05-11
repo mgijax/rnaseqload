@@ -44,8 +44,12 @@ RPTDIR=${FILEDIR}/reports
 OUTPUTDIR=${FILEDIR}/output
 INPUTDIR=${FILEDIR}/input
 RAW_INPUTDIR=${FILEDIR}/raw_input
+export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR RAW_INPUTDIR 
+
+BASELINEINPUTDIR=${FILEDIR}/input_baseline
+BASELINEOUTPUTDIR=${FILEDIR}/output_baseline
 BASELINERAW_INPUTDIR=${FILEDIR}/raw_input_baseline
-export FILEDIR ARCHIVEDIR LOGDIR RPTDIR OUTPUTDIR INPUTDIR RAW_INPUTDIR BASELINERAW_INPUTDIR
+export BASELINEINPUTDIR BASELINEOUTPUTDIR BASELINERAW_INPUTDIR
 
 # Complete path name of the rnaseqload log files
 LOG_FILE=${LOGDIR}/rnaseqload.log
@@ -55,7 +59,8 @@ LOG_CUR=${LOGDIR}/rnaseqload.cur.log
 LOG_VAL=${LOGDIR}/rnaseqload.val.log
 LOG_DOWNLOAD=${LOGDIR}/downloadFiles.log
 BASELINELOG_DOWNLOAD=${LOGDIR}/downloadBaselineFiles.log
-export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL LOG_DOWNLOAD BASELINELOG_DOWNLOAD
+BASELINELOG_PP=${LOGDIR}/rnaseqBaselinPPload.log
+export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL LOG_DOWNLOAD BASELINELOG_DOWNLOAD BASELINELOG_PP
 
 # Array Express Sample File Templates
 AES_URL_TEMPLATE="https://ftp.ebi.ac.uk/biostudies/fire/%s/%s/%s/Files/%s.sdrf.txt"
@@ -71,21 +76,23 @@ export DOWNLOAD_OK
 BASELINEDOWNLOAD_OK=${BASELINERAW_INPUTDIR}/download_ok
 export DOWNLOAD_OK BASELINEDOWNLOAD_OK
 
-# EExpression Atlas -tpms.tsv (EAT) Template
-EAE_EAT_URL_TEMPLATE="ftp.ebi.ac.uk/pub/databases/microarray/data/atlas/experiments/%s/%s-tpms.tsv"
-# Expression Atlas -configuration.xml (EAG) Template
-EAE_EAG_URL_TEMPLATE="ftp.ebi.ac.uk/pub/databases/microarray/data/atlas/experiments/%s/%s-configuration.xml"
-# ArrayExpress file: .sdrf (AES) Template
-EAE_AES_URL_TEMPLATE="ftp.ebi.ac.uk/biostudies/fire/%s/%s/%s/Files/%s.sdrf.txt"
+# URL files fetched into BASELINERAW_INPUTDIR
+EAE_TPMS_URL_TEMPLATE="ftp.ebi.ac.uk/pub/databases/microarray/data/atlas/experiments/%s/%s-tpms.tsv"
+EAE_GROUP_URL_TEMPLATE="ftp.ebi.ac.uk/pub/databases/microarray/data/atlas/experiments/%s/%s-configuration.xml"
+AES_SDRF_URL_TEMPLATE="ftp.ebi.ac.uk/biostudies/fire/%s/%s/%s/Files/%s.sdrf.txt"
+export EAE_TPMS_URL_TEMPLATE EAE_GROUP_URL_TEMPLATE AES_SDRF_URL_TEMPLATE
+
+# Name of files fetched from URL
+EAE_TPMS_LOCAL_FILE_TEMPLATE=${BASELINERAW_INPUTDIR}/%s-tpms.tsv
+EAE_GROUP_LOCAL_FILE_TEMPLATE=${BASELINERAW_INPUTDIR}/%s-configuration.xml
+AES_SDRF_LOCAL_FILE_TEMPLATE=${BASELINERAW_INPUTDIR}/%s.sdrf.txt
+export EAE_TPMS_LOCAL_FILE_TEMPLATE EAE_GROUP_LOCAL_FILE_TEMPLATE AES_SDRF_LOCAL_FILE_TEMPLATE
+
 # Name of pre-processed local file
-EAE_PP_FILE_TEMPLATE=${INPUTDIR}/%s.eae.pp.txt
-export EAE_EAT_URL_TEMPLATE EAE_EAG_URL_TEMPLATE EAE_AES_URL_TEMPLATE
-export EAE_PP_FILE_TEMPLATE
-# Name of local file fetched from URL
-#EAE_EAT_LOCAL_FILE_TEMPLATE=${BASELINERAW_INPUTDIR}/%s.eae.eat.txt
-#EAE_EAG_LOCAL_FILE_TEMPLATE=${BASELINERAW_INPUTDIR}/%s.eae.eag.txt
-#EAE_AES_LOCAL_FILE_TEMPLATE=${BASELINERAW_INPUTDIR}/%s.eae.aes.txt
-#export EAE_EAT_LOCAL_FILE_TEMPLATE EAE_EAG_LOCAL_FILE_TEMPLATE EAE_AES_LOCAL_FILE_TEMPLATE
+EAE_TPMS_PP_FILE_TEMPLATE=${BASELINEINPUTDIR}/%s.tpms.txt
+EAE_GROUP_PP_FILE_TEMPLATE=${BASELINEINPUTDIR}/%s.group.txt
+AES_SDRF_PP_FILE_TEMPLATE=${BASELINEINPUTDIR}/%s.sdrf.txt
+export EAE_TPMS_PP_FILE_TEMPLATE EAE_GROUP_PP_FILE_TEMPLATE AES_SDRF_PP_FILE_TEMPLATE
 
 # the two *_PP_* files joined
 JOINED_PP_FILE_TEMPLATE=${INPUTDIR}/%s.joined.txt
