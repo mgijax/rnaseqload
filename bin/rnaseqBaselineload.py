@@ -5,13 +5,10 @@
 # Usage: rnaseqPPBaselineload.py
 #
 # Env Vars:
-#	 LOGDIR 
 #	 BASELINEINPUTDIR - intermediate files generated from RAW input files
 #	 BASELINERAW_INPUTDIR - files downloaded from source
 #	 BASELINEOUTPUTDIR - rnaseq bcp files
 #	 INSTALLDIR - for path to run_join script	 
-#	 LOG_CUR - curation log
-#	 LOG_DIAG - diagnostic log
 #	 EAE_TPMS_PP_FILE_TEMPLATE - path and template for processed eae files
 #    EAE_GROUP_PP_FILE_TEMPLATE - path and template for processed eae files
 #    AES_SDRF_PP_FILE_TEMPLATE - path and template for processed eae files
@@ -89,15 +86,17 @@ def loadSampleInDbDict(expID):
     global sampleInDbDict
     sampleInDbDict = {}
 
-    results = db.sql('''select hts.name, hts._Sample_key
+    results = db.sql('''
+        select hts.name, hts._Sample_key
         from GXD_HTSample hts, ACC_Accession a
         where hts._Experiment_key = a._Object_key
         and a._MGIType_key = 42 -- experiment
         and a._LogicalDB_key = 189 --ArrayExpress
         and a.preferred = 1
-        and a.accID = '%s' ''' % expID, 'auto')
+        and a.accID = '%s' 
+        ''' % expID, 'auto')
     for r in results:
-        key = r['name']
+        key = str.strip(r['name'])
         value = r['_Sample_key']
         if key not in sampleInDbDict:
             sampleInDbDict[key] = []
@@ -258,6 +257,7 @@ def ppAESSdrfFile(expID):
 
     # load sampleInDbDict() for expID
     loadSampleInDbDict(expID)
+    print(loadSampleInDbDict)
 
     # find the idx of the columns we want - they are not ordered
     #
@@ -296,9 +296,6 @@ def ppAESSdrfFile(expID):
         if enaRunIDX == None:
             print('skipping: could not find ENA_RUN in header: %s\n' % (expID))
             return 1
-
-        if str.find(sourceSample, 'ERS') == -1 and str.find(sourceSample, 'SRS') == -1:
-            sourceSample = enaSample
 
         if enaRunIDX != None:
             enaRun = str.strip(tokens[enaRunIDX])
