@@ -5,23 +5,45 @@
 #
 
 cd `dirname $0`
+LOG=`pwd`/rnaseqBaseline.log
+rm -rf ${LOG}
 
 CONFIG_LOAD=../rnaseqload.config
 
 #
-# Make sure the common configuration file exists and source it.
+# verify & source the configuration file
 #
-if [ -f ${CONFIG_LOAD} ]
+
+if [ ! -r ${CONFIG_LOAD} ]
 then
-    . ${CONFIG_LOAD}
-else
-    echo "Missing configuration file: ${CONFIG_LOAD}"
+    echo "Cannot read configuration file: ${CONFIG_LOAD}"
     exit 1
 fi
 
-echo "Baseline Processing" 
-rm -rf ${BASELINELOG}
-${PYTHON} ${RNASEQLOAD}/bin/rnaseqBaseline.py >> ${BASELINELOG} 2>&1
-STAT=$?
+. ${CONFIG_LOAD}
 
-date | tee -a ${BASELINELOG_DOWNLOAD}
+rm -rf ${BASELINELOG}
+
+cat - <<EOSQL | ${PG_DBUTILS}/bin/doisql.csh $0 | tee -a ${BASELINELOG}
+
+select a.accid, a._object_key, gs.name, gs._sample_key
+into temp toDelete
+from ACC_Accession a, MGI_Set s, MGI_SetMember sm, GXD_HTSample gs
+where s.name = 'Baseline RNASeq Load Experiment'
+and s._Set_key = sm._Set_key
+and sm._Object_key = a._Object_key
+and a._MGIType_key = 42
+and a._LogicalDB_key = 189
+and a.preferred = 1
+and a._Object_key = gs._Experiment_key
+;
+
+select * from toDelete;
+--delete from gxd_htsample_rnaseq using toDelete where toDelete._sample_key = gxd_htsample_rnaseq._sample_key;
+
+EOSQL
+
+echo "Baseline Processing" 
+${PYTHON} ${RNASEQLOAD}/bin/rnaseqBaseline.py >> ${>> ${BASELINELOG}
+
+date | tee -a ${BASELINELOG}
