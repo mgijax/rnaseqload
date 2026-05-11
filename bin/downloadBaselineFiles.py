@@ -37,9 +37,7 @@ import mgi_utils
 import db
 
 # paths to logs, input
-logDir = os.getenv('BASELINELOG_DOWNLOAD')
 rawInputDir = os.getenv('BASELINERAW_INPUTDIR')
-fpLog = None
 
 # Expression Atlas Experiment file URL Templage
 eatTemplate  = os.getenv('EAE_TPMS_URL_TEMPLATE')
@@ -56,16 +54,13 @@ errorCt = 0
 failedList = []
 
 def init():
-    global fpLog, rnaSeqSetResults
-
-    # log
-    fpLog = open (logDir, 'w')
+    global rnaSeqSetResults
 
     cmd = 'rm %s/*.eae.*' % rawInputDir
     rc = os.system(cmd)
     if rc != 0:
         msg = 'rm cmd did not succeed: %s\n' % (cmd)
-        fpLog.write(msg)
+        print(msg)
 
     # create the result set of ids to load
     rnaSeqSetResults = db.sql('''
@@ -95,7 +90,7 @@ def downloadTPMS(expID):
     statusCode = result.returncode
 
     if statusCode != 0:
-        fpLog.write('%s statusCode: %s stderr: %s\n' % (eaeURL, statusCode, stderr))
+        print('%s statusCode: %s stderr: %s\n' % (eaeURL, statusCode, stderr))
 
     return statusCode
 
@@ -113,7 +108,7 @@ def downloadGROUP(expID):
     statusCode = result.returncode
 
     if statusCode != 0:
-        fpLog.write('%s statusCode: %s stderr: %s\n' % (eaeURL, statusCode, stderr))
+        print('%s statusCode: %s stderr: %s\n' % (eaeURL, statusCode, stderr))
 
     return statusCode
 
@@ -123,21 +118,21 @@ def downloadAES(expID):
 
     # E-GEOD-22131 = E, GEOD, 22131 -> 131 last 3 characters
     tokens = expID.split('-')
-    fpLog.write(str(tokens))
+    print(tokens)
     a = tokens[0] + '-' + tokens[1] + '-'
     b = tokens[2][-3:]
     eaeURL = aesTemplate % (a, b, expID, expID)
     outputFile = rawInputDir + '/' + expID + '.sdrf.txt'
     cmd = ['wget', eaeURL]
     cmd.extend(['-O', outputFile])
-    fpLog.write(str(cmd))
+    print(cmd)
     result = subprocess.run(cmd, check=True)
     stdout = result.stdout
     stderr = result.stderr
     statusCode = result.returncode
 
     if statusCode != 0:
-        fpLog.write('%s statusCode: %s stderr: %s\n' % (eaeURL, statusCode, stderr))
+        print('%s statusCode: %s stderr: %s\n' % (eaeURL, statusCode, stderr))
 
     return statusCode
 
@@ -154,26 +149,26 @@ def downloadFiles():
         totalCt += 1
         expID = str.strip(r['accid'])
 
-        fpLog.write('Download files for experiment ID: %s\n' % (expID))
+        print('Download files for experiment ID: %s\n' % (expID))
 
         e_rc = downloadTPMS(expID)
         if e_rc != 0:
             errorCt += 1
-            fpLog.write('skipping EAE file for %s with wget return code %s\n' % (expID, e_rc))
+            print('skipping EAE file for %s with wget return code %s\n' % (expID, e_rc))
             failedList.append(expID)
             continue
 
         e_rc = downloadGROUP(expID)
         if e_rc != 0:
             errorCt += 1
-            fpLog.write('skipping EAE file for %s with wget return code %s\n' % (expID, e_rc))
+            print('skipping EAE file for %s with wget return code %s\n' % (expID, e_rc))
             failedList.append(expID)
             continue
 
         e_rc = downloadAES(expID)
         if e_rc != 0:
             errorCt += 1
-            fpLog.write('skipping EAE file for %s with wget return code %s' % (expID, e_rc))
+            print('skipping EAE file for %s with wget return code %s' % (expID, e_rc))
             failedList.append(expID)
             continue
 
@@ -189,23 +184,22 @@ def downloadFiles():
 #
 # Main
 #
+
+print(mgi_utils.date())
 init()
 
 rc = downloadFiles()
 
-fpLog.write('Total experiments in input file: %s\n' % (totalCt))
-fpLog.write('Total files unable to be downloaded: %s\n' % (errorCt))
-fpLog.write('Total files successfully downloaded:  %s\n' % (successCt))
+print('Total experiments in input file: %s\n' % (totalCt))
+print('Total files unable to be downloaded: %s\n' % (errorCt))
+print('Total files successfully downloaded:  %s\n' % (successCt))
 if rc > 0:
-    fpLog.write("Download did not succeed on one or more experiments\n")
+    print("Download did not succeed on one or more experiments\n")
     if failedList:
-        fpLog.write('EAE files not downloaded:\n')
+        print('EAE files not downloaded:\n')
         for e in failedList:
-            fpLog.write('%s\n' % (e))
-        fpLog.write('Total: %s\n' % (len(failedList)))
+            print('%s\n' % (e))
+        print('Total: %s\n' % (len(failedList)))
 
-fpLog.close()
-sys.exit(rc)
-
-fpLog.write(mgi_utils.date())
+print(mgi_utils.date())
 
