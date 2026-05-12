@@ -24,30 +24,16 @@ fi
 
 rm -rf ${BASELINELOG}
 
-cat - <<EOSQL | ${PG_DBUTILS}/bin/doisql.csh $0 | tee -a ${BASELINELOG}
+#echo "Step 1: Baseline MGI_Set only, all RNASeqSet, RNASeqSetMember, RNASeqSet_Cache" 
+#${RNASEQLOAD}/bin/run_setbaseline.sh >> ${BASELINELOG} 2>&1
 
-select a.accid, a._object_key, gs.name, gs._sample_key
-into temp toDelete
-from ACC_Accession a, MGI_Set s, MGI_SetMember sm, GXD_HTSample gs
-where s.name = 'Baseline RNASeq Load Experiment'
-and s._Set_key = sm._Set_key
-and sm._Object_key = a._Object_key
-and a._MGIType_key = 42
-and a._LogicalDB_key = 189
-and a.preferred = 1
-and a._Object_key = gs._Experiment_key
-;
+#echo "Step 2: Baseline Pre Processing" 
+#${PYTHON} ${RNASEQLOAD}/bin/preprocessBaseline.py >> ${BASELINELOG} 2>&1
 
-select * from toDelete;
---delete from gxd_htsample_rnaseq using toDelete where toDelete._sample_key = gxd_htsample_rnaseq._sample_key;
+#echo "Step 3: Process Withdrawn Markers"
+#${RNASEQLOAD}/bin/processWithdrawnMarkers.sh >> ${BASELINELOG} 2>&1
 
-
-EOSQL
-
-#echo "Baseline Processing" 
-#${PYTHON} ${RNASEQLOAD}/bin/preprocessBaseline.py >> ${BASELINELOG}
-
-echo "Baseline Reload RNASet/SetMember & RNASeqSet_Cache
-${RNASEQLOAD}/bin/reloadBioRepsAndCache.sh >> ${BASELINELOG}
+echo "Step 4: Baseline Processing : RNASeq, RNASeqCombined" 
+${PYTHON} ${RNASEQLOAD}/bin/rnaseqBaseline.py >> ${BASELINELOG} 2>&1
 
 date | tee -a ${BASELINELOG}
