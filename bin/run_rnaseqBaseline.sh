@@ -60,17 +60,17 @@ EOSQL
 #echo "Step 2: run baseline MGI_Set, MGI_SetMember" >> ${BASELINELOG} 2>&1
 #${RNASEQLOAD}/bin/run_setbaseline.sh >> ${BASELINELOG} 2>&1
 
-date >> ${BASELINELOG} 2>&1
-echo "Step 3: run baseline pre processing (input_baseline)" 
-${PYTHON} ${RNASEQLOAD}/bin/preprocessBaseline.py >> ${BASELINELOG} 2>&1
+#date >> ${BASELINELOG} 2>&1
+#echo "Step 3: run baseline pre processing (input_baseline)" 
+#${PYTHON} ${RNASEQLOAD}/bin/preprocessBaseline.py >> ${BASELINELOG} 2>&1
 
 #date >> ${BASELINELOG} 2>&1
 #echo "Step 4: process withdrawn markers"
 #${RNASEQLOAD}/bin/processWithdrawnMarkers.sh >> ${BASELINELOG} 2>&1
 
-#date >> ${BASELINELOG} 2>&1
-#echo "Step 4: run baseline: RNASeqSet, RNASeq_SetMember, RNASeq, RNASeqCombined" >> ${BASELINELOG} 2>&1
-#${PYTHON} ${RNASEQLOAD}/bin/rnaseqBaseline.py >> ${BASELINELOG} 2>&1
+date >> ${BASELINELOG} 2>&1
+echo "Step 4: run baseline: RNASeqSet, RNASeq_SetMember, RNASeq, RNASeqCombined" >> ${BASELINELOG} 2>&1
+${PYTHON} ${RNASEQLOAD}/bin/rnaseqBaseline.py >> ${BASELINELOG} 2>&1
 
 #date >> ${BASELINELOG} 2>&1
 #echo "Step 5: run loadSeqSetCache.sh" >> ${BASELINELOG} 2>&1

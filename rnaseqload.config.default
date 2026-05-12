@@ -59,16 +59,8 @@ LOG_CUR=${LOGDIR}/rnaseqload.cur.log
 LOG_VAL=${LOGDIR}/rnaseqload.val.log
 LOG_DOWNLOAD=${LOGDIR}/downloadFiles.log
 BASELINELOG_DOWNLOAD=${LOGDIR}/downloadBaselineFiles.log
-BASELINELOG_PP=${LOGDIR}/rnaseqBaselinPPload.log
-export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL LOG_DOWNLOAD BASELINELOG_DOWNLOAD BASELINELOG_PP
-
-# Array Express Sample File Templates
-AES_URL_TEMPLATE="https://ftp.ebi.ac.uk/biostudies/fire/%s/%s/%s/Files/%s.sdrf.txt"
-# Name of local file fetched from URL 
-AES_LOCAL_FILE_TEMPLATE=${RAW_INPUTDIR}/%s.aes.txt
-# Name of pre-processed local file
-AES_PP_FILE_TEMPLATE=${INPUTDIR}/%s.aes.pp.txt
-export AES_URL_TEMPLATE AES_LOCAL_FILE_TEMPLATE AES_PP_FILE_TEMPLATE
+BASELINELOG=${LOGDIR}/rnaseqBaseline.log
+export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL LOG_DOWNLOAD BASELINELOG_DOWNLOAD BASELINELOG
 
 # if this file exists then there is a full data set
 DOWNLOAD_OK=${RAW_INPUTDIR}/download_ok
@@ -91,12 +83,7 @@ export EAE_TPMS_LOCAL_FILE_TEMPLATE EAE_GROUP_LOCAL_FILE_TEMPLATE AES_SDRF_LOCAL
 # Name of pre-processed local file
 EAE_TPMS_PP_FILE_TEMPLATE=${BASELINEINPUTDIR}/%s.tpms.txt
 EAE_GROUP_PP_FILE_TEMPLATE=${BASELINEINPUTDIR}/%s.group.txt
-AES_SDRF_PP_FILE_TEMPLATE=${BASELINEINPUTDIR}/%s.sdrf.txt
-export EAE_TPMS_PP_FILE_TEMPLATE EAE_GROUP_PP_FILE_TEMPLATE AES_SDRF_PP_FILE_TEMPLATE
-
-# the two *_PP_* files joined
-JOINED_PP_FILE_TEMPLATE=${INPUTDIR}/%s.joined.txt
-export JOINED_PP_FILE_TEMPLATE
+export EAE_TPMS_PP_FILE_TEMPLATE EAE_GROUP_PP_FILE_TEMPLATE
 
 # rna-seq and combined bcp files
 RNASEQ_BCP=rnaseq.bcp
