@@ -19,6 +19,8 @@ import mgi_utils
 import loadlib
 import db
 
+db.setTrace(True)
+
 # bcp stuff
 bcpCommand = os.getenv('PG_DBUTILS') + '/bin/bcpin.csh'
 bcpCmdList = []
@@ -110,7 +112,7 @@ def process():
     #
     # for each expID
     #
-    #results = db.sql(''' select distinct t2.expID from temp2 t2 where expID = 'E-ERAD-169' ''', 'auto')
+    #results = db.sql(''' select distinct t2.expID from temp2 t2 where expID in ('E-MTAB-599','E-MTAB-7175','E-MTAB-7637','E-MTAB-8717') ''', 'auto')
     results = db.sql(''' select distinct t2.expID from temp2 t2 ''', 'auto')
     for r in results:
 
@@ -153,14 +155,15 @@ def process():
             sampleKeySet = []
 
             byGroup = ','.join(groupDict[g])
+            print(byGroup)
 
             sampleResults = db.sql('''
                 select distinct t2.expID, t2.name, t2._experiment_key, t2._sample_key, t2.age,
                     t2._organism_key, t2._sex_key, t2._stage_key, t2._emapa_key, t2._genotype_key, 
                     t4.note 
                 from temp2 t2 left outer join temp4 t4 on (t2._sample_key = t4._sample_key)
-                where t2.name in (%s)
-                ''' % byGroup, 'auto')
+                where t2.expID = '%s' and rtrim(t2.name) in (%s)
+                ''' % (expID, byGroup), 'auto')
 
             #
             # compare samples _organism_key, age, _emapa_key, _stage_key, _sex_key, _genotype_key
@@ -270,6 +273,6 @@ def execBCP():
 print('Start time: %s' %  mgi_utils.date())
 init()
 process()
-execBCP()
+#execBCP()
 print('End time: %s'  % mgi_utils.date())
 
