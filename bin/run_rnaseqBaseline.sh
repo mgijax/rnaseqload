@@ -44,7 +44,10 @@ select * from toDelete;
 
 EOSQL
 
-echo "Baseline Processing" 
-${PYTHON} ${RNASEQLOAD}/bin/rnaseqBaseline.py >> ${>> ${BASELINELOG}
+#echo "Baseline Processing" 
+#${PYTHON} ${RNASEQLOAD}/bin/preprocessBaseline.py >> ${BASELINELOG}
+
+echo "Baseline Reload RNASet/SetMember & RNASeqSet_Cache
+${RNASEQLOAD}/bin/reloadBioRepsAndCache.sh >> ${BASELINELOG}
 
 date | tee -a ${BASELINELOG}
