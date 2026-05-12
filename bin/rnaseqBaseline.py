@@ -10,6 +10,8 @@
 # Outputs:
 #	MGI_Set.bcp
 #   MGI_SetMember.bcp
+#   GXD_HTSample_RNASeqSet
+#   GXD_HTSample_RNASeqSetMember
 # 
 ###########################################################################
 

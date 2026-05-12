@@ -39,10 +39,10 @@ and a.preferred = 1
 
 select * from baseline;
 
---delete from GXD_HTSample_RNASeqSet
---using baseline
---where baseline._object_key = GXD_HTSample_RNASeqSet._experiment_key
---;
+delete from GXD_HTSample_RNASeqSet
+using baseline
+where baseline._object_key = GXD_HTSample_RNASeqSet._experiment_key
+;
 
 select b.*, s.*, m.*
 from baseline b, GXD_HTSample_RNASeqSet s, GXD_HTSample_RNASeqSetMember m
