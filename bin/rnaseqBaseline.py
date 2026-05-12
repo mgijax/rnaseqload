@@ -246,12 +246,12 @@ def execBCP():
 
     bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % \
     (bcpCommand, db.get_sqlServer(), db.get_sqlDatabase(), setTable, outputDir, setBcp)
-    fpDiag.write('%s\n' % bcpCmd)
+    print('%s\n' % bcpCmd)
     os.system(bcpCmd)
 
     bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % \
     (bcpCommand, db.get_sqlServer(), db.get_sqlDatabase(), memberTable, outputDir, memberBcp)
-    fpDiag.write('%s\n' % bcpCmd)
+    print('%s\n' % bcpCmd)
     os.system(bcpCmd)
 
     # reset the rnaseq primary key sequence
@@ -270,6 +270,6 @@ def execBCP():
 print('Start time: %s' %  mgi_utils.date())
 init()
 process()
-#execBCP()
+execBCP()
 print('End time: %s'  % mgi_utils.date())
 
