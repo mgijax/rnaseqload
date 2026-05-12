@@ -20,7 +20,7 @@
 #	4. Configuration (see rnaseqload.config)
 #
 # Outputs:
-#	 1. processPreed file for each experiment aes and eae
+#	 1. PP file for each experiment aes and eae
 # 
 ###########################################################################
 
@@ -68,7 +68,7 @@ def init():
 
     return 0
 
-# end init() -------------------------------------------------
+# end init()
 
 #
 # Purpose: loads a lookup of samples in the db for the given experiment
@@ -105,7 +105,7 @@ def loadSampleInDbDict(expID):
 
     return 0
 
-# end loadSampleInDbDict() -------------------------------------------------
+# end loadSampleInDbDict()
 
 #
 # Purpose: creates EAE_TPMS_PP_FILE_TEMPLATE file in BASELINEINPUTDIR folder for given expID
@@ -168,7 +168,7 @@ def ppEAETpmsFile(expID):
 
     return 0
 
-# end ppEAETpmsFile ()--------------------------------------------
+# end ppEAETpmsFile()
 
 #
 # Purpose: Reads the aesTemplate(AES_SDRF_LOCAL_FILE_TEMPLATE) and processes the runID -> Sample ID match
@@ -273,7 +273,7 @@ def ppAESSdrfFile(expID):
 
     return 0
 
-# end ppAESSdrfFile ()--------------------------------------------
+# end ppAESSdrfFile()
 
 #
 # Purpose: Reads groupTermplate (EAE_GROUP_LOCAL_FILE_TEMPLATE) and runToSampleDict()
@@ -333,7 +333,7 @@ def ppEAEGroupFile(expID):
 
     return 0
 
-# end ppEAEGroupFile ()--------------------------------------------
+# end ppEAEGroupFile()
  
 #
 # Purpose: pre processing
@@ -344,7 +344,7 @@ def ppEAEGroupFile(expID):
 # Effects:
 # Throws: Nothing
 #
-def processPre():
+def process():
     global rawRunList
 
     #
@@ -375,51 +375,18 @@ def processPre():
     #print(runToSampleDict)
     return 0
 
-# end processPrep ()--------------------------------------------
-
-#
-# Purpose: Delete, Process and Load new GXD_HTSample_RNASet & GXD_HTSample_RNANetMember data
-# Returns: 0 if successful; handles return codes from all functions it calls 
-# Assumes: Nothing
-# Effects:
-# Throws: Nothing
-#
-def processRNASet():
-
-    # delete existing Baseline GXD_HTSample_RNASet, GXD_HTSample_RNANetMember
-
-    # use loadBioReps.py because we're excluding this data
-    # select approate samples of interest
-
-    # create bcp files
-
-    # load bcp files
-
-    return 0
-
-# end processSet()--------------------------------------------
+# end process()
 
 #
 # Main
 #
 
 print('start time: %s' %  mgi_utils.date())
+
 if init() != 0:
      exit(1, 'Error in init()\n')
 
-#print('part 1: preprocoessing start time: %s' %  mgi_utils.date())
-#if processPre() != 0:
-#     exit(1, 'Error in processPre()\n')
-#print('part 1: processPreing end time: %s' %  mgi_utils.date())
+if process() != 0:
+     exit(1, 'Error in process()\n')
 
-print('part 2: rnaset, rnasetmember start time: %s' %  mgi_utils.date())
-if processRNASet() != 0:
-     exit(1, 'Error in processRNASet()\n')
-print('part 2: rnaset, rnasetmember end time: %s' %  mgi_utils.date())
-
-#
-# part 3
-# load rnaseq, rnaseqcombined
-#
-
-print('final end time: %s' %  mgi_utils.date())
+print('end time: %s' %  mgi_utils.date())
