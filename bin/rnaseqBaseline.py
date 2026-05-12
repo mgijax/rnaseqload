@@ -6,10 +6,9 @@
 #
 # Inputs:
 #	MGI_Set = Baseline RNASeq Load Experiment
+#   Pre-Processed Baseline files: BASELINEINPUTDIR
 #
-# Outputs:
-#	MGI_Set.bcp
-#   MGI_SetMember.bcp
+# Outputs: BASELINEOUTPUTDIR
 #   GXD_HTSample_RNASeqSet
 #   GXD_HTSample_RNASeqSetMember
 # 
@@ -17,7 +16,6 @@
 
 import os
 import sys
-import mgi_utils
 import loadlib
 import db
 
@@ -259,9 +257,11 @@ def execBCP():
     print('%s\n' % bcpCmd)
     os.system(bcpCmd)
 
-    # reset the rnaseq primary key sequence
-    db.sql(''' select setval('gxd_htsample_rnaseq_seq', (select max(_rnaseq_key) from gxd_htsample_rnaseq)) ''', None)
-
+    # reset the primary key sequence
+    db.sql(''' select setval('gxd_htsample_rnaseqset_seq', (select max(_rnaseqset_key) from GXD_HTSample_RNASeqSet)) ''', None)
+    db.commit()
+    db.sql(''' select setval('gxd_htsample_rnaseqsetmember_seq', (select max(_rnaseqsetmember_key) from GXD_HTSample_RNASeqSetMember));
+''', None)
     db.commit()
 
     return 0
@@ -272,9 +272,7 @@ def execBCP():
 # Main
 #
 
-print('Start time: %s' %  mgi_utils.date())
 init()
 process()
 execBCP()
-print('End time: %s'  % mgi_utils.date())
 
