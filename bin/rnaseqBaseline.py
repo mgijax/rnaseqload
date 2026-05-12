@@ -5,7 +5,7 @@
 # with the biological replicates       
 #
 # Inputs:
-#	1. MGI_Set = Baseline RNASeq Load Experiment
+#	MGI_Set = Baseline RNASeq Load Experiment
 #
 # Outputs:
 #	MGI_Set.bcp
@@ -24,18 +24,16 @@ bcpCommand = os.getenv('PG_DBUTILS') + '/bin/bcpin.csh'
 bcpCmdList = []
 
 inputDir = os.getenv('BASELINEINPUTDIR')
-outputDir = os.getenv('OUTPUTDIR')
+outputDir = os.getenv('BASELINEOUTPUTDIR')
 
-setTable = 'GXD_HTSample_RNASeqSet_baseline'
-memberTable = 'GXD_HTSample_RNASeqSetMember_baseline'
+setTable = 'GXD_HTSample_RNASeqSet'
+memberTable = 'GXD_HTSample_RNASeqSetMember'
 
 setBcp = '%s.bcp' % setTable
 memberBcp = '%s.bcp' % memberTable
 
 fpSet = None	# created in init()
 fpMember = None
-
-expIDString = None # expIDs to plug into query
 
 # Constants
 TAB = '\t'
@@ -73,14 +71,14 @@ def process():
     global setKey, memberKey
 
     db.sql('''
-        select sm._object_key as _experiment_key, a.accid as expID 
+        select a._object_key as _experiment_key, a.accid as expID 
         into temporary table temp1
-        from ACC_Accession a,  MGI_Set s, MGI_SetMember sm
+        from MGI_Set s, MGI_SetMember m , ACC_Accession a
         where s.name = 'Baseline RNASeq Load Experiment'
-        and s._Set_key = sm._Set_key
-        and sm._Object_key = a._Object_key
-        and a._MGIType_key = 42 --GXD_HTExperiment
-        and a._LogicalDB_key = 189
+        and s._set_key = m._set_key
+        and s._mgitype_key = a._mgitype_key
+        and m._object_key = a._object_key
+        and a._logicaldb_key = 189
         and a.preferred = 1
         ''', None)
 
@@ -109,73 +107,133 @@ def process():
 
     db.sql('''create index idx4 on temp4 (_sample_key)''', None)
 
-    groupDict = {}
-    results = db.sql(''' select distinct t2.expID, t2.name from temp2 t2 ''', 'auto')
+    #
+    # for each expID
+    #
+    #results = db.sql(''' select distinct t2.expID from temp2 t2 where expID = 'E-ERAD-169' ''', 'auto')
+    results = db.sql(''' select distinct t2.expID from temp2 t2 ''', 'auto')
     for r in results:
+
+        #
+        # read the "group.txt" file
+        # create groupDict by group (g1, g2, etc.)
+        # each group contains the set of samples that belong to that group
+        #
+        groupDict = {}
+        prevSample = ''
         expID = r['expID']
-        name = r['name']
 
         try:
             fpGroup = open('%s/%s.group.txt' % (inputDir, expID), 'r')
-            for line in fpAes.readlines():
-                tokens = line[:-1].split('\t')
-                key = tokens[0]
-                value = tokens
-                if key not in groupDict:
-                    groupDict[key] = []
-                groupDict[key].append(value)
-            fpGroup.close()
+            for line in fpGroup.readlines():
+                tokens = str.split(line, TAB)
+                gr = tokens[0]
+                sample = "'" + str.strip(tokens[3]) + "'"
+                key = gr
+                value = sample
+                if sample != prevSample:
+                    if key not in groupDict:
+                        groupDict[key] = []
+                    groupDict[key].append(value)
+                    prevSample = sample
+                fpGroup.close()
         except:
             print('experiment does not exist in %s/%s.group.txt' % (inputDir, expID))
-    print(groupDict)
 
-    results = db.sql('''
-        select distinct t2.expID, t2.name, t2._experiment_key, t2._sample_key, t2.age,
-            t2._organism_key, t2._sex_key, t2._stage_key, t2._emapa_key, t2._genotype_key, 
-            t4.note 
-        from temp2 t2 
-        left outer join temp4 t4 on (t2._sample_key = t4._sample_key)
-        ''', 'auto')
-    #print 'len results: %s' % len(results)
-    repliconDict = {}
-    return 0
+        print(groupDict)
 
-    # iterate through results and map the replicate to its set of sample keys	
-    for r in results:
+        #
+        # for each group
+        #   select MGI rows for all samples in the group
+        #
+        for g in groupDict:
 
-        expKey = r['_experiment_key']
-        age = r['age']
-        orgKey = r['_organism_key']
-        sexKey = r['_sex_key']
-        emapaKey = r['_emapa_key']
-        stageKey = r['_stage_key']
-        genotypeKey = r['_genotype_key']
-        note = r['note']
-        if note == None:
-            note = ''
+            checkAllDict = {}
+            checkNoSexDict = {}
+            sampleKeySet = []
 
-        sampleKey = r['_sample_key']
+            byGroup = ','.join(groupDict[g])
 
-        key = '%s|%s|%s|%s|%s|%s|%s|%s' % (expKey, age, orgKey, sexKey, emapaKey, stageKey, genotypeKey, note)
+            sampleResults = db.sql('''
+                select distinct t2.expID, t2.name, t2._experiment_key, t2._sample_key, t2.age,
+                    t2._organism_key, t2._sex_key, t2._stage_key, t2._emapa_key, t2._genotype_key, 
+                    t4.note 
+                from temp2 t2 left outer join temp4 t4 on (t2._sample_key = t4._sample_key)
+                where t2.name in (%s)
+                ''' % byGroup, 'auto')
 
-        if key not in repliconDict:
-            repliconDict[key] = set()
-        repliconDict[key].add(sampleKey)
+            #
+            # compare samples _organism_key, age, _emapa_key, _stage_key, _sex_key, _genotype_key
+            #
+            for s in sampleResults:
 
-    # get the set of sample keys for each replicate
-    # create bcp line for the Set and the SetMembers
-    for rep in repliconDict:
+                expKey = s['_experiment_key']
+                age = s['age']
+                orgKey = s['_organism_key']
+                sexKey = s['_sex_key']
+                emapaKey = s['_emapa_key']
+                stageKey = s['_stage_key']
+                genotypeKey = s['_genotype_key']
 
-        expKey, age, orgKey, sexKey, emapaKey, stageKey, genotypeKey, note = str.split(rep, PIPE)
-        sampleKeySet = repliconDict[rep]
+                note = s['note']
+                if note == None:
+                    note = ''
 
-        fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (setKey, TAB, expKey, TAB, age, TAB, orgKey, TAB, sexKey, TAB, emapaKey, TAB, stageKey, TAB, genotypeKey, TAB, note, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+                sampleKey = s['_sample_key']
+                sampleKeySet.append(sampleKey)
 
-        for sKey in sampleKeySet:
-            fpMember.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (memberKey, TAB, setKey, TAB, sKey,  TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
-            memberKey += 1
+                key = '%s|%s|%s|%s|%s|%s|%s|%s' % (expKey, age, orgKey, sexKey, emapaKey, stageKey, genotypeKey, note)
+                if key not in checkAllDict:
+                    checkAllDict[key] = []
+                checkAllDict[key].append(sampleKey)
 
-        setKey += 1
+                key = '%s|%s|%s|%s|%s|%s|%s' % (expKey, age, orgKey, emapaKey, stageKey, genotypeKey, note)
+                if key not in checkNoSexDict:
+                    checkNoSexDict[key] = []
+                checkNoSexDict[key].append(sampleKey)
+
+            print(len(checkAllDict))
+            print(checkAllDict)
+
+            # no mismatch
+            if len(checkAllDict) == 1:
+
+                print('no mismatch')
+                fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
+                    setKey, TAB, expKey, TAB, age, TAB, orgKey, TAB, sexKey, TAB, \
+                    emapaKey, TAB, stageKey, TAB, genotypeKey, TAB, note, TAB, createdByKey, TAB, \
+                    createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+
+                for sKey in sampleKeySet:
+                    fpMember.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
+                        memberKey, TAB, setKey, TAB, sKey, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+                    memberKey += 1
+
+                setKey += 1
+
+            # only mismatch is due to Sex
+            elif len(checkAllDict) > 1 and len(checkNoSexDict) == 1:
+
+                print('mismatch sex only')
+                sexKey = 315166
+
+                fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
+                    setKey, TAB, expKey, TAB, age, TAB, orgKey, TAB, sexKey, TAB, \
+                    emapaKey, TAB, stageKey, TAB, genotypeKey, TAB, note, TAB, createdByKey, TAB, \
+                    createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+
+                for sKey in sampleKeySet:
+                    fpMember.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
+                        memberKey, TAB, setKey, TAB, sKey, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+                    memberKey += 1
+
+                setKey += 1
+
+            # other mismatch
+            else:
+                print('skipped due to mismatch')
+                print(checkAllDict)
+                print(checkNoSexDict)
 
     fpSet.close()
     fpMember.close()
