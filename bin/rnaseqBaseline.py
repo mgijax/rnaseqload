@@ -112,7 +112,7 @@ def process():
     #
     # for each expID
     #
-    #results = db.sql(''' select distinct t2.expID from temp2 t2 where expID in ('E-MTAB-599','E-MTAB-7175','E-MTAB-7637','E-MTAB-8717') ''', 'auto')
+    #results = db.sql(''' select distinct t2.expID from temp2 t2 where expID in ('E-MTAB-7637') ''', 'auto')
     results = db.sql(''' select distinct t2.expID from temp2 t2 ''', 'auto')
     for r in results:
 
