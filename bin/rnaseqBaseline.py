@@ -273,6 +273,6 @@ def execBCP():
 print('Start time: %s' %  mgi_utils.date())
 init()
 process()
-#execBCP()
+execBCP()
 print('End time: %s'  % mgi_utils.date())
 
