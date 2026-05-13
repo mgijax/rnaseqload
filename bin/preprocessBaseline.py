@@ -123,12 +123,12 @@ def ppEAETpmsFile(expID):
             ensemblDict[key] = []
         ensemblDict[key].append(value)
 
-    # create the header for fpPP
+    # read the header from fpEae and create header for fpPP
     headerList = str.split(fpEae.readline(), '\t')
-    groups = []
+    groupSet = []
     for h in headerList[2:]:
-        groups.append(str.strip(h))
-    fpPP.write('ensembl_id\t_marker_key\tsymbol\t' + '\t'.join(groups) + '\n')
+        groupSet.append(str.strip(h))
+    fpPP.write('ensembl_id\t_marker_key\tsymbol\t' + '\t'.join(groupSet) + '\n')
 
     # iterate thru the fpEae input file
     for line in fpEae.readlines():
@@ -147,7 +147,7 @@ def ppEAETpmsFile(expID):
 
         fpPP.write('%s\t%s\t%s' % (ensemblID, markerKey, markerSymbol))
 
-        for g in range(len(groups)):
+        for g in range(len(groupSet)):
             values = tokens[g+2].split(',')
             fpPP.write('\t' + values[2])
 
