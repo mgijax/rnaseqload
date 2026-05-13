@@ -46,8 +46,24 @@ using baseline
 where baseline._object_key = GXD_HTSample_RNASeqSet._experiment_key
 ;
 
--- for testing; can be removed as this will be picked up by above delete
---delete from GXD_HTSample_RNASeqCombined where _CreatedBy_key = 1673;
+delete from GXD_HTSample_RNASeqCombined where _CreatedBy_key = 1673;
+
+-- remove old combo associated with markers that are now in baseline
+select old._rnaseqcombined_key
+into temp table toDelete
+from GXD_HTSample_RNASeqCombined old, GXD_HTSample_RNASeqSet_Cache oldc
+where old._CreatedBy_key = 1613
+and old._rnaseqcombined_key = oldc._rnaseqcombined_key 
+and exists (select 1 from GXD_HTSample_RNASeqCombined new, GXD_HTSample_RNASeqSet_Cache newc
+	where new._createdby_key = 1673
+	and new._rnaseqcombined_key = newc._rnaseqcombined_key 
+	and newc._rnaseqset_key = oldc._rnaseqset_key 
+	)
+;
+delete from GXD_HTSample_RNASeqCombined
+using toDelete
+where toDelete._rnaseqcombined_key = GXD_HTSample_RNASeqCombined._rnaseqcombined_key
+;
 
 select b.*, s.*, m.*
 from baseline b, GXD_HTSample_RNASeqSet s, GXD_HTSample_RNASeqSetMember m
@@ -57,17 +73,17 @@ and s._rnaseqset_key = m._rnaseqset_key
 
 EOSQL
 
-date >> ${BASELINELOG} 2>&1
-echo "Step 2: run baseline download (raw_input_baseline)" >> ${BASELINELOG} 2>&1
-${RNASEQLOAD}/bin/run_downloadBaselineFiles.sh >> ${BASELINELOG} 2>&1
+#date >> ${BASELINELOG} 2>&1
+#echo "Step 2: run baseline download (raw_input_baseline)" >> ${BASELINELOG} 2>&1
+#${RNASEQLOAD}/bin/run_downloadBaselineFiles.sh >> ${BASELINELOG} 2>&1
 
-date >> ${BASELINELOG} 2>&1
-echo "Step 3: run baseline MGI_Set, MGI_SetMember" >> ${BASELINELOG} 2>&1
-${RNASEQLOAD}/bin/run_setbaseline.sh >> ${BASELINELOG} 2>&1
+#date >> ${BASELINELOG} 2>&1
+#echo "Step 3: run baseline MGI_Set, MGI_SetMember" >> ${BASELINELOG} 2>&1
+#${RNASEQLOAD}/bin/run_setbaseline.sh >> ${BASELINELOG} 2>&1
 
-date >> ${BASELINELOG} 2>&1
-echo "Step 4: run baseline pre processing (input_baseline)" 
-${PYTHON} ${RNASEQLOAD}/bin/preprocessBaseline.py >> ${BASELINELOG} 2>&1
+#date >> ${BASELINELOG} 2>&1
+#echo "Step 4: run baseline pre processing (input_baseline)" 
+#${PYTHON} ${RNASEQLOAD}/bin/preprocessBaseline.py >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
 echo "Step 5: run baseline: RNASeqSet, RNASeq_SetMember, RNASeqCombined" >> ${BASELINELOG} 2>&1

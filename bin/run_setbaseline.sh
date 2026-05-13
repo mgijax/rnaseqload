@@ -1,3 +1,4 @@
+#!/bin/csh
 #
 #  Purpose:
 #	quick script to run the baseline setload
@@ -17,7 +18,7 @@ rm -rf $LOG
 touch $LOG
 
 echo "Run baseline setload" 
-${SETLOAD}/setload.csh ${RNASEQLOAD}/baselinesetload.config
+${SETLOAD}/setload.csh ${RNASEQLOAD}/baselinesetload.config | tee -a $LOG
 
 cat - <<EOSQL | ${PG_DBUTILS}/bin/doisql.csh $0 | tee -a $LOG
 select s.* from MGI_Set s where s.name = 'Baseline RNASeq Load Experiment';
@@ -30,5 +31,4 @@ and a._logicaldb_key = 189
 and a.preferred = 1
 ;
 EOSQL
-
 
