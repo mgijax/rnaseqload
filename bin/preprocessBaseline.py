@@ -90,9 +90,10 @@ def loadSampleInDbDict(expID):
 #
 # format:
 #   ensembm ID
+#   marker key
 #   marker symbol
-#   g1 = 3rd value
-#   g2 = 3rd value
+#   g1 = 3rd value avg QN TPM
+#   g2 = 3rd value avg QN TPM
 #
 
 def ppEAETpmsFile(expID):
@@ -114,6 +115,15 @@ def ppEAETpmsFile(expID):
     except:
         return 1 # file does not exist
 
+    ensemblDict = {}
+    results = db.sql('select accid, _object_key from acc_accession where _logicaldb_key = 60 and _mgitype_key = 2 and preferred = 1', 'auto')
+    for r in results:
+        key = r['accid']
+        value = r['_object_key']
+        if key not in ensemblDict:
+            ensemblDict[key] = []
+        ensemblDict[key].append(value)
+
     # iterate thru the fpEae input file
     for line in fpEae.readlines():
 
@@ -123,6 +133,14 @@ def ppEAETpmsFile(expID):
             continue
 
         ensemblID = str.strip(tokens[0])
+
+        # if ensemblID is not in MGI, then set markerKey = 0
+        # will handle this later uring TPMS processing
+        if ensemblID in ensemblDict:
+            markerKey = ensemblDict[ensemblID][0]
+        else:
+            markerKey = 0
+
         markerSymbol = str.strip(tokens[1])
         g1All = str.strip(tokens[2])
         g2All = str.strip(tokens[3])
@@ -134,7 +152,7 @@ def ppEAETpmsFile(expID):
         g2 = tokensG2[2]
 
         # write to the fpPP file
-        fpPP.write('%s\t%s\t%s\t%s\n' % (ensemblID, markerSymbol, g1, g2))
+        fpPP.write('%s\t%s\t%s\t%s\t%s\n' % (ensemblID, markerKey, markerSymbol, g1, g2))
 
     fpEae.close();
     fpPP.close();
@@ -330,6 +348,7 @@ def process():
         and a._LogicalDB_key = 189
         and a.preferred = 1
         ''', 'auto')
+
     #
     # for each expID in the MGI_Set:
     #
