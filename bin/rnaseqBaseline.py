@@ -55,14 +55,6 @@ fpCombined = None
 
 provider = 'Expression Atlas'
 
-#
-# Level bins
-#
-HIGH = 50430889
-MED = 50430890
-LOW = 50430891
-BELOW_CUTOFF = 50430892
-
 # Constants
 TAB = '\t'
 CRT = '\n'
@@ -77,6 +69,14 @@ createdByKey = 1673
 setKey = None
 memberKey = None
 combinedKey = None
+
+#
+# Level bins
+#
+HIGH = 50430889
+MED = 50430890
+LOW = 50430891
+BELOW_CUTOFF = 50430892
 
 #
 # initialize all
@@ -451,6 +451,8 @@ def execCombinedBCP():
     db.sql(''' select setval('gxd_htsample_rnaseqcombined_seq', (select max(_rnaseqcombined_key) from GXD_HTSample_RNASeqCombined)); ''', None)
     db.commit()
 
+    return 0
+
 # end execCombinedBCP()
 
 #
@@ -458,9 +460,9 @@ def execCombinedBCP():
 #
 
 init()
-#initSet()
-#processSets()
-#execSetBCP()
+initSet()
+processSets()
+execSetBCP()
 initCombined()
 processCombined()
 execCombinedBCP()
