@@ -1,8 +1,21 @@
 ##########################################################################
 #
 # Purpose:
-# Load the GXD_HTSample_RNASeqSet and GXD_HTSample_RNASeqSetMember
-# with the biological replicates       
+#
+# processSets():
+#
+# For each Experiments from Baseline RNSeq MGI_Set
+#   compare GXD_HTSample to BASELINEINPUTDIR/xxx.group.txt
+#       GXD_HTSample : name (sample), age, organism, sex, stage, emapa, genotype
+#       xxx.group.txt : group (g1, g2, etc.)
+#
+#   if no mismatch, then add to RNASeqSet
+#   else if only mismatch is with sex, then set sex = Pooled, add to RNASeqSet
+#   else, skip
+#
+#   load into GXD_HTSample_RNASeqSet, GXD_HTSample_RNASeqSetMember
+#
+# processCombined():
 #
 # Inputs:
 #	MGI_Set = Baseline RNASeq Load Experiment
@@ -37,6 +50,8 @@ memberBcp = '%s.bcp' % memberTable
 fpSet = None	# created in init()
 fpMember = None
 
+provider = 'Expression Atlas'
+
 # Constants
 TAB = '\t'
 CRT = '\n'
@@ -46,11 +61,14 @@ PIPE = '|'
 loaddate = loadlib.loaddate
 
 # rnaseqload MGI_User
-createdByKey = 1613
+createdByKey = 1673
 
 setKey = None
 memberKey = None
 
+#
+# initialize some things
+#
 def init():
     global setKey, memberKey, fpSet, fpMember
 
@@ -65,16 +83,12 @@ def init():
     results = db.sql('''select nextval('gxd_htsample_rnaseqsetmember_seq') as maxKey ''', 'auto')
     memberKey = results[0]['maxKey']
 
-    return 0
-
-# end init()
-
-def process():
-    global setKey, memberKey
-
+    #
+    # baseline experiments
+    #
     db.sql('''
         select a._object_key as _experiment_key, a.accid as expID 
-        into temporary table temp1
+        into temporary table experiments
         from MGI_Set s, MGI_SetMember m , ACC_Accession a
         where s.name = 'Baseline RNASeq Load Experiment'
         and s._set_key = m._set_key
@@ -84,36 +98,52 @@ def process():
         and a.preferred = 1
         ''', None)
 
-    db.sql('''create index idx1 on temp1 (_experiment_key)''', None)
+    db.sql('''create index idx1 on experiments (_experiment_key)''', None)
 
+    #
+    # baseline experiments and samples
+    # exclude J:DO genotypes
+    # only include relevelance = Yes
+    #
     db.sql('''
-        select t1.*, hts._sample_key, 
+        select e.*, hts._sample_key, 
             hts.name, hts.age, hts._organism_key, hts._sex_key, hts._stage_key, 
             hts._emapa_key, hts._genotype_key 
-        into temporary table temp2 
-        from temp1 t1, gxd_htsample hts
-        where hts._genotype_key != 90560 --J:DO
-        and hts._relevance_key = 20475450 --Yes
-        and hts._experiment_key = t1._experiment_key
+        into temporary table samples 
+        from experiments e, gxd_htsample hts
+        where hts._genotype_key != 90560
+        and hts._relevance_key = 20475450
+        and hts._experiment_key = e._experiment_key
         ''', None)
 
-    db.sql('''create index idx2 ON temp2 (_emapa_key)''', None)
+    db.sql('''create index idx2 on samples (expID)''', None)
+    db.sql('''create index idx3 on samples (name)''', None)
+
+    return 0
+
+# end init()
+
+#
+# create BCP files for RNASeqSet, RNASeqSetMember
+#
+def processSets():
+    global setKey, memberKey
 
     db.sql('''
         select n._object_key as _sample_key, n.note 
-        into temporary table temp4 
+        into temporary table sampleNotes 
         from mgi_note n
         where n._notetype_key = 1048 
         and n._mgitype_key = 43 
         ''', None)
 
-    db.sql('''create index idx4 on temp4 (_sample_key)''', None)
+    db.sql('''create index idx4 on sampleNotes (_sample_key)''', None)
 
     #
     # for each expID
     #
-    #results = db.sql(''' select distinct t2.expID from temp2 t2 where expID in ('E-MTAB-7637') ''', 'auto')
-    results = db.sql(''' select distinct t2.expID from temp2 t2 ''', 'auto')
+    #results = db.sql(''' select distinct s.expID from samples s where expID in ('E-MTAB-7637') ''', 'auto')
+    results = db.sql(''' select distinct s.expID from samples s ''', 'auto')
     for r in results:
 
         #
@@ -129,16 +159,16 @@ def process():
             fpGroup = open('%s/%s.group.txt' % (inputDir, expID), 'r')
             for line in fpGroup.readlines():
                 tokens = str.split(line, TAB)
-                gr = tokens[0]
+                groupSet = tokens[0]
                 sample = "'" + str.strip(tokens[3]) + "'"
-                key = gr
+                key = groupSet
                 value = sample
                 if sample != prevSample:
                     if key not in groupDict:
                         groupDict[key] = []
                     groupDict[key].append(value)
                     prevSample = sample
-                fpGroup.close()
+            fpGroup.close()
         except:
             print('experiment does not exist in %s/%s.group.txt' % (inputDir, expID))
 
@@ -148,21 +178,22 @@ def process():
         # for each group
         #   select MGI rows for all samples in the group
         #
-        for g in groupDict:
+        for groupSet in groupDict:
 
             checkAllDict = {}
             checkNoSexDict = {}
             sampleKeySet = []
 
-            byGroup = ','.join(groupDict[g])
+            byGroup = ','.join(groupDict[groupSet])
             print(byGroup)
 
             sampleResults = db.sql('''
-                select distinct t2.expID, t2.name, t2._experiment_key, t2._sample_key, t2.age,
-                    t2._organism_key, t2._sex_key, t2._stage_key, t2._emapa_key, t2._genotype_key, 
-                    t4.note 
-                from temp2 t2 left outer join temp4 t4 on (t2._sample_key = t4._sample_key)
-                where t2.expID = '%s' and rtrim(t2.name) in (%s)
+                select distinct s.expID, s.name, s._experiment_key, s._sample_key, s.age,
+                    s._organism_key, s._sex_key, s._stage_key, s._emapa_key, s._genotype_key, 
+                    n.note 
+                from samples s
+                left outer join sampleNotes n on (s._sample_key = n._sample_key)
+                where s.expID = '%s' and rtrim(s.name) in (%s)
                 ''' % (expID, byGroup), 'auto')
 
             #
@@ -202,8 +233,9 @@ def process():
             if len(checkAllDict) == 1:
 
                 print('no mismatch')
-                fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
-                    setKey, TAB, expKey, TAB, age, TAB, orgKey, TAB, sexKey, TAB, \
+                fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
+                    setKey, TAB, expKey, TAB, provider, TAB, groupSet, TAB, \
+                    age, TAB, orgKey, TAB, sexKey, TAB, \
                     emapaKey, TAB, stageKey, TAB, genotypeKey, TAB, note, TAB, createdByKey, TAB, \
                     createdByKey, TAB, loaddate, TAB, loaddate, CRT))
 
@@ -220,8 +252,9 @@ def process():
                 print('mismatch sex only')
                 sexKey = 315166
 
-                fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
-                    setKey, TAB, expKey, TAB, age, TAB, orgKey, TAB, sexKey, TAB, \
+                fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
+                    setKey, TAB, expKey, TAB, provider, TAB, groupSet, TAB, \
+                    age, TAB, orgKey, TAB, sexKey, TAB, \
                     emapaKey, TAB, stageKey, TAB, genotypeKey, TAB, note, TAB, createdByKey, TAB, \
                     createdByKey, TAB, loaddate, TAB, loaddate, CRT))
 
@@ -243,8 +276,54 @@ def process():
 
     return 0
 
-# end process()
+# end processSets()
 
+#
+#
+#
+def processCombined():
+
+#
+# _rnaseqcombined_key
+# _marker_key
+# _level_key
+# numberofbiologicalreplicates -> from rnaseqsetmember?
+# averagequantilenormalizedtpm
+#
+    #
+    # for each expID
+    #
+    results = db.sql(''' select expID from experiments where expid = 'E-GEOD-55966' ''', 'auto')
+    for r in results:
+
+        #
+        # read the "tpms" file
+        #
+        tpmsDict = {}
+        expID = r['expID']
+
+        try:
+            fpTpms = open('%s/%s.tpms.txt' % (inputDir, expID), 'r')
+            for line in fpTpms.readlines():
+                tokens = str.split(line, TAB)
+                print(tokens)
+                markerKey = tokens[1]
+                markerSymbol = tokens[2]
+                g1 = tokens[3]
+                g2 = tokens[4]
+            fpTpms.close()
+        except:
+            print('experiment does not exist in %s/%s.tpms.txt' % (inputDir, expID))
+
+        #print(tpmsDict)
+
+    return 0
+
+# end processCombined()
+
+#
+# load the bcp files into the database
+#
 def execBCP():
 
     bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % \
@@ -273,6 +352,7 @@ def execBCP():
 #
 
 init()
-process()
+processSets()
+#processCombined()
 execBCP()
 
