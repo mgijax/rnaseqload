@@ -92,8 +92,7 @@ def loadSampleInDbDict(expID):
 #   ensembm ID
 #   marker key
 #   marker symbol
-#   g1 = 3rd value avg QN TPM
-#   g2 = 3rd value avg QN TPM
+#   each group (g1, g2, etc. value = 3rd value avg QN TPM)
 #
 
 def ppEAETpmsFile(expID):
@@ -124,13 +123,17 @@ def ppEAETpmsFile(expID):
             ensemblDict[key] = []
         ensemblDict[key].append(value)
 
+    # create the header for fpPP
+    headerList = str.split(fpEae.readline(), '\t')
+    groups = []
+    for h in headerList[2:]:
+        groups.append(str.strip(h))
+    fpPP.write('ensembl_id\t_marker_key\tsymbol\t' + '\t'.join(groups) + '\n')
+
     # iterate thru the fpEae input file
     for line in fpEae.readlines():
 
         tokens = str.split(line, '\t')
-
-        if tokens[0] == 'GeneID':
-            continue
 
         ensemblID = str.strip(tokens[0])
 
@@ -140,19 +143,15 @@ def ppEAETpmsFile(expID):
             markerKey = ensemblDict[ensemblID][0]
         else:
             markerKey = 0
-
         markerSymbol = str.strip(tokens[1])
-        g1All = str.strip(tokens[2])
-        g2All = str.strip(tokens[3])
-        
-        #print(tokens)
-        tokensG1 = g1All.split(',')
-        tokensG2 = g2All.split(',')
-        g1 = tokensG1[2]
-        g2 = tokensG2[2]
 
-        # write to the fpPP file
-        fpPP.write('%s\t%s\t%s\t%s\t%s\n' % (ensemblID, markerKey, markerSymbol, g1, g2))
+        fpPP.write('%s\t%s\t%s' % (ensemblID, markerKey, markerSymbol))
+
+        for g in range(len(groups)):
+            values = tokens[g+2].split(',')
+            fpPP.write('\t' + values[2])
+
+        fpPP.write('\n')
 
     fpEae.close();
     fpPP.close();
