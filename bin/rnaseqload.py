@@ -1219,15 +1219,15 @@ def process():
         if expID != 'E-ENAD-15':
             continue 
 
-        if PseudobulkExpt.is_single_cell(expID):
+        if PseudobulkExpt.isPseudobulkData(expID):
             pseudobulkDataframeList = []
-            pseudobulkExpt = PseudobulkExpt(expID)
-            pseudobulkExpt.isDeleteTempTables = True
+            pseudobulkExpt = PseudobulkExpt(expID)            
             pseudobulkExpt.isWriteDetailFiles = False
+            pseudobulkExpt.initExperimentKey()
             # run all of structure
             for bulkData in PseudobulkConfig.BULK_DATA_LIST:
                 for runOption in PseudobulkConfig.RUN_OPTIONS:
-                    pseudobulkExpt.config = PseudobulkConfig(bulkData, runOption)
+                    pseudobulkExpt.config = PseudobulkConfig(pseudobulkExpt.experimentKey, bulkData, runOption)                    
                     log.info(f"Process: {pseudobulkExpt.config.getLabel()}")
                     dfs = process_one_experiment(expID, pseudobulkExpt)
                     pseudobulkDataframeList.extend(dfs)

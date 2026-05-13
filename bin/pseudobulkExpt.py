@@ -6,8 +6,10 @@ import random
 import logging as log
 import psutil
 import csv
+import db
 from decimal import Decimal
 from bin.pseudobulkConfig import PseudobulkConfig
+from bin.pseudobulkSample import PseudobulkSample
 
 log.basicConfig(level=log.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
@@ -27,19 +29,34 @@ class PseudobulkExpt:
 
         self.base_dir = os.getenv("RAW_INPUTDIR")
         self.config = None
-        self.isDeleteTempTables = False
         self.isWriteDetailFiles = False
-
+        self.experimentKey = None
 
     @staticmethod
-    def is_single_cell(exp_id):
+    def isPseudobulkData(exp_id):
         return exp_id.upper().startswith("E-ENAD")        
 
     @staticmethod
     def print_memory():
         process = psutil.Process(os.getpid())
         mem = process.memory_info().rss / 1024**2  # MB
-        log.info(f"Memory usage: {mem:.2f} MB")    
+        log.info(f"Memory usage: {mem:.2f} MB") 
+
+    def initExperimentKey(self):
+        pseudobulkSample = PseudobulkSample(self.exp_id)
+        self.experimentKey = pseudobulkSample.findExperimentKey()
+        if self.experimentKey:
+            log.info(f'Existing {self.exp_id}, experimentKey: {self.experimentKey}')
+            return
+        
+        name = "Tabula Muris: Transcriptomic characterization of 20 organs and tissues from Mus musculus at single cell resolution"
+        description = "Single cell RNA sequencing of single cells across 20 tissues of 3 month aged mice"
+        self.experimentKey = pseudobulkSample.createExperiment(name, description)
+        pseudobulkSample.createExperimentHTSamples(self.experimentKey)
+        pseudobulkSample.insertRNASeqSetTables(self.experimentKey)
+        pseudobulkSample.showHTSamples(self.experimentKey)
+        log.info(f'{self.exp_id}, experimentKey: {self.experimentKey}')
+        db.commit()
 
     def download(self, force=False):
         """
@@ -55,7 +72,6 @@ class PseudobulkExpt:
         ftp = ftplib.FTP(self.ftp_host)
         ftp.login("anonymous")
         ftp.cwd(self.ftp_path)
-
         
         os.makedirs(self.base_dir, exist_ok=True)
 
@@ -224,10 +240,10 @@ class PseudobulkExpt:
                 AND cell_type = {cell_type}
             GROUP BY tissue, organism_part, cell_type, sex, _organism_key, _sex_key, _celltype_term_key, _emapa_key, _genotype_key
             '''.format(
-                expID=99680,
-                tissue=self.sql_escape(tissue),
-                organism_part=self.sql_escape(organism_part),
-                cell_type=self.sql_escape(cell_type)
+                expID=self.experimentKey,
+                tissue=self.sqlEscape(tissue),
+                organism_part=self.sqlEscape(organism_part),
+                cell_type=self.sqlEscape(cell_type)
             )
         
         log.info(query)
@@ -245,7 +261,7 @@ class PseudobulkExpt:
             log.info(f"Replicate: {replicateKey}: num_of_samples = {num_of_samples} ({list(sample_key_set)[:3]})")
         return replisetDict
     
-    def sql_escape(self, val):
+    def sqlEscape(self, val):
         if val is None:
             return 'NULL'
         return "'" + str(val).replace("'", "''") + "'"     
@@ -355,7 +371,7 @@ class PseudobulkExpt:
 
         organismPartCause = ''
         if organismPart and len(organismPart) > 0:
-            organismPartCause = f"AND LOWER(grp.organism_part) = {self.sql_escape(organismPart.lower())}"
+            organismPartCause = f"AND LOWER(grp.organism_part) = {self.sqlEscape(organismPart.lower())}"
 
         query = '''
             DROP TABLE IF EXISTS {rpkSumTable};
@@ -405,7 +421,7 @@ class PseudobulkExpt:
                 pseudobulkTableName=pseudobulkTableName,
                 rpkSumTable=rpkSumTable,
                 caseSql=caseSql,
-                tissue=self.sql_escape(tissue.lower()),
+                tissue=self.sqlEscape(tissue.lower()),
                 organismPartCause=organismPartCause
         )
         log.info(query)
@@ -430,16 +446,8 @@ class PseudobulkExpt:
         ])
         df.to_csv(outputFile, index=False)
         log.info(f"Export: {outputFile}")
-
-        if self.isDeleteTempTables:
-            query = '''
-                DROP TABLE IF EXISTS {rpkSumTable};
-                DROP TABLE IF EXISTS {pseudobulkTableName};            
-            '''.format(
-                    pseudobulkTableName=pseudobulkTableName,
-                    rpkSumTable=rpkSumTable)
-            db.sql(query, 'auto')
-        db.commit()         
+        # only if want to preserve them for debug
+        # db.commit()
 
         return outputFile
     
@@ -488,9 +496,9 @@ class PseudobulkExpt:
         print(merged_df)
 
         # write detail file
-        if self.isWriteDetailFiles:
-            output_file = os.path.join(self.config.dataDir, self.config.getAllMergedFile())
-            merged_df.to_csv(output_file, index=False)
+        #if self.isWriteDetailFiles:
+        output_file = os.path.join(self.config.dataDir, self.config.getAllMergedFile())
+        merged_df.to_csv(output_file, index=False)
 
         # write brief file
         # keep gene + every column containing replicate_group_avg

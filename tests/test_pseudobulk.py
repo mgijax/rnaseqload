@@ -6,6 +6,7 @@ import numpy as np
 import db
 
 from bin.pseudobulkPlot import PseudobulkPlot
+from bin.pseudobulkSample import PseudobulkSample
 from bin.pseudobulkExpt import PseudobulkExpt
 from bin.pseudobulkConfig import PseudobulkConfig
 
@@ -21,96 +22,25 @@ class PseudobulkTest(unittest.TestCase):
         # take down anything we've specifically created for each test method
         self.app = None
 
-    def test_create_ht_sample(self):
-        log.info('test_create_ht_sample')
-        db.useOneConnection(1)
+    def test_create_experiment(self):
+        log.info('test_create_experiment')
 
-        for bulkData in PseudobulkConfig.BULK_DATA_LIST:
-            bulkShortName = bulkData["shortName"]
-            tissue = bulkData["tissue"]
-            organismPart = bulkData["organismPart"]
-            self.createHTSamples(db, bulkShortName, "A", tissue, organismPart, bulkData["pivotAFields"])
-            self.createHTSamples(db, bulkShortName, "B", tissue, organismPart, bulkData["pivotBFields"])
-        db.commit()
-
-    def findEmapaKey(self, db, tissue, organismPart):
-        query = '''
-            SELECT t._term_key
-            FROM voc_term t, voc_term_emapa e
-            WHERE t.term = '{organismPart}'
-                AND t._term_key = e._term_key
-        '''.format(organismPart = organismPart)
-        log.info(query)
-        results = db.sql(query, 'auto')
-        for r in results:
-            return r["_term_key"]
+        name = "Tabula Muris: Transcriptomic characterization of 20 organs and tissues from Mus musculus at single cell resolution"
+        description = "Single cell RNA sequencing of single cells across 20 tissues of 3 month aged mice"
+        pseudobulkSample = PseudobulkSample("E-ENAD-15")
         
-    def findHTSampleKey(self, db, sampleName):
-        query = '''
-            SELECT _sample_key FROM gxd_htsample WHERE _experiment_key = 99680 AND name = '{sampleName}'
-        '''.format(sampleName = sampleName)
-        # log.info(query)
-        results = db.sql(query, 'auto')
-        for r in results:
-            return r["_sample_key"]        
-    
-    def findCreateHTSamples(self, db, tissue, organismPart, sex, sampleName):
-        sampleKey = self.findHTSampleKey(db, sampleName)
-        if sampleKey:
-            log.info(f'Skip create: sampleKey: {sampleKey}')
-            return
+        experimentKey = pseudobulkSample.createExperiment(name, description)
+        log.info(f'experimentKey: {experimentKey}')
 
-        emapaKey = self.findEmapaKey(db, tissue, organismPart)
-        if not emapaKey: 
-            log.info(f'No emapaKey: tissue={tissue}, organismPart={organismPart}')
-            if tissue == 'Bladder':
-                emapaKey = 18236413
-            elif tissue == "Fat":
-                emapaKey = 18236394
-            else:
-                emapaKey = 18236394
-        if sex == 'Male':
-            sexKey = 315165 
-        else:
-            sexKey = 315164
-        cellTypeTermKey = 99536731
+        pseudobulkSample.createExperimentHTSamples(experimentKey)
 
-        log.info(f'sampleName: {sampleName}  emapaKey: {emapaKey}')
-        query = '''
-            INSERT INTO mgd.gxd_htsample(
-                _sample_key, _experiment_key, _relevance_key, name, age, agemin, agemax, _organism_key, _sex_key,
-                _emapa_key, _stage_key, _genotype_key, _celltype_term_key, _rnaseqtype_key)
-            VALUES (
-                nextval('gxd_htsample_seq'), 99680, 20475450, '{sampleName}',
-                'postnatal week 10', -1, -1, 1, {sexKey},
-                {emapaKey}, 27, 1, {cellTypeTermKey}, 114866225
-            )
-        '''.format(sampleName = sampleName,
-                   sexKey = sexKey,
-                   emapaKey = emapaKey,
-                   cellTypeTermKey = cellTypeTermKey)
-        log.info(query)
-        results = db.sql(query, 'auto') 
+        pseudobulkSample.insertRNASeqSetTables(experimentKey)
 
-    def createHTSamples(self, db, bulkShortName, option, tissue, organismPart, fields):
-        for i, field in enumerate(fields):
-            if isinstance(field, list):
-                sampleName = ""
-                for i, f in enumerate(field):
-                    if i > 0:
-                        sampleName += PseudobulkConfig.AND
-                    sampleName += f
-            else:
-                sampleName = field
+        pseudobulkSample.showHTSamples(experimentKey)
 
-            if "M" in sampleName:
-                sex = "Male"
-            else:
-                sex = "Female"
+        log.info(f'experimentKey: {experimentKey}')
 
-            log.info(f"{tissue} {organismPart}: {sampleName}")
-            self.findCreateHTSamples(db, tissue, organismPart, sex, f'{bulkShortName}_{option}_{sampleName}')
-
+        db.commit()
 
     def test_create_pseduobulked_file(self):
         log.info('test_create_pseduobulked_file')

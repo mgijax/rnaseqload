@@ -8,7 +8,8 @@ class PseudobulkConfig:
     
     AND = '_n_'   # used to join name for multiple fields
 
-    def __init__(self, bulkData, runOption):
+    def __init__(self, experimentKey, bulkData, runOption):
+        self.experimentKey = experimentKey
         self.bulkData = bulkData
         self.runOption = runOption
 
@@ -58,8 +59,9 @@ class PseudobulkConfig:
     
     def findHTSampleKey(self, db, sampleName):
         query = '''
-            SELECT _sample_key FROM gxd_htsample WHERE _experiment_key = 99680 AND name = '{sampleName}'
-        '''.format(sampleName = sampleName)
+            SELECT _sample_key FROM gxd_htsample WHERE _experiment_key = {experimentKey} AND name = '{sampleName}'
+        '''.format(experimentKey = self.experimentKey,
+            sampleName = sampleName)
         # log.info(query)
         results = db.sql(query, 'auto')
         for r in results:
@@ -194,11 +196,6 @@ class PseudobulkConfig:
         "pivotAFields": ["3_38_F", "3_39_F", "3_56_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
         "pivotBFields": [["3_38_F", "3_56_F"], "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
     }
-    BULK_DATA_LIST.append(Bladder)
-    BULK_DATA_LIST.append(Pancreas)    
-    BULK_DATA_LIST.append(Fat_gonadal)    
-    BULK_DATA_LIST.append(Fat_interscapular) 
-    BULK_DATA_LIST.append(Intestine_ascending)
 
     heart_left = {
         "name": "Heart__Left_Ventricle",
@@ -256,6 +253,12 @@ class PseudobulkConfig:
         "pivotAFields": ["3_38_F", "3_39_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
         "pivotBFields": ["3_38_F", "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
     }
+
+    BULK_DATA_LIST.append(Bladder)
+    BULK_DATA_LIST.append(Pancreas)    
+    BULK_DATA_LIST.append(Fat_gonadal)    
+    BULK_DATA_LIST.append(Fat_interscapular) 
+    BULK_DATA_LIST.append(Intestine_ascending)    
 
     BULK_DATA_LIST.append(heart_left)
     BULK_DATA_LIST.append(heart_heart)
