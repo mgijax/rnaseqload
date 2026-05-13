@@ -76,6 +76,9 @@ select distinct rs._rnaseqcombined_key,
 
 EOSQL
 
+date | tee -a ${LOG_DIAG}
+echo "Drop Indexes GXD_HTSample_RNASeqSet_Cache table"  | tee -a ${LOG_DIAG}
+${MGD_DBSCHEMADIR}/index/GXD_HTSample_RNASeqSet_Cache_drop.object >> ${LOG_DIAG} 2>&1
 
 date | tee -a ${LOG_DIAG}
 echo "Truncate GXD_HTSample_RNASeqSet_Cache table"  | tee -a ${LOG_DIAG}
@@ -88,8 +91,8 @@ STAT=$?
 echo "STAT: ${STAT}"
 
 date | tee -a ${LOG_DIAG}
-echo "Grant Database Permissions" | tee -a ${LOG_DIAG}
-${PG_DBUTILS}/bin/grantPublicPerms.csh ${PG_DBSERVER} ${PG_DBNAME} mgd >> ${LOG_DIAG} 2>&1
+echo "Create Indexes GXD_HTSample_RNASeqSet_Cache table"  | tee -a ${LOG_DIAG}
+${MGD_DBSCHEMADIR}/index/GXD_HTSample_RNASeqSet_Cache_create.object >> ${LOG_DIAG} 2>&1
 
 #
 # Drop the temp table
@@ -98,8 +101,6 @@ echo "" >> ${LOG_DIAG}
 date >> ${LOG_DIAG}
 echo "Drop the temp table" >> ${LOG_DIAG}
 cat - <<EOSQL | psql -h${MGD_DBSERVER} -d${MGD_DBNAME} -U mgd_dbo -e  >> ${LOG_DIAG}
-
 drop table rnaseqsetcombined;
-
 EOSQL
 

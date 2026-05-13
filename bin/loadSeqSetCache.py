@@ -34,12 +34,12 @@
 #
 ###########################################################################
 
-import os	 # for system to execute bcp, getenv
-import mgi_utils # for log start/end timestamp
-import loadlib	 # for bcp friendly date/timestamp
+import os
+import sys 
+import time
 import db
-import sys 	 # to flush stdout
-import time	 # used for its time.time() function (for timestamps)
+import mgi_utils 
+import loadlib	
 
 # paths to input and two output files
 outputDir = os.getenv('OUTPUTDIR')
@@ -69,15 +69,11 @@ def init():
     global assocKey, fpCache
 
     fpCache = open('%s/%s' % (outputDir, cacheBcp), 'w')
-
-    db.useOneConnection(1)
-
     assocKey = 1
 
     return 0
 
 # end init() -------------------------------------------------
-
 
 def process():
     global assocKey
@@ -86,8 +82,7 @@ def process():
     # currently 36724708 rnaseqset/rnaseqcombined pairs
     # currently 706 bio replicates (gxd_htsample_rnaseqset records)
     batchSize = 200
-    results = db.sql('''select max(_rnaseqset_key) as ct
-            from gxd_htsample_rnaseqset''', 'auto')
+    results = db.sql('''select max(_rnaseqset_key) as ct from gxd_htsample_rnaseqset''', 'auto')
    
     totalCt = int(results[0]['ct'])
     print ('totalCt: %s' % totalCt)
@@ -95,10 +90,11 @@ def process():
     curStart = 1
     curEnd = batchSize
     while curStart <= totalCt: 
-        results = db.sql('''select * 
-                from rnaseqsetcombined
-                where _rnaseqset_key between %s and %s''' % (curStart, curEnd), 'auto')
-
+        results = db.sql('''
+            select * 
+            from rnaseqsetcombined
+            where _rnaseqset_key between %s and %s
+            ''' % (curStart, curEnd), 'auto')
         elapsed_time = time.time() - TIME
         print('TIME to run query %s' % time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
         sys.stdout.flush()
@@ -129,15 +125,11 @@ def execBCP ():
 
     # reset the rnaseq primary key sequence
     db.sql(''' select setval('gxd_htsample_rnaseqset_cache_seq', (select max(_assoc_key) from gxd_htsample_rnaseqset_cache)) ''', None)
-
     db.commit()
-
-    db.useOneConnection(0)
 
     return 0
 
 # end execBCP --------------------------------------------------------------------
-
 
 #
 # Main
@@ -170,7 +162,5 @@ print('TIME to run execBCP function %s' % time.strftime("%H:%M:%S", time.gmtime(
 sys.stdout.flush()
 
 total_time = time.time() - START_TIME
-
 print('Total run time: %s' %  time.strftime("%H:%M:%S", time.gmtime(total_time)))
-
 print('End time: %s'  % mgi_utils.date())
