@@ -45,32 +45,6 @@ rawRunList = []
 runToSampleDict = {}
 
 #
-# Purpose: init lookups
-# Returns: 0
-# Assumes: Nothing
-# Effects: opens a database connection, queries a database
-# Throws: Nothing
-#
-def init():
-    global rnaSeqSetResults
-
-    # create the result set of ids to load
-    rnaSeqSetResults = db.sql('''
-        select a.accid
-        from ACC_Accession a, MGI_Set s, MGI_SetMember sm
-        where s.name = 'Baseline RNASeq Load Experiment'
-        and s._Set_key = sm._Set_key
-        and sm._Object_key = a._Object_key
-        and a._MGIType_key = 42 --GXD_HTExperiment
-        and a._LogicalDB_key = 189
-        and a.preferred = 1
-        ''', 'auto')
-
-    return 0
-
-# end init()
-
-#
 # Purpose: loads a lookup of samples in the db for the given experiment
 #       because sample names are not uniq across experiments
 # Returns: 0
@@ -116,7 +90,6 @@ def loadSampleInDbDict(expID):
 #
 # format:
 #   ensembm ID
-#   marker key
 #   marker symbol
 #   g1 = 3rd value
 #   g2 = 3rd value
@@ -347,10 +320,20 @@ def ppEAEGroupFile(expID):
 def process():
     global rawRunList
 
+    results = db.sql('''
+        select a.accid
+        from ACC_Accession a, MGI_Set s, MGI_SetMember sm
+        where s.name = 'Baseline RNASeq Load Experiment'
+        and s._Set_key = sm._Set_key
+        and sm._Object_key = a._Object_key
+        and a._MGIType_key = 42 --GXD_HTExperiment
+        and a._LogicalDB_key = 189
+        and a.preferred = 1
+        ''', 'auto')
     #
     # for each expID in the MGI_Set:
     #
-    for r in rnaSeqSetResults:
+    for r in results:
 
         expID = str.strip(r['accid'])
 
@@ -382,9 +365,6 @@ def process():
 #
 
 print('start time: %s' %  mgi_utils.date())
-
-if init() != 0:
-     exit(1, 'Error in init()\n')
 
 if process() != 0:
      exit(1, 'Error in process()\n')
