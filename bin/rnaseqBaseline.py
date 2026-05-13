@@ -154,7 +154,6 @@ def initCombined():
 
     results = db.sql('''select nextval('gxd_htsample_rnaseqcombined_seq') as maxKey ''', 'auto')
     combinedKey = results[0]['maxKey']
-    print(combinedKey)
 
     return 0
 
@@ -228,8 +227,6 @@ def processSets():
         except:
             print('experiment does not exist in %s/%s.group.txt' % (inputDir, expID))
 
-        print(groupDict)
-
         #
         # for each group
         #   select MGI rows for all samples in the group
@@ -241,7 +238,6 @@ def processSets():
             sampleKeySet = []
 
             byGroup = ','.join(groupDict[groupSet])
-            print(byGroup)
 
             sampleResults = db.sql('''
                 select distinct s.expID, s.name, s._experiment_key, s._sample_key, s.age,
@@ -282,13 +278,13 @@ def processSets():
                     checkNoSexDict[key] = []
                 checkNoSexDict[key].append(sampleKey)
 
-            print(len(checkAllDict))
-            print(checkAllDict)
+            #print(len(checkAllDict))
+            #print(checkAllDict)
 
             # no mismatch
             if len(checkAllDict) == 1:
 
-                print('no mismatch')
+                #print('no mismatch')
                 fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
                     setKey, TAB, expKey, TAB, provider, TAB, groupSet, TAB, \
                     age, TAB, orgKey, TAB, sexKey, TAB, \
@@ -379,7 +375,6 @@ def processCombined():
 
             for line in fpTpms.readlines():
                 tokens = str.split(line[:-1], TAB)
-                print(tokens)
                 ensemblId = tokens[0]
 
                 markerKey = tokens[1]

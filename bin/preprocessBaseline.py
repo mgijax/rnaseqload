@@ -176,7 +176,7 @@ def ppAESSdrfFile(expID):
 
     #  read the input file
     aesFile = aesTemplate % expID
-    print('aesFile: %s' % aesFile)
+
     try:
         fpAes = open(aesFile, 'r')
     except:
@@ -191,7 +191,6 @@ def ppAESSdrfFile(expID):
 
     # load sampleInDbDict() for expID
     loadSampleInDbDict(expID)
-    print(loadSampleInDbDict)
 
     # find the idx of the columns we want - they are not ordered
     #
@@ -214,8 +213,6 @@ def ppAESSdrfFile(expID):
 
         if tokens[0] == 'Source Name':
             continue
-
-        #print(tokens)
 
         sourceSample = None
         enaSample = None
@@ -252,7 +249,7 @@ def ppAESSdrfFile(expID):
 
         rawRunList.append(enaRun)
 
-        print('Source/Run: ', sourceSample, enaRun)
+        #print('Source/Run: ', sourceSample, enaRun)
         key = enaRun
         value = sourceSample
         if key not in runToSampleDict:
@@ -285,7 +282,6 @@ def ppEAEGroupFile(expID):
 
     #  read the input file
     eaeFile = groupTemplate % expID
-    print('eaeFile: %s' % eaeFile)
 
     #  create the output file
     ppFile = groupPPTemplate % expID
@@ -373,7 +369,6 @@ def process():
             print('processing EAE group file returned rc %s, skipping file for %s' % (rc, expID))
             continue
 
-    #print(runToSampleDict)
     return 0
 
 # end process()
