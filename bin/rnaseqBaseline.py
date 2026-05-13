@@ -43,14 +43,25 @@ outputDir = os.getenv('BASELINEOUTPUTDIR')
 
 setTable = 'GXD_HTSample_RNASeqSet'
 memberTable = 'GXD_HTSample_RNASeqSetMember'
+combinedTable = 'GXD_HTSample_RNASeqCombined'
 
 setBcp = '%s.bcp' % setTable
 memberBcp = '%s.bcp' % memberTable
+combinedBcp = '%s.bcp' % combinedTable
 
 fpSet = None	# created in init()
 fpMember = None
+fpCombined = None
 
 provider = 'Expression Atlas'
+
+#
+# Level bins
+#
+HIGH = 50430889
+MED = 50430890
+LOW = 50430891
+BELOW_CUTOFF = 50430892
 
 # Constants
 TAB = '\t'
@@ -65,23 +76,12 @@ createdByKey = 1673
 
 setKey = None
 memberKey = None
+combinedKey = None
 
 #
-# initialize some things
+# initialize all
 #
 def init():
-    global setKey, memberKey, fpSet, fpMember
-
-    # existing set deleted from wrapper script
-
-    fpSet = open('%s/%s' % (outputDir, setBcp), 'w')
-    fpMember =  open('%s/%s' % (outputDir, memberBcp), 'w')
-
-    results = db.sql('''select nextval('gxd_htsample_rnaseqset_seq') as maxKey ''', 'auto')
-    setKey = results[0]['maxKey']
-
-    results = db.sql('''select nextval('gxd_htsample_rnaseqsetmember_seq') as maxKey ''', 'auto')
-    memberKey = results[0]['maxKey']
 
     #
     # baseline experiments
@@ -124,9 +124,65 @@ def init():
 # end init()
 
 #
+# initialize Set
+#
+def initSet():
+    global fpSet, fpMember
+    global setKey, memberKey
+
+    fpSet = open('%s/%s' % (outputDir, setBcp), 'w')
+    fpMember =  open('%s/%s' % (outputDir, memberBcp), 'w')
+
+    results = db.sql('''select nextval('gxd_htsample_rnaseqset_seq') as maxKey ''', 'auto')
+    setKey = results[0]['maxKey']
+
+    results = db.sql('''select nextval('gxd_htsample_rnaseqsetmember_seq') as maxKey ''', 'auto')
+    memberKey = results[0]['maxKey']
+
+    return 0
+
+# end initSet()
+
+#
+# initialize Combined
+#
+def initCombined():
+    global fpCombined
+    global combinedKey
+
+    fpCombined =  open('%s/%s' % (outputDir, combinedBcp), 'w')
+
+    results = db.sql('''select nextval('gxd_htsample_rnaseqcombined_seq') as maxKey ''', 'auto')
+    combinedKey = results[0]['maxKey']
+    print(combinedKey)
+
+    return 0
+
+# end initCombined()
+
+#
+# calculate the level for the avgrage QN TPM
+# returns proper level key for aveQnTpm
+#
+def calcLevel(aveQnTpm):
+    level = None
+    if aveQnTpm < 0.5:	
+        level = BELOW_CUTOFF 
+    elif aveQnTpm >=  0.5 and aveQnTpm <= 10:
+        level = LOW
+    elif aveQnTpm >=  11 and aveQnTpm <= 1000:
+        level = MED
+    else:  # aveQnTpm > 1000:
+        level = HIGH
+
+    return  level
+# end calcLevel
+
+#
 # create BCP files for RNASeqSet, RNASeqSetMember
 #
 def processSets():
+    global fpSet, fpMember
     global setKey, memberKey
 
     db.sql('''
@@ -236,8 +292,8 @@ def processSets():
                 fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
                     setKey, TAB, expKey, TAB, provider, TAB, groupSet, TAB, \
                     age, TAB, orgKey, TAB, sexKey, TAB, \
-                    emapaKey, TAB, stageKey, TAB, genotypeKey, TAB, note, TAB, createdByKey, TAB, \
-                    createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+                    emapaKey, TAB, stageKey, TAB, genotypeKey, TAB, note, TAB, \
+                    createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
 
                 for sKey in sampleKeySet:
                     fpMember.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
@@ -255,8 +311,8 @@ def processSets():
                 fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
                     setKey, TAB, expKey, TAB, provider, TAB, groupSet, TAB, \
                     age, TAB, orgKey, TAB, sexKey, TAB, \
-                    emapaKey, TAB, stageKey, TAB, genotypeKey, TAB, note, TAB, createdByKey, TAB, \
-                    createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+                    emapaKey, TAB, stageKey, TAB, genotypeKey, TAB, note, TAB, \
+                    createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
 
                 for sKey in sampleKeySet:
                     fpMember.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
@@ -267,7 +323,7 @@ def processSets():
 
             # other mismatch
             else:
-                print('skipped due to mismatch')
+                print('skipped due to mismatch : %s\n' % (expID))
                 print(checkAllDict)
                 print(checkNoSexDict)
 
@@ -279,52 +335,87 @@ def processSets():
 # end processSets()
 
 #
-#
+# create BCP files for RNASeqCombined
 #
 def processCombined():
+    global fpCombined, combinedKey
 
-#
-# _rnaseqcombined_key
-# _marker_key
-# _level_key
-# numberofbiologicalreplicates -> from rnaseqsetmember?
-# averagequantilenormalizedtpm
-#
     #
     # for each expID
     #
     results = db.sql(''' select expID from experiments where expid = 'E-GEOD-55966' ''', 'auto')
+    #results = db.sql(''' select expID from experiments ''', 'auto')
     for r in results:
+
+        expID = r['expID']
+
+        # number of bioreplicates per experiment by groupSet
+        replicates = {}
+        results = db.sql('''
+                select distinct s.expID, rm._rnaseqset_key, rs.groupset, count(rm._rnaseqsetmember_key) as replicatesCount
+                from samples s, gxd_htsample_rnaseqsetmember rm, gxd_htsample_rnaseqset rs
+                where s._sample_key = rm._sample_key
+                and rm._rnaseqset_key = rs._rnaseqset_key
+                and s.expID = '%s'
+                group by s.expID, rm._rnaseqset_key, rs.groupset
+            ''' % (expID), 'auto')
+        for r in results:
+            key = r['groupset']
+            value = r['replicatesCount']
+            replicates[key] = []
+            replicates[key].append(value)
 
         #
         # read the "tpms" file
         #
-        tpmsDict = {}
-        expID = r['expID']
-
         try:
             fpTpms = open('%s/%s.tpms.txt' % (inputDir, expID), 'r')
+
+            # read the header from fpTpms
+            headerList = str.split(fpTpms.readline(), '\t')
+            groupSet = []
+            for h in headerList[3:]:
+                groupSet.append(str.strip(h))
+
             for line in fpTpms.readlines():
-                tokens = str.split(line, TAB)
+                tokens = str.split(line[:-1], TAB)
                 print(tokens)
+                ensemblId = tokens[0]
+
                 markerKey = tokens[1]
                 markerSymbol = tokens[2]
-                g1 = tokens[3]
-                g2 = tokens[4]
+
+                if markerKey == '0':
+                    print('skipping: ensemblId/marker invalid %s, %s\n' % (expID, ensemblId))
+                    continue
+
+                for g in range(len(groupSet)):
+                    gKey = groupSet[g]
+                    aveQnTpm = float(tokens[g+3])
+                    levelKey = calcLevel(aveQnTpm)
+                    replicatesCount = replicates[gKey][0]
+
+                    fpCombined.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
+                            combinedKey, TAB, markerKey, TAB, levelKey, TAB, \
+                            replicatesCount, TAB, aveQnTpm, TAB, \
+                            createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+    
+                    combinedKey += 1
+
             fpTpms.close()
         except:
-            print('experiment does not exist in %s/%s.tpms.txt' % (inputDir, expID))
+            print('skipping: experiment does not exist in %s/%s.tpms.txt' % (inputDir, expID))
 
-        #print(tpmsDict)
+    fpCombined.close()
 
     return 0
 
 # end processCombined()
 
 #
-# load the bcp files into the database
+# load the bcp files into the database for Set
 #
-def execBCP():
+def execSetBCP():
 
     bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % \
     (bcpCommand, db.get_sqlServer(), db.get_sqlDatabase(), setTable, outputDir, setBcp)
@@ -345,14 +436,32 @@ def execBCP():
 
     return 0
 
-# end execBCP()
+# end execSetBCP()
+
+#
+# load the bcp files into the database for Combined
+#
+def execCombinedBCP():
+
+    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % \
+    (bcpCommand, db.get_sqlServer(), db.get_sqlDatabase(), combinedTable, outputDir, combinedBcp)
+    print('%s\n' % bcpCmd)
+    os.system(bcpCmd)
+
+    db.sql(''' select setval('gxd_htsample_rnaseqcombined_seq', (select max(_rnaseqcombined_key) from GXD_HTSample_RNASeqCombined)); ''', None)
+    db.commit()
+
+# end execCombinedBCP()
 
 #
 # Main
 #
 
 init()
-processSets()
-#processCombined()
-execBCP()
+#initSet()
+#processSets()
+#execSetBCP()
+initCombined()
+processCombined()
+execCombinedBCP()
 
