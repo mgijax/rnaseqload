@@ -24,6 +24,8 @@ touch ${BASELINELOG}
 #
 # delete the Baseline RNASeqSet, RNASeqSetMember
 #
+date >> ${BASELINELOG} 2>&1
+echo "Step 1: delete existing Baseline RNASeqSet data" >> ${BASELINELOG} 2>&1
 cat - <<EOSQL | ${PG_DBUTILS}/bin/doisql.csh $0 >> ${BASELINELOG} 2>&1
 
 select a.accid, m.* 
@@ -44,6 +46,9 @@ using baseline
 where baseline._object_key = GXD_HTSample_RNASeqSet._experiment_key
 ;
 
+-- for testing; can be removed as this will be picked up by above delete
+--delete from GXD_HTSample_RNASeqCombined where _CreatedBy_key = 1673;
+
 select b.*, s.*, m.*
 from baseline b, GXD_HTSample_RNASeqSet s, GXD_HTSample_RNASeqSetMember m
 where b._object_key = s._experiment_key
@@ -52,28 +57,28 @@ and s._rnaseqset_key = m._rnaseqset_key
 
 EOSQL
 
-#date >> ${BASELINELOG} 2>&1
-#echo "Step 1: run baseline download (raw_input_baseline)" >> ${BASELINELOG} 2>&1
-#${RNASEQLOAD}/bin/run_downloadBaselineFiles.sh >> ${BASELINELOG} 2>&1
-
-#date >> ${BASELINELOG} 2>&1
-#echo "Step 2: run baseline MGI_Set, MGI_SetMember" >> ${BASELINELOG} 2>&1
-#${RNASEQLOAD}/bin/run_setbaseline.sh >> ${BASELINELOG} 2>&1
-
-#date >> ${BASELINELOG} 2>&1
-#echo "Step 3: run baseline pre processing (input_baseline)" 
-#${PYTHON} ${RNASEQLOAD}/bin/preprocessBaseline.py >> ${BASELINELOG} 2>&1
-
-#date >> ${BASELINELOG} 2>&1
-#echo "Step 4: process withdrawn markers"
-#${RNASEQLOAD}/bin/processWithdrawnMarkers.sh >> ${BASELINELOG} 2>&1
+date >> ${BASELINELOG} 2>&1
+echo "Step 2: run baseline download (raw_input_baseline)" >> ${BASELINELOG} 2>&1
+${RNASEQLOAD}/bin/run_downloadBaselineFiles.sh >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
-echo "Step 4: run baseline: RNASeqSet, RNASeq_SetMember, RNASeq, RNASeqCombined" >> ${BASELINELOG} 2>&1
+echo "Step 3: run baseline MGI_Set, MGI_SetMember" >> ${BASELINELOG} 2>&1
+${RNASEQLOAD}/bin/run_setbaseline.sh >> ${BASELINELOG} 2>&1
+
+date >> ${BASELINELOG} 2>&1
+echo "Step 4: run baseline pre processing (input_baseline)" 
+${PYTHON} ${RNASEQLOAD}/bin/preprocessBaseline.py >> ${BASELINELOG} 2>&1
+
+date >> ${BASELINELOG} 2>&1
+echo "Step 5: run baseline: RNASeqSet, RNASeq_SetMember, RNASeqCombined" >> ${BASELINELOG} 2>&1
 ${PYTHON} ${RNASEQLOAD}/bin/rnaseqBaseline.py >> ${BASELINELOG} 2>&1
 
-#date >> ${BASELINELOG} 2>&1
-#echo "Step 5: run loadSeqSetCache.sh" >> ${BASELINELOG} 2>&1
-#${RNASEQLOAD}/bin/loadSeqSetCache.sh >> ${BASELINELOG} 2>&1
+date >> ${BASELINELOG} 2>&1
+echo "Step 6: run loadSeqSetCache.sh" >> ${BASELINELOG} 2>&1
+${RNASEQLOAD}/bin/loadSeqSetCache.sh >> ${BASELINELOG} 2>&1
+
+date >> ${BASELINELOG} 2>&1
+echo "Step 7: process withdrawn markers"
+${RNASEQLOAD}/bin/processWithdrawnMarkers.sh >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
