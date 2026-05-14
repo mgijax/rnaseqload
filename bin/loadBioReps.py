@@ -106,7 +106,7 @@ def process():
         select sm._object_key as _experiment_key, a.accid as exp_id 
         into temporary table temp1
         from ACC_Accession a,  MGI_Set s, MGI_SetMember sm
-        where s.name in ('RNASeq Load Experiments', 'Baseline RNASeq Load Experiments')
+        where s.name in ('RNASeq Load Experiments', 'Baseline RNASeq Load Experiment')
         and s._Set_key = sm._Set_key
         and sm._Object_key = a._Object_key
         and a._MGIType_key = 42 --GXD_HTExperiment
