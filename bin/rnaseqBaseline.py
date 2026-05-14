@@ -319,7 +319,7 @@ def processSets():
 
             # other mismatch
             else:
-                print('skipped due to mismatch : %s\n' % (expID))
+                print('skipping due to mismatch : %s\n' % (expID))
                 print(checkAllDict)
                 print(checkNoSexDict)
 
