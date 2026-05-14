@@ -102,21 +102,22 @@ and a.preferred = 1
 group by a.accid having count(a._object_key) > 1
 ;
 
+WITH ensembls AS (
 select a._object_key, m.symbol, count(a.accid)
-into temp table ensembl2
 from acc_accession a, mrk_marker m
 where a._mgitype_key = 2
 and a._logicaldb_key = 60
 and a.preferred = 1
 and a._object_key = m._marker_key
 group by a._object_key, m.symbol having count(a.accid) > 1
-;
+)
 select a.accid, e._object_key, e.symbol
-from ensembl2 e, acc_accession a
+from ensembls e, acc_accession a
 where e._object_key = a._object_key
 and a._mgitype_key = 2
 and a._logicaldb_key = 60
 and a.preferred = 1
+order by e.symbol
 ;
 
 select count(*) from gxd_htsample_rnaseqset where _createdby_key = 1673;
