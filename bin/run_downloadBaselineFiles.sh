@@ -36,6 +36,7 @@ date | tee -a ${BASELINELOG_DOWNLOAD}
 
 echo "Downloading input files" 
 rm -rf ${BASELINELOG_DOWNLOAD}
+rm -rf ${RAW_INPUTDIR}/*
 ${PYTHON} ${RNASEQLOAD}/bin/downloadBaselineFiles.py >> ${BASELINELOG_DOWNLOAD} 2>&1
 STAT=$?
 

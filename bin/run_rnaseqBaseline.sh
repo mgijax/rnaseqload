@@ -73,20 +73,22 @@ and s._rnaseqset_key = m._rnaseqset_key
 
 EOSQL
 
-#date >> ${BASELINELOG} 2>&1
-#echo "Step 2: run baseline download (raw_input_baseline)" >> ${BASELINELOG} 2>&1
-#${RNASEQLOAD}/bin/run_downloadBaselineFiles.sh >> ${BASELINELOG} 2>&1
+date >> ${BASELINELOG} 2>&1
+echo "Step 2: run baseline download (raw_input_baseline)" >> ${BASELINELOG} 2>&1
+${RNASEQLOAD}/bin/run_downloadBaselineFiles.sh >> ${BASELINELOG} 2>&1
 
-#date >> ${BASELINELOG} 2>&1
-#echo "Step 3: run baseline MGI_Set, MGI_SetMember" >> ${BASELINELOG} 2>&1
-#${RNASEQLOAD}/bin/run_setbaseline.sh >> ${BASELINELOG} 2>&1
+date >> ${BASELINELOG} 2>&1
+echo "Step 3: run baseline MGI_Set, MGI_SetMember" >> ${BASELINELOG} 2>&1
+${RNASEQLOAD}/bin/run_setbaseline.sh >> ${BASELINELOG} 2>&1
 
-#date >> ${BASELINELOG} 2>&1
-#echo "Step 4: run baseline pre processing (input_baseline)" 
-#${PYTHON} ${RNASEQLOAD}/bin/preprocessBaseline.py >> ${BASELINELOG} 2>&1
+date >> ${BASELINELOG} 2>&1
+echo "Step 4: run baseline pre processing (input_baseline)" 
+rm -rf ${BASELINEINPUTDIR}/*
+${PYTHON} ${RNASEQLOAD}/bin/preprocessBaseline.py >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
 echo "Step 5: run baseline: RNASeqSet, RNASeq_SetMember, RNASeqCombined" >> ${BASELINELOG} 2>&1
+rm -rf ${BASELINEOUTPUTDIR}/*
 ${PYTHON} ${RNASEQLOAD}/bin/rnaseqBaseline.py >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
