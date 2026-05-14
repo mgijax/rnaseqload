@@ -76,23 +76,23 @@ and hts._experiment_key = e._experiment_key
 --order by a.accid, rnamem._Sample_key
 --;
 
-select s.accid, rm._sample_key, rm._rnaseqsetmember_key, rs._rnaseqset_key
-from samples s, gxd_htsample_rnaseqset rs, gxd_htsample_rnaseqsetmember rm
-where s._sample_key = rm._sample_key
-and rm._rnaseqset_key = rs._rnaseqset_key
-and s.accid = 'E-GEOD-55966'
-order by s.accid
-;
+--select s.accid, rm._sample_key, rm._rnaseqsetmember_key, rs._rnaseqset_key
+--from samples s, gxd_htsample_rnaseqset rs, gxd_htsample_rnaseqsetmember rm
+--where s._sample_key = rm._sample_key
+--and rm._rnaseqset_key = rs._rnaseqset_key
+--and s.accid = 'E-GEOD-55966'
+--order by s.accid
+--;
 
 -- number of bioreplicates
-select distinct s.accid, rm._rnaseqset_key, rs.groupset, count(rm._rnaseqsetmember_key)
-from samples s, gxd_htsample_rnaseqsetmember rm, gxd_htsample_rnaseqset rs
-where s._sample_key = rm._sample_key
-and rm._rnaseqset_key = rs._rnaseqset_key
-and s.accid in ('E-ERAD-401')
-group by s.accid, rm._rnaseqset_key, rs.groupset
-order by s.accid
-;
+--select distinct s.accid, rm._rnaseqset_key, rs.groupset, count(rm._rnaseqsetmember_key)
+--from samples s, gxd_htsample_rnaseqsetmember rm, gxd_htsample_rnaseqset rs
+--where s._sample_key = rm._sample_key
+--and rm._rnaseqset_key = rs._rnaseqset_key
+--and s.accid in ('E-ERAD-401')
+--group by s.accid, rm._rnaseqset_key, rs.groupset
+--order by s.accid
+--;
 
 select count(*) from gxd_htsample_rnaseqset where _createdby_key = 1673;
 select count(*) from gxd_htsample_rnaseqsetmember where _createdby_key = 1673;
