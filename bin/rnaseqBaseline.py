@@ -119,6 +119,35 @@ def init():
     db.sql('''create index idx2 on samples (expID)''', None)
     db.sql('''create index idx3 on samples (name)''', None)
 
+    #
+    # markers associated with > 1 ensembl id
+    #
+    markerEnsembls = {}
+    results = db.sql('''
+        WITH ensembls AS (
+        select a._object_key, count(a.accid)
+        from acc_accession a
+        where a._mgitype_key = 2
+        and a._logicaldb_key = 60
+        and a.preferred = 1
+        group by a._object_key having count(a.accid) > 1
+        )
+        select a.accid, e._object_key, m.symbol
+        from ensembls e, acc_accession a, mrk_marker m
+        where e._object_key = a._object_key
+        and a._mgitype_key = 2
+        and a._logicaldb_key = 60
+        and a.preferred = 1
+        and a._object_key = m._marker_key
+        order by m.symbol
+        ''', 'auto')
+    for r in results:
+        key = r['_object_key']
+        value = r
+        if key not in markerEnsembls:
+            markerEnsembls[key] = []
+        markerEnsembls[key].append(value)
+        
     return 0
 
 # end init()
@@ -319,7 +348,7 @@ def processSets():
 
             # other mismatch
             else:
-                print('skipping due to mismatch : %s\n' % (expID))
+                print('skipping due to mismatch : %s' % (expID))
                 print(checkAllDict)
                 print(checkNoSexDict)
 
@@ -380,8 +409,15 @@ def processCombined():
                 markerKey = tokens[1]
                 markerSymbol = tokens[2]
 
+                if markerKey in markerEnsembls:
+                    e = []
+                    for m in markerEnsembls[markerKey]:
+                        e.append(m['accid'])
+                    print('skipping: marker is associated with > 1 ensemblId in MGI: %s, %s, %s' % (expID, markerSymbol, ', '.join(e)))
+                    continue
+
                 if markerKey == '0':
-                    print('skipping: ensemblId/marker invalid %s, %s\n' % (expID, ensemblId))
+                    print('skipping: ensemblId is not associated with a marker, only has sequence association): %s, %s' % (expID, ensemblId))
                     continue
 
                 for g in range(len(groupSet)):
@@ -414,12 +450,12 @@ def execSetBCP():
 
     bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % \
     (bcpCommand, db.get_sqlServer(), db.get_sqlDatabase(), setTable, outputDir, setBcp)
-    print('%s\n' % bcpCmd)
+    print('%s' % bcpCmd)
     os.system(bcpCmd)
 
     bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % \
     (bcpCommand, db.get_sqlServer(), db.get_sqlDatabase(), memberTable, outputDir, memberBcp)
-    print('%s\n' % bcpCmd)
+    print('%s' % bcpCmd)
     os.system(bcpCmd)
 
     # reset the primary key sequence
@@ -440,7 +476,7 @@ def execCombinedBCP():
 
     bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % \
     (bcpCommand, db.get_sqlServer(), db.get_sqlDatabase(), combinedTable, outputDir, combinedBcp)
-    print('%s\n' % bcpCmd)
+    print('%s' % bcpCmd)
     os.system(bcpCmd)
 
     db.sql(''' select setval('gxd_htsample_rnaseqcombined_seq', (select max(_rnaseqcombined_key) from GXD_HTSample_RNASeqCombined)); ''', None)

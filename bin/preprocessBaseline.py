@@ -13,6 +13,18 @@
 #    EAE_GROUP_PP_FILE_TEMPLATE - path and template for processed eae files
 #    AES_SDRF_PP_FILE_TEMPLATE - path and template for processed eae files
 #
+# Sanity Checks
+# a) Input Experiment ID does not produce a ArrayExpress Sample (AES) file
+# b) Input Experiment ID does not produce an EA tpms file (EAT)
+# c) Input Experiment ID does not produce an EA configuration (Group) file (EAG)
+# d) Input Experiment ID not in the database
+# e) Experiments with no run column in the AES file i.e. no 'ENA_RUN' column
+# f) Experiments with no sample column in the AES file i.e. no 'Source Name' or 'ENA_SAMPLE' column
+#
+# not sure what about these?
+# g) EA Configuration file (EAG) Run ID not in the AES file
+# k) EA tpms experiment file (EAT) has a missing (blank) TPM value for a read
+# 
 # Inputs:
 #	1. Database: Baseline RNASeq Experiment set
 #	2. ArrayExpress files by experiment
@@ -24,11 +36,11 @@
 # 
 ###########################################################################
 
-import os	 	# for system to execute bcp, getenv
-import sys 	 	# to flush stdout
+import os
+import sys
 import xml.etree.ElementTree as ET
 import db
-import mgi_utils 	# for log start/end timestamp
+import mgi_utils
 
 # Expression Atlas Experiment file Template - name of file stored locally
 tpmsTemplate = '%s' % os.getenv('EAE_TPMS_LOCAL_FILE_TEMPLATE')
@@ -46,20 +58,14 @@ runToSampleDict = {}
 
 #
 # Purpose: loads a lookup of samples in the db for the given experiment
-#       because sample names are not uniq across experiments
 # Returns: 0
 # Assumes: Nothing
 # Effects: queries a database
 # Throws: Nothing
 #
-def loadSampleInDbDict(expID):
-    #
-    # ArrayExpress (excludes GEO) GXD HT Sample names for expID in the database
-    # {sampleID:[sampleKey1, sampleKeyN], ...}
-    #
-
-    global sampleInDbDict
-    sampleInDbDict = {}
+def loadSamples(expID):
+    global sampleInMGI
+    sampleInMGI = []
 
     results = db.sql('''
         select hts.name, hts._Sample_key
@@ -72,14 +78,11 @@ def loadSampleInDbDict(expID):
         ''' % expID, 'auto')
     for r in results:
         key = str.strip(r['name'])
-        value = r['_Sample_key']
-        if key not in sampleInDbDict:
-            sampleInDbDict[key] = []
-        sampleInDbDict[key].append(value)
+        sampleInMGI.append(key)
 
     return 0
 
-# end loadSampleInDbDict()
+# end loadSamples()
 
 #
 # Purpose: creates EAE_TPMS_PP_FILE_TEMPLATE file in BASELINEINPUTDIR folder for given expID
@@ -105,6 +108,7 @@ def ppEAETpmsFile(expID):
     try:
         fpEae = open(eaeFile, 'r')
     except:
+        print('skipping: missing -tpms.tsv file: %s' % (expID))
         return 1 # file does not exist
 
     #  create the output file
@@ -138,7 +142,7 @@ def ppEAETpmsFile(expID):
         ensemblID = str.strip(tokens[0])
 
         # if ensemblID is not in MGI, then set markerKey = 0
-        # will handle this later uring TPMS processing
+        # will handle this later during TPMS processing
         if ensemblID in ensemblDict:
             markerKey = ensemblDict[ensemblID][0]
         else:
@@ -176,25 +180,24 @@ def ppAESSdrfFile(expID):
 
     #  read the input file
     aesFile = aesTemplate % expID
-
     try:
         fpAes = open(aesFile, 'r')
     except:
+        print('skiiping: missing .sdrf.txt file: %s' % (expID))
         return 1 # file does not exist
 
     # process the header line
     #
     headerList = str.split(fpAes.readline(), '\t')
     if headerList == ['']: # means file is empty
-        print ('skipping: missing header: %s\n' % (expID))
+        print ('skipping: missing header: %s' % (expID))
         return 1
 
-    # load sampleInDbDict() for expID
-    loadSampleInDbDict(expID)
+    # load sampleInMGI() for expID
+    loadSamples(expID)
 
     # find the idx of the columns we want - they are not ordered
-    #
-    enaSampleIDX = None
+    sourceSampleIDX = None
     enaSampleIDX = None
     enaRunIDX = None
     for idx, colName in enumerate(headerList):
@@ -205,14 +208,17 @@ def ppAESSdrfFile(expID):
             enaSampleIDX = idx
         elif str.find(colName, 'ENA_RUN') != -1:
             enaRunIDX = idx
-    
+    if sourceSampleIDX == None:
+        print('skipping: missing Source Name column: %s' % (expID))
+        return 1
+    if enaRunIDX == None:
+        print('skipping: missing ENA_RUN column: %s' % (expID))
+        return 1
+
     # iterate thru the fpEae input file
     for line in fpAes.readlines():
 
         tokens = str.split(line, '\t')
-
-        if tokens[0] == 'Source Name':
-            continue
 
         sourceSample = None
         enaSample = None
@@ -221,35 +227,27 @@ def ppAESSdrfFile(expID):
         if sourceSampleIDX != None:
             sourceSample = str.strip(tokens[sourceSampleIDX])
 
+        # not every sample file contais enaSampleIDX column
         if enaSampleIDX != None:
             enaSample = str.strip(tokens[enaSampleIDX])
-
-        if enaRunIDX == None:
-            print('skipping: could not find ENA_RUN in header: %s\n' % (expID))
-            return 1
 
         if enaRunIDX != None:
             enaRun = str.strip(tokens[enaRunIDX])
 
-        if sourceSample == None or enaRun == None:
-            print('skipping : missing sourceSample : %s, enaRun : %s\n' % (sourceSample, enaRun))
-            return 1
-            
-        # skip of this source is a duplicate
+        # skip if this source is a duplicate; but don't report
         if enaRun in rawRunList:
-            #print('skipping : enaRun already processed : %s,%s' % (expID, enaRun))
+            #print('skipping: enaRun already processed: %s,%s' % (expID, enaRun))
             continue
 
-        if sourceSample not in sampleInDbDict:
-            if enaSample != None and enaSample in sampleInDbDict:
+        if sourceSample not in sampleInMGI:
+            if enaSample != None and enaSample in sampleInMGI:
                 sourceSample = enaSample
             else:
-                print('skipping sample is not in MGI: %s, sourceSample = %s, enaSample = %s\n' % (expID, sourceSample, str(enaSample)))
+                print('skipping: sample is not in MGI: %s, sourceSample = %s, enaSample = %s' % (expID, sourceSample, str(enaSample)))
                 continue
 
         rawRunList.append(enaRun)
 
-        #print('Source/Run: ', sourceSample, enaRun)
         key = enaRun
         value = sourceSample
         if key not in runToSampleDict:
@@ -281,7 +279,11 @@ def ppEAEGroupFile(expID):
     print('in ppEAEGroupFile(expID): %s' % expID)
 
     #  read the input file
-    eaeFile = groupTemplate % expID
+    try:
+        eaeFile = groupTemplate % expID
+    except:
+        print('skipping: missing -configuration.xml: %s' % (expID))
+        return 1 # file does not exist
 
     #  create the output file
     ppFile = groupPPTemplate % expID
@@ -378,8 +380,6 @@ def process():
 #
 
 print('start time: %s' %  mgi_utils.date())
-
 if process() != 0:
      exit(1, 'Error in process()\n')
-
 print('end time: %s' %  mgi_utils.date())
