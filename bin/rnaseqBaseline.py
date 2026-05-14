@@ -4,7 +4,7 @@
 #
 # processSets():
 #
-# For each Experiments from Baseline RNSeq MGI_Set
+# For each Experiment from Baseline RNSeq MGI_Set
 #   compare GXD_HTSample to BASELINEINPUTDIR/xxx.group.txt
 #       GXD_HTSample : name (sample), age, organism, sex, stage, emapa, genotype
 #       xxx.group.txt : group (g1, g2, etc.)
@@ -17,15 +17,15 @@
 #
 # processCombined():
 #
-# For each Experiments from Baseline RNSeq MGI_Set
-#   Save the number of bioreplicates (replicates{})
-#   For file in tpms
-#       determine aveQnTpm, level, replicatesCount from replicates{}
-#       load into GXD_HTSample_RNASeqCombined
+# For each Experiment from Baseline RNSeq MGI_Set
+#   group the number of bioreplicates from RNASeqSet, RNASeqSetMember (replicates())
+#   for file in BASELINEINPUTDIR/xxx.tpms.txt
+#       determine aveQnTpm, level, replicatesCount (from replicates())
+#   load into GXD_HTSample_RNASeqCombined
 #
 # Inputs:
 #	MGI_Set = Baseline RNASeq Load Experiment
-#   Pre-Processed Baseline files: BASELINEINPUTDIR
+#   Pre-Processed Baseline files: BASELINEINPUTDIR/xxx.group.txt, xxx.tpms.txt
 #
 # Outputs: BASELINEOUTPUTDIR
 #   GXD_HTSample_RNASeqSet
@@ -440,6 +440,7 @@ def processCombined():
             continue
 
         # read the header from fpTpms
+        # generate a groupSet
         headerList = str.split(fpTpms.readline(), '\t')
         groupSet = []
         for h in headerList[3:]:
@@ -447,6 +448,13 @@ def processCombined():
 
         for line in fpTpms.readlines():
 
+            # if fpTpms/groupSet is not in RNASeqSet/replicates, then skip
+            for g in range(len(groupSet)):
+                    gKey = groupSet[g]
+                    if gKey not in replicates:
+                        print('skipping: replicates does not exist: %s, %s, %s' % (expID, ensemblId, gKey))
+                        continue
+                
             tokens = str.split(line[:-1], TAB)
             ensemblId = tokens[0]
 
@@ -475,12 +483,7 @@ def processCombined():
                 gKey = groupSet[g]
                 aveQnTpm = float(tokens[g+3])
                 levelKey = calcLevel(aveQnTpm)
-
-                try:
-                    replicatesCount = replicates[gKey][0]
-                except:
-                    print('skipping: replicates does not exist: %s, %s, %s' % (expID, ensemblId, gKey))
-                    continue
+                replicatesCount = replicates[gKey][0]
 
                 fpCombined.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
                             combinedKey, TAB, markerKey, TAB, levelKey, TAB, \
