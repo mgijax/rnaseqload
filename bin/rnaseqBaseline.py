@@ -448,13 +448,6 @@ def processCombined():
 
         for line in fpTpms.readlines():
 
-            # if fpTpms/groupSet is not in RNASeqSet/replicates, then skip
-            #for g in range(len(groupSet)):
-            #        gKey = groupSet[g]
-            #        if gKey not in replicates:
-            #            print('skipping: replicates does not exist: %s, %s' % (expID, gKey))
-            #            continue
-                
             tokens = str.split(line[:-1], TAB)
             ensemblId = tokens[0]
 
@@ -481,6 +474,7 @@ def processCombined():
 
             for g in range(len(groupSet)):
                 gKey = groupSet[g]
+                # if a mismatch fails, then the groupSet will not be in the RNASeqSet
                 if gKey not in replicates:
                     continue
                 avgQnTpm = float(tokens[g+3])
