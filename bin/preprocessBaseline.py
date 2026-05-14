@@ -5,26 +5,14 @@
 # Usage: rnaseqPPBaselineload.py
 #
 # Env Vars:
-#	 BASELINEINPUTDIR - intermediate files generated from RAW input files
+#	 BASELINEINPUTDIR - post processing files generated from RAW input files
 #	 BASELINERAW_INPUTDIR - files downloaded from source
 #	 BASELINEOUTPUTDIR - rnaseq bcp files
 #	 INSTALLDIR - for path to run_join script	 
 #	 EAE_TPMS_PP_FILE_TEMPLATE - path and template for processed eae files
 #    EAE_GROUP_PP_FILE_TEMPLATE - path and template for processed eae files
-#    AES_SDRF_PP_FILE_TEMPLATE - path and template for processed eae files
+#    AES_SDRF_LOCAL_FILE_TEMPLATE - path and template for processed eae files
 #
-# Sanity Checks
-# a) Input Experiment ID does not produce a ArrayExpress Sample (AES) file
-# b) Input Experiment ID does not produce an EA tpms file (EAT)
-# c) Input Experiment ID does not produce an EA configuration (Group) file (EAG)
-# d) Input Experiment ID not in the database
-# e) Experiments with no run column in the AES file i.e. no 'ENA_RUN' column
-# f) Experiments with no sample column in the AES file i.e. no 'Source Name' or 'ENA_SAMPLE' column
-#
-# not sure what about these?
-# g) EA Configuration file (EAG) Run ID not in the AES file
-# k) EA tpms experiment file (EAT) has a missing (blank) TPM value for a read
-# 
 # Inputs:
 #	1. Database: Baseline RNASeq Experiment set
 #	2. ArrayExpress files by experiment
@@ -32,7 +20,9 @@
 #	4. Configuration (see rnaseqload.config)
 #
 # Outputs:
-#	 1. PP file for each experiment aes and eae
+#   BASELINEINPUTDIR
+#       xxx.group.txt
+#       xxx.tpms.txt
 # 
 ###########################################################################
 
@@ -138,7 +128,6 @@ def ppEAETpmsFile(expID):
     for line in fpEae.readlines():
 
         tokens = str.split(line, '\t')
-
         ensemblID = str.strip(tokens[0])
 
         # if ensemblID is not in MGI, then set markerKey = 0
@@ -171,7 +160,6 @@ def ppEAETpmsFile(expID):
 # Effects: creates the runToSampleDict file (runID -> Sample ID)
 # Throws: Nothing
 #
-
 def ppAESSdrfFile(expID):
 
     global rawRunList, runToSampleDict
@@ -353,19 +341,19 @@ def process():
 
         expID = str.strip(r['accid'])
 
-        # processPre the eae/tpms file for this expID
+        # process the eae/tpms file for this expID
         rc = ppEAETpmsFile(expID)
         if rc != 0:
             print('processing EAE tpms file returned rc %s, skipping file for %s' % (rc, expID))
             continue
 
-        # processPre the aes/sdrf file for this expID to create the runToSampleDict
+        # process the aes/sdrf file for this expID to create the runToSampleDict
         rc = ppAESSdrfFile(expID)
         if rc != 0:
             print('processing AES sdrf file returned rc %s, skipping file for %s' % (rc, expID))
             continue
 
-        # processPre the eae/group file for this expID
+        # process the eae/group file for this expID
         rc = ppEAEGroupFile(expID)
         if rc != 0:
             print('processing EAE group file returned rc %s, skipping file for %s' % (rc, expID))
