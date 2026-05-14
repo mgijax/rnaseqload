@@ -17,6 +17,12 @@
 #
 # processCombined():
 #
+# For each Experiments from Baseline RNSeq MGI_Set
+#   Save the number of bioreplicates (replicates{})
+#   For file in tpms
+#       determine aveQnTpm, level, replicatesCount from replicates{}
+#       load into GXD_HTSample_RNASeqCombined
+#
 # Inputs:
 #	MGI_Set = Baseline RNASeq Load Experiment
 #   Pre-Processed Baseline files: BASELINEINPUTDIR
@@ -24,6 +30,7 @@
 # Outputs: BASELINEOUTPUTDIR
 #   GXD_HTSample_RNASeqSet
 #   GXD_HTSample_RNASeqSetMember
+#   GXD_HTSample_RNASeqCombined
 # 
 ###########################################################################
 
@@ -70,6 +77,9 @@ setKey = None
 memberKey = None
 combinedKey = None
 
+ensemblMarkers = {}
+markerEnsembls = {}
+
 #
 # Level bins
 #
@@ -82,6 +92,7 @@ BELOW_CUTOFF = 50430892
 # initialize all
 #
 def init():
+    global ensemblMarkers, markerEnsembls
 
     #
     # baseline experiments
@@ -120,6 +131,35 @@ def init():
     db.sql('''create index idx3 on samples (name)''', None)
 
     #
+    # ensembl id associated with > 1 marker
+    #
+    ensemblMarkers = {}
+    results = db.sql('''
+        WITH ensembls AS (
+        select a.accid, count(a._object_key)
+        from acc_accession a
+        where a._mgitype_key = 2
+        and a._logicaldb_key = 60
+        and a.preferred = 1
+        group by a.accid having count(a._object_key) > 1
+        )
+        select a.accid, a._object_key, m.symbol
+        from ensembls e, acc_accession a, mrk_marker m
+        where e.accid = a.accid
+        and a._mgitype_key = 2
+        and a._logicaldb_key = 60
+        and a.preferred = 1
+        and a._object_key = m._marker_key
+        order by m.symbol
+        ''', 'auto')
+    for r in results:
+        key = r['accid']
+        value = r
+        if key not in ensemblMarkers:
+            ensemblMarkers[key] = []
+        ensemblMarkers[key].append(value)
+        
+    #
     # markers associated with > 1 ensembl id
     #
     markerEnsembls = {}
@@ -132,7 +172,7 @@ def init():
         and a.preferred = 1
         group by a._object_key having count(a.accid) > 1
         )
-        select a.accid, e._object_key, m.symbol
+        select a.accid, a._object_key, m.symbol
         from ensembls e, acc_accession a, mrk_marker m
         where e._object_key = a._object_key
         and a._mgitype_key = 2
@@ -226,7 +266,6 @@ def processSets():
     #
     # for each expID
     #
-    #results = db.sql(''' select distinct s.expID from samples s where expID in ('E-MTAB-7637') ''', 'auto')
     results = db.sql(''' select distinct s.expID from samples s ''', 'auto')
     for r in results:
 
@@ -241,20 +280,22 @@ def processSets():
 
         try:
             fpGroup = open('%s/%s.group.txt' % (inputDir, expID), 'r')
-            for line in fpGroup.readlines():
-                tokens = str.split(line, TAB)
-                groupSet = tokens[0]
-                sample = "'" + str.strip(tokens[3]) + "'"
-                key = groupSet
-                value = sample
-                if sample != prevSample:
-                    if key not in groupDict:
-                        groupDict[key] = []
-                    groupDict[key].append(value)
-                    prevSample = sample
-            fpGroup.close()
         except:
             print('experiment does not exist in %s/%s.group.txt' % (inputDir, expID))
+            continue
+        
+        for line in fpGroup.readlines():
+            tokens = str.split(line, TAB)
+            groupSet = tokens[0]
+            sample = "'" + str.strip(tokens[3]) + "'"
+            key = groupSet
+            value = sample
+            if sample != prevSample:
+                if key not in groupDict:
+                    groupDict[key] = []
+                groupDict[key].append(value)
+                prevSample = sample
+        fpGroup.close()
 
         #
         # for each group
@@ -348,7 +389,7 @@ def processSets():
 
             # other mismatch
             else:
-                print('skipping due to mismatch : %s' % (expID))
+                print('skipping due to mismatch: %s' % (expID))
                 print(checkAllDict)
                 print(checkNoSexDict)
 
@@ -368,8 +409,7 @@ def processCombined():
     #
     # for each expID
     #
-    results = db.sql(''' select expID from experiments where expid = 'E-GEOD-55966' ''', 'auto')
-    #results = db.sql(''' select expID from experiments ''', 'auto')
+    results = db.sql(''' select expID from experiments ''', 'auto')
     for r in results:
 
         expID = r['expID']
@@ -395,47 +435,61 @@ def processCombined():
         #
         try:
             fpTpms = open('%s/%s.tpms.txt' % (inputDir, expID), 'r')
+        except:
+            print('skipping: experiment does not exist in %s/%s.tpms.txt' % (inputDir, expID))
+            continue
 
-            # read the header from fpTpms
-            headerList = str.split(fpTpms.readline(), '\t')
-            groupSet = []
-            for h in headerList[3:]:
-                groupSet.append(str.strip(h))
+        # read the header from fpTpms
+        headerList = str.split(fpTpms.readline(), '\t')
+        groupSet = []
+        for h in headerList[3:]:
+            groupSet.append(str.strip(h))
 
-            for line in fpTpms.readlines():
-                tokens = str.split(line[:-1], TAB)
-                ensemblId = tokens[0]
+        for line in fpTpms.readlines():
 
-                markerKey = tokens[1]
-                markerSymbol = tokens[2]
+            tokens = str.split(line[:-1], TAB)
+            ensemblId = tokens[0]
 
-                if markerKey in markerEnsembls:
-                    e = []
-                    for m in markerEnsembls[markerKey]:
-                        e.append(m['accid'])
-                    print('skipping: marker is associated with > 1 ensemblId in MGI: %s, %s, %s' % (expID, markerSymbol, ', '.join(e)))
-                    continue
+            if ensemblId in ensemblMarkers:
+                e = []
+                for m in ensemblMarkers[ensemblId]:
+                    e.append(m['symbol'])
+                print('skipping: ensembl id is associated with > 1 marker in MGI: %s, %s, %s' % (expID, ensemblId, ', '.join(e)))
+                continue
 
-                if markerKey == '0':
-                    print('skipping: ensemblId is not associated with a marker, only has sequence association): %s, %s' % (expID, ensemblId))
-                    continue
+            markerKey = tokens[1]
+            markerSymbol = tokens[2]
+ 
+            if markerKey in markerEnsembls:
+                e = []
+                for m in markerEnsembls[markerKey]:
+                    e.append(m['accid'])
+                print('skipping: marker is associated with > 1 ensemblId in MGI: %s, %s, %s' % (expID, markerSymbol, ', '.join(e)))
+                continue
 
-                for g in range(len(groupSet)):
-                    gKey = groupSet[g]
-                    aveQnTpm = float(tokens[g+3])
-                    levelKey = calcLevel(aveQnTpm)
+            if markerKey == '0':
+                print('skipping: ensemblId not in MGI/not associated with a marker: %s, %s' % (expID, ensemblId))
+                continue
+
+            for g in range(len(groupSet)):
+                gKey = groupSet[g]
+                aveQnTpm = float(tokens[g+3])
+                levelKey = calcLevel(aveQnTpm)
+
+                try:
                     replicatesCount = replicates[gKey][0]
+                except:
+                    print('skipping: replicates does not exist: %s, %s, %s' % (expID, ensemblId, gKey))
+                    continue
 
-                    fpCombined.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
+                fpCombined.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
                             combinedKey, TAB, markerKey, TAB, levelKey, TAB, \
                             replicatesCount, TAB, aveQnTpm, TAB, \
                             createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
     
-                    combinedKey += 1
+                combinedKey += 1
 
-            fpTpms.close()
-        except:
-            print('skipping: experiment does not exist in %s/%s.tpms.txt' % (inputDir, expID))
+        fpTpms.close()
 
     fpCombined.close()
 
