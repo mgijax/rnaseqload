@@ -301,7 +301,7 @@ def processSets():
             # only mismatch is due to Sex
             elif len(checkAllDict) > 1 and len(checkNoSexDict) == 1:
 
-                print('mismatch sex only')
+                #print('mismatch sex only')
                 sexKey = 315166
 
                 fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\

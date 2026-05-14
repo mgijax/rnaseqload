@@ -98,7 +98,7 @@ echo "Step 6: run loadSeqSetCache.sh" >> ${BASELINELOG} 2>&1
 ${RNASEQLOAD}/bin/loadSeqSetCache.sh >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
-echo "Step 7: process withdrawn markers"
+echo "Step 7: process withdrawn markers" >> ${BASELINELOG} 2>&1
 ${RNASEQLOAD}/bin/processWithdrawnMarkers.sh >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
