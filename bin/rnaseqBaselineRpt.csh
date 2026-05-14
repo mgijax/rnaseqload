@@ -97,6 +97,8 @@ order by s.accid
 select count(*) from gxd_htsample_rnaseqset where _createdby_key = 1673;
 select count(*) from gxd_htsample_rnaseqsetmember where _createdby_key = 1673;
 select count(*) from gxd_htsample_rnaseqcombined where _createdby_key = 1673;
+select _createdby_key, count(*) from gxd_htsample_rnaseqset group by _createdby_key;
+select _createdby_key, count(*) from gxd_htsample_rnaseqcombined group by _createdby_key;
 
 EOSQL
 

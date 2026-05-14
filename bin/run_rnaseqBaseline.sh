@@ -82,14 +82,16 @@ echo "Step 3: run baseline MGI_Set, MGI_SetMember" >> ${BASELINELOG} 2>&1
 ${RNASEQLOAD}/bin/run_setbaseline.sh >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
-echo "Step 4: run baseline pre processing (input_baseline)" 
+echo "Step 4: run baseline pre processing (input_baseline)" >> ${BASELINELOG} 2>&1
 rm -rf ${BASELINEINPUTDIR}/*
 ${PYTHON} ${RNASEQLOAD}/bin/preprocessBaseline.py >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
 echo "Step 5: run baseline: RNASeqSet, RNASeq_SetMember, RNASeqCombined" >> ${BASELINELOG} 2>&1
 rm -rf ${BASELINEOUTPUTDIR}/*
+${MGD_DBSCHEMADIR}/index/GXD_HTSample_RNASeqCombined_drop.object >> >> ${BASELINELOG} 2>&1
 ${PYTHON} ${RNASEQLOAD}/bin/rnaseqBaseline.py >> ${BASELINELOG} 2>&1
+${MGD_DBSCHEMADIR}/index/GXD_HTSample_RNASeqCombined_create.object >> >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
 echo "Step 6: run loadSeqSetCache.sh" >> ${BASELINELOG} 2>&1
