@@ -94,6 +94,31 @@ and hts._experiment_key = e._experiment_key
 --order by s.accid
 --;
 
+select a.accid, count(a._object_key)
+from acc_accession a
+where a._mgitype_key = 2
+and a._logicaldb_key = 60
+and a.preferred = 1
+group by a.accid having count(a._object_key) > 1
+;
+
+select a._object_key, m.symbol, count(a.accid)
+into temp table ensembl2
+from acc_accession a, mrk_marker m
+where a._mgitype_key = 2
+and a._logicaldb_key = 60
+and a.preferred = 1
+and a._object_key = m._marker_key
+group by a._object_key, m.symbol having count(a.accid) > 1
+;
+select a.accid, e._object_key, e.symbol
+from ensembl2 e, acc_accession a
+where e._object_key = a._object_key
+and a._mgitype_key = 2
+and a._logicaldb_key = 60
+and a.preferred = 1
+;
+
 select count(*) from gxd_htsample_rnaseqset where _createdby_key = 1673;
 select count(*) from gxd_htsample_rnaseqsetmember where _createdby_key = 1673;
 select count(*) from gxd_htsample_rnaseqcombined where _createdby_key = 1673;
