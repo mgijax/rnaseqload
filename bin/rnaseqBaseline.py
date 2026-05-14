@@ -449,11 +449,11 @@ def processCombined():
         for line in fpTpms.readlines():
 
             # if fpTpms/groupSet is not in RNASeqSet/replicates, then skip
-            for g in range(len(groupSet)):
-                    gKey = groupSet[g]
-                    if gKey not in replicates:
-                        print('skipping: replicates does not exist: %s, %s, %s' % (expID, ensemblId, gKey))
-                        continue
+            #for g in range(len(groupSet)):
+            #        gKey = groupSet[g]
+            #        if gKey not in replicates:
+            #            print('skipping: replicates does not exist: %s, %s' % (expID, gKey))
+            #            continue
                 
             tokens = str.split(line[:-1], TAB)
             ensemblId = tokens[0]
@@ -481,13 +481,15 @@ def processCombined():
 
             for g in range(len(groupSet)):
                 gKey = groupSet[g]
+                if gKey not in replicates:
+                    continue
                 avgQnTpm = float(tokens[g+3])
                 levelKey = calcLevel(avgQnTpm)
                 countMember = replicates[gKey][0]['countMember']
                 rnaSeqSetKey = replicates[gKey][0]['_rnaseqset_key']
 
                 fpCombined.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
-                            combinedKey, TAB, rnaSeqSetKey + TAB + markerKey, TAB, levelKey, TAB, \
+                            combinedKey, TAB, rnaSeqSetKey, TAB, markerKey, TAB, levelKey, TAB, \
                             countMember, TAB, avgQnTpm, TAB, \
                             createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
     
