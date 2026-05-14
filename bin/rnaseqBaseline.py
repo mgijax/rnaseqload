@@ -2,7 +2,7 @@
 #
 # Purpose:
 #
-# processSets():
+# processRNASet():
 #
 # For each Experiment from Baseline RNSeq MGI_Set
 #   compare GXD_HTSample to BASELINEINPUTDIR/xxx.group.txt
@@ -20,7 +20,7 @@
 # For each Experiment from Baseline RNSeq MGI_Set
 #   group the number of bioreplicates from RNASeqSet, RNASeqSetMember (replicates())
 #   for file in BASELINEINPUTDIR/xxx.tpms.txt
-#       determine aveQnTpm, level, replicatesCount (from replicates())
+#       determine avgQnTpm, level, countMember (from replicates())
 #   load into GXD_HTSample_RNASeqCombined
 #
 # Inputs:
@@ -195,7 +195,7 @@ def init():
 #
 # initialize Set
 #
-def initSet():
+def initRNASet():
     global fpSet, fpMember
     global setKey, memberKey
 
@@ -210,7 +210,7 @@ def initSet():
 
     return 0
 
-# end initSet()
+# end initRNASet()
 
 #
 # initialize Combined
@@ -230,17 +230,17 @@ def initCombined():
 
 #
 # calculate the level for the avgrage QN TPM
-# returns proper level key for aveQnTpm
+# returns proper level key for avgQnTpm
 #
-def calcLevel(aveQnTpm):
+def calcLevel(avgQnTpm):
     level = None
-    if aveQnTpm < 0.5:	
+    if avgQnTpm < 0.5:	
         level = BELOW_CUTOFF 
-    elif aveQnTpm >=  0.5 and aveQnTpm <= 10:
+    elif avgQnTpm >=  0.5 and avgQnTpm <= 10:
         level = LOW
-    elif aveQnTpm >=  11 and aveQnTpm <= 1000:
+    elif avgQnTpm >=  11 and avgQnTpm <= 1000:
         level = MED
-    else:  # aveQnTpm > 1000:
+    else:  # avgQnTpm > 1000:
         level = HIGH
 
     return  level
@@ -249,7 +249,7 @@ def calcLevel(aveQnTpm):
 #
 # create BCP files for RNASeqSet, RNASeqSetMember
 #
-def processSets():
+def processRNASet():
     global fpSet, fpMember
     global setKey, memberKey
 
@@ -398,7 +398,7 @@ def processSets():
 
     return 0
 
-# end processSets()
+# end processRNASet()
 
 #
 # create BCP files for RNASeqCombined
@@ -417,7 +417,7 @@ def processCombined():
         # number of bioreplicates per experiment by groupSet
         replicates = {}
         results = db.sql('''
-                select distinct s.expID, rm._rnaseqset_key, rs.groupset, count(rm._rnaseqsetmember_key) as replicatesCount
+                select distinct s.expID, rm._rnaseqset_key, rs.groupset, count(rm._rnaseqsetmember_key) as countMember
                 from samples s, gxd_htsample_rnaseqsetmember rm, gxd_htsample_rnaseqset rs
                 where s._sample_key = rm._sample_key
                 and rm._rnaseqset_key = rs._rnaseqset_key
@@ -426,7 +426,7 @@ def processCombined():
             ''' % (expID), 'auto')
         for r in results:
             key = r['groupset']
-            value = r['replicatesCount']
+            value = r['countMember']
             replicates[key] = []
             replicates[key].append(value)
 
@@ -481,13 +481,13 @@ def processCombined():
 
             for g in range(len(groupSet)):
                 gKey = groupSet[g]
-                aveQnTpm = float(tokens[g+3])
-                levelKey = calcLevel(aveQnTpm)
-                replicatesCount = replicates[gKey][0]
+                avgQnTpm = float(tokens[g+3])
+                levelKey = calcLevel(avgQnTpm)
+                countMember = replicates[gKey][0]
 
                 fpCombined.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
                             combinedKey, TAB, markerKey, TAB, levelKey, TAB, \
-                            replicatesCount, TAB, aveQnTpm, TAB, \
+                            countMember, TAB, avgQnTpm, TAB, \
                             createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
     
                 combinedKey += 1
@@ -548,8 +548,8 @@ def execCombinedBCP():
 #
 
 init()
-initSet()
-processSets()
+initRNASet()
+processRNASet()
 execSetBCP()
 initCombined()
 processCombined()
