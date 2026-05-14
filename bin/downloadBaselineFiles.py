@@ -13,7 +13,7 @@
 #	 4. DOWNLOAD_OK - if exists then error-free download
 #
 # Inputs:
-#	1. Database - the experiments in the 'Baseline RNA Seq Load Experiment' Set
+#	1. Database - the experiments in the 'Baseline RNASeq Load Experiments' Set
 #		and the experiments loaded 
 #	2. Configuration (see rnaseqload.config)
 #

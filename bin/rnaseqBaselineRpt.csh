@@ -85,14 +85,14 @@ and hts._experiment_key = e._experiment_key
 --;
 
 -- number of bioreplicates
---select distinct s.accid, rm._rnaseqset_key, rs.groupset, count(rm._rnaseqsetmember_key)
---from samples s, gxd_htsample_rnaseqsetmember rm, gxd_htsample_rnaseqset rs
---where s._sample_key = rm._sample_key
---and rm._rnaseqset_key = rs._rnaseqset_key
+select distinct s.accid, rm._rnaseqset_key, rs.groupset, count(rm._rnaseqsetmember_key)
+from samples s, gxd_htsample_rnaseqsetmember rm, gxd_htsample_rnaseqset rs
+where s._sample_key = rm._sample_key
+and rm._rnaseqset_key = rs._rnaseqset_key
 --and s.accid in ('E-ERAD-401')
---group by s.accid, rm._rnaseqset_key, rs.groupset
---order by s.accid
---;
+group by s.accid, rm._rnaseqset_key, rs.groupset
+order by s.accid
+;
 
 select a.accid, count(a._object_key)
 from acc_accession a
@@ -125,6 +125,25 @@ select count(*) from gxd_htsample_rnaseqsetmember where _createdby_key = 1673;
 select count(*) from gxd_htsample_rnaseqcombined where _createdby_key = 1673;
 select _createdby_key, count(*) from gxd_htsample_rnaseqset group by _createdby_key;
 select _createdby_key, count(*) from gxd_htsample_rnaseqcombined group by _createdby_key;
+
+select r._experiment_key, count(*) as numResults
+into temp table a
+from gxd_htsample_rnaseqset_cache rc, gxd_htsample_rnaseqset r, gxd_htsample_rnaseqcombined m, mrk_marker mm
+where rc._rnaseqset_key = r._rnaseqset_key
+and rc._rnaseqcombined_key = m._rnaseqcombined_key
+and m._marker_key = mm._marker_key
+and mm._marker_status_key = 1
+group by r._experiment_key
+;
+
+select r._experiment_key, count(*) as numResults
+into temp table b
+from gxd_htsample_rnaseqset r, gxd_htsample_rnaseqcombined m, mrk_marker mm
+where r._rnaseqset_key = m._rnaseqset_key
+and m._marker_key = mm._marker_key
+and mm._marker_status_key = 1
+group by r._experiment_key
+;
 
 EOSQL
 

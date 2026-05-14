@@ -426,7 +426,7 @@ def processCombined():
             ''' % (expID), 'auto')
         for r in results:
             key = r['groupset']
-            value = r['countMember']
+            value = r
             replicates[key] = []
             replicates[key].append(value)
 
@@ -483,10 +483,11 @@ def processCombined():
                 gKey = groupSet[g]
                 avgQnTpm = float(tokens[g+3])
                 levelKey = calcLevel(avgQnTpm)
-                countMember = replicates[gKey][0]
+                countMember = replicates[gKey][0]['countMember']
+                rnaSeqSetKey = replicates[gKey][0]['_rnaseqset_key']
 
-                fpCombined.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
-                            combinedKey, TAB, markerKey, TAB, levelKey, TAB, \
+                fpCombined.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
+                            combinedKey, TAB, rnaSeqSetKey + TAB + markerKey, TAB, levelKey, TAB, \
                             countMember, TAB, avgQnTpm, TAB, \
                             createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
     
