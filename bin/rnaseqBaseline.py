@@ -45,6 +45,7 @@ db.setTrace(True)
 bcpCommand = os.getenv('PG_DBUTILS') + '/bin/bcpin.csh'
 bcpCmdList = []
 
+logDir = os.getenv('LOGDIR')
 inputDir = os.getenv('BASELINEINPUTDIR')
 outputDir = os.getenv('BASELINEOUTPUTDIR')
 
@@ -56,9 +57,12 @@ setBcp = '%s.bcp' % setTable
 memberBcp = '%s.bcp' % memberTable
 combinedBcp = '%s.bcp' % combinedTable
 
-fpSet = None	# created in init()
+fpSet = None
 fpMember = None
 fpCombined = None
+fpErrorEnsembl = None
+fpErrorResolved = None
+fpErrorUnResolved = None
 
 provider = 'Expression Atlas'
 
@@ -196,11 +200,13 @@ def init():
 # initialize Set
 #
 def initRNASet():
-    global fpSet, fpMember
+    global fpSet, fpMember, fpErrorResolved, fpErrorUnresolved
     global setKey, memberKey
 
     fpSet = open('%s/%s' % (outputDir, setBcp), 'w')
     fpMember =  open('%s/%s' % (outputDir, memberBcp), 'w')
+    fpErrorResolved = open('%s/mismachResolved.error' % (logDir), 'w')
+    fpErrorUnresolved = open('%s/mismatchUnresolved.error' % (logDir), 'w')
 
     results = db.sql('''select nextval('gxd_htsample_rnaseqset_seq') as maxKey ''', 'auto')
     setKey = results[0]['maxKey']
@@ -216,16 +222,15 @@ def initRNASet():
 # initialize Combined
 #
 def initCombined():
-    global fpCombined
+    global fpCombined, fpErrorEnsembl
     global combinedKey
 
-    fpCombined =  open('%s/%s' % (outputDir, combinedBcp), 'w')
+    fpCombined = open('%s/%s' % (outputDir, combinedBcp), 'w')
+    fpErrorEnsembl = open('%s/ensembl.error' % (logDir), 'w')
+    fpErrorEnsembl.write('ensemblId not in MGI/not associated with a marker')
 
     results = db.sql('''select nextval('gxd_htsample_rnaseqcombined_seq') as maxKey ''', 'auto')
     combinedKey = results[0]['maxKey']
-
-    db.sql(''' ALTER TABLE mgd.GXD_HTSample_RNASeqCombined DROP CONSTRAINT GXD_HTSample_RNASeqCombined_pkey CASCADE; ''', None)
-    db.commit()
 
     return 0
 
@@ -253,8 +258,11 @@ def calcLevel(avgQnTpm):
 # create BCP files for RNASeqSet, RNASeqSetMember
 #
 def processRNASet():
-    global fpSet, fpMember
+    global fpSet, fpMember, fpErrorResolved, fpErrorUnresolved
     global setKey, memberKey
+
+    resolvedError = []
+    unresolvedError = []
 
     db.sql('''
         select n._object_key as _sample_key, n.note 
@@ -357,7 +365,6 @@ def processRNASet():
             # no mismatch
             if len(checkAllDict) == 1:
 
-                #print('no mismatch')
                 fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
                     setKey, TAB, expKey, TAB, provider, TAB, groupSet, TAB, \
                     age, TAB, orgKey, TAB, sexKey, TAB, \
@@ -374,7 +381,6 @@ def processRNASet():
             # only mismatch is due to Sex
             elif len(checkAllDict) > 1 and len(checkNoSexDict) == 1:
 
-                #print('mismatch sex only')
                 sexKey = 315166
 
                 fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
@@ -390,14 +396,24 @@ def processRNASet():
 
                 setKey += 1
 
+                if expID not in resolvedError:
+                    resolvedError.append(expID)
+
             # other mismatch
             else:
-                print('skipping due to mismatch: %s' % (expID))
-                print(checkAllDict)
-                print(checkNoSexDict)
+                if expID not in unresolvedError:
+                    unresolvedError.append(expID)
+                #print(checkAllDict)
+                #print(checkNoSexDict)
 
     fpSet.close()
     fpMember.close()
+
+    fpErrorResolved.write('\n'.join(resolvedError) + '\n')
+    fpErrorResolved.close()
+
+    fpErrorUnresolved.write('\n'.join(unresolvedError) + '\n')
+    fpErrorUnresolved.close()
 
     return 0
 
@@ -407,7 +423,10 @@ def processRNASet():
 # create BCP files for RNASeqCombined
 #
 def processCombined():
-    global fpCombined, combinedKey
+    global fpCombined, fpErrorEnsembl
+    global combinedKey
+
+    ensemblError = []
 
     #
     # for each expID
@@ -472,7 +491,8 @@ def processCombined():
                 continue
 
             if markerKey == '0':
-                print('skipping: ensemblId not in MGI/not associated with a marker: %s, %s' % (expID, ensemblId))
+                if ensemblId not in ensemblError:
+                    ensemblError.append(ensemblId)
                 continue
 
             for g in range(len(groupSet)):
@@ -495,6 +515,9 @@ def processCombined():
         fpTpms.close()
 
     fpCombined.close()
+
+    fpErrorEnsembl.write('\n'.join(ensemblError) + '\n')
+    fpErrorEnsembl.close()
 
     return 0
 
@@ -531,6 +554,9 @@ def execSetBCP():
 #
 def execCombinedBCP():
 
+    db.sql(''' ALTER TABLE mgd.GXD_HTSample_RNASeqCombined DROP CONSTRAINT GXD_HTSample_RNASeqCombined_pkey CASCADE; ''', None)
+    db.commit()
+
     bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % \
     (bcpCommand, db.get_sqlServer(), db.get_sqlDatabase(), combinedTable, outputDir, combinedBcp)
     print('%s' % bcpCmd)
@@ -553,8 +579,8 @@ def execCombinedBCP():
 init()
 initRNASet()
 processRNASet()
-execSetBCP()
+#execSetBCP()
 initCombined()
 processCombined()
-execCombinedBCP()
+#execCombinedBCP()
 
