@@ -14,6 +14,6 @@ setenv SETOUTPUTDIR     ${LOADDIR}
 setenv SETDATADIR       ${LOADDIR}
 setenv SETINPUTFILE	${SETDATADIR}/baselinesetload.txt
 setenv SETLOG		${SETDATADIR}/baselinesetload.log
-setenv SETNAME		"Baseline RNASeq Load Experiment"
+setenv SETNAME		"Baseline RNASeq Load Experiments"
 setenv SETTYPE		"GXD HT Experiment"  # MGI Type
 setenv CREATEDBY	"cms"

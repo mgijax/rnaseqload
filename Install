@@ -73,6 +73,14 @@ then
 fi
 
 #
+# Create the setload inputDir if it does not exist
+#
+if [ ! -d ${SET_INPUTDIR} ]
+then
+    mkdir -p ${SET_INPUTDIR}
+fi
+
+#
 # Create the baseline input
 #
 if [ ! -d ${BASELINEINPUTDIR} ]
