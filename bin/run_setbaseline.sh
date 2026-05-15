@@ -17,8 +17,14 @@ setenv LOG $0.log
 rm -rf $LOG
 touch $LOG
 
-echo "Run baseline setload" 
-${SETLOAD}/setload.csh ${RNASEQLOAD}/baselinesetload.config | tee -a $LOG
+setenv LASTRUN_FILE ${SETDATADIR}/lastrun
+if ( -e ${LASTRUN_FILE} ) then
+        echo "LASTRUN_FILE exists - skipping load" | tee -a ${LOG}
+        exit 0
+endif
+
+echo "Run baseline setload"  | tee -a ${LOG}
+${SETLOAD}/setload.csh ${RNASEQLOAD}/baselinesetload.config | tee -a ${LOG}
 
 cat - <<EOSQL | ${PG_DBUTILS}/bin/doisql.csh $0 | tee -a $LOG
 select s.* from MGI_Set s where s.name = 'Baseline RNASeq Load Experiment';
@@ -32,3 +38,7 @@ and a.preferred = 1
 ;
 EOSQL
 
+#
+# Touch the "lastrun" file to note when the load was run.
+#
+touch ${LASTRUN_FILE}
