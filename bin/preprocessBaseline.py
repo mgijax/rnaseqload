@@ -325,12 +325,12 @@ def process():
 
     results = db.sql('''
         select a.accid
-        from ACC_Accession a, MGI_Set s, MGI_SetMember sm
+        from MGI_Set s, MGI_SetMember m , ACC_Accession a
         where s.name = 'Baseline RNASeq Load Experiments'
-        and s._Set_key = sm._Set_key
-        and sm._Object_key = a._Object_key
-        and a._MGIType_key = 42 --GXD_HTExperiment
-        and a._LogicalDB_key = 189
+        and s._set_key = m._set_key
+        and s._mgitype_key = a._mgitype_key
+        and m._object_key = a._object_key
+        and a._logicaldb_key = 189
         and a.preferred = 1
         ''', 'auto')
 
