@@ -24,7 +24,7 @@
 #   load into GXD_HTSample_RNASeqCombined
 #
 # Inputs:
-#	MGI_Set = Baseline RNASeq Load Experiment
+#	MGI_Set = Baseline RNASeq Load Experiments
 #   Pre-Processed Baseline files: BASELINEINPUTDIR/xxx.group.txt, xxx.tpms.txt
 #
 # Outputs: BASELINEOUTPUTDIR
@@ -101,7 +101,7 @@ def init():
         select a._object_key as _experiment_key, a.accid as expID 
         into temporary table experiments
         from MGI_Set s, MGI_SetMember m , ACC_Accession a
-        where s.name = 'Baseline RNASeq Load Experiment'
+        where s.name = 'Baseline RNASeq Load Experiments'
         and s._set_key = m._set_key
         and s._mgitype_key = a._mgitype_key
         and m._object_key = a._object_key

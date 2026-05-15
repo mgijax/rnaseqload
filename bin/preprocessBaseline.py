@@ -14,7 +14,7 @@
 #    AES_SDRF_LOCAL_FILE_TEMPLATE - path and template for processed eae files
 #
 # Inputs:
-#	1. Database: Baseline RNASeq Experiment set
+#	1. Database: Baseline RNASeq Experiments set
 #	2. ArrayExpress files by experiment
 #	3. Expression Atlas files by experiment
 #	4. Configuration (see rnaseqload.config)
@@ -326,7 +326,7 @@ def process():
     results = db.sql('''
         select a.accid
         from ACC_Accession a, MGI_Set s, MGI_SetMember sm
-        where s.name = 'Baseline RNASeq Load Experiment'
+        where s.name = 'Baseline RNASeq Load Experiments'
         and s._Set_key = sm._Set_key
         and sm._Object_key = a._Object_key
         and a._MGIType_key = 42 --GXD_HTExperiment
