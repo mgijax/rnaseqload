@@ -73,18 +73,18 @@ and s._rnaseqset_key = m._rnaseqset_key
 
 EOSQL
 
-#date >> ${BASELINELOG} 2>&1
-#echo "Step 2: run baseline MGI_Set, MGI_SetMember" >> ${BASELINELOG} 2>&1
-#${RNASEQLOAD}/bin/run_setbaseline.sh >> ${BASELINELOG} 2>&1
+date >> ${BASELINELOG} 2>&1
+echo "Step 2: run baseline MGI_Set, MGI_SetMember" >> ${BASELINELOG} 2>&1
+${RNASEQLOAD}/bin/run_setbaseline.sh >> ${BASELINELOG} 2>&1
 
-#date >> ${BASELINELOG} 2>&1
-#echo "Step 3: run baseline download (raw_input_baseline)" >> ${BASELINELOG} 2>&1
-#${RNASEQLOAD}/bin/run_downloadBaselineFiles.sh >> ${BASELINELOG} 2>&1
+date >> ${BASELINELOG} 2>&1
+echo "Step 3: run baseline download (raw_input_baseline)" >> ${BASELINELOG} 2>&1
+${RNASEQLOAD}/bin/run_downloadBaselineFiles.sh >> ${BASELINELOG} 2>&1
 
-#date >> ${BASELINELOG} 2>&1
-#echo "Step 4: run baseline pre processing (input_baseline)" >> ${BASELINELOG} 2>&1
-#rm -rf ${BASELINEINPUTDIR}/*
-#${PYTHON} ${RNASEQLOAD}/bin/preprocessBaseline.py >> ${BASELINELOG} 2>&1
+date >> ${BASELINELOG} 2>&1
+echo "Step 4: run baseline pre processing (input_baseline)" >> ${BASELINELOG} 2>&1
+rm -rf ${BASELINEINPUTDIR}/*
+${PYTHON} ${RNASEQLOAD}/bin/preprocessBaseline.py >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
 echo "Step 5: run baseline: RNASeqSet, RNASeq_SetMember, RNASeqCombined" >> ${BASELINELOG} 2>&1
@@ -92,12 +92,8 @@ ${MGD_DBSCHEMADIR}/index/GXD_HTSample_RNASeqCombined_drop.object >> ${BASELINELO
 ${PYTHON} ${RNASEQLOAD}/bin/rnaseqBaseline.py >> ${BASELINELOG} 2>&1
 ${MGD_DBSCHEMADIR}/index/GXD_HTSample_RNASeqCombined_create.object >> ${BASELINELOG} 2>&1
 
-#date >> ${BASELINELOG} 2>&1
-#echo "Step 6: run loadSeqSetCache.sh" >> ${BASELINELOG} 2>&1
-#${RNASEQLOAD}/bin/loadSeqSetCache.sh >> ${BASELINELOG} 2>&1
-
-#date >> ${BASELINELOG} 2>&1
-#echo "Step 7: process withdrawn markers" >> ${BASELINELOG} 2>&1
-#${RNASEQLOAD}/bin/processWithdrawnMarkers.sh >> ${BASELINELOG} 2>&1
+date >> ${BASELINELOG} 2>&1
+echo "Step 6: process withdrawn markers" >> ${BASELINELOG} 2>&1
+${RNASEQLOAD}/bin/processWithdrawnMarkers.sh >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
