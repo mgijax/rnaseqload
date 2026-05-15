@@ -295,8 +295,8 @@ def processRNASet():
         prevSample = ''
         expID = r['expID']
 
-        sampleMeta = {}
-        sampleMGI = {}
+        sampleMeta = []
+        sampleMGI = []
 
         # find samples
         sampleResults = db.sql(''' select distinct name from samples where expID = '%s' ''' % (expID), 'auto')
