@@ -4,7 +4,13 @@ STAFF: lec
 wts2-1854/Baseline RNA-Seq Load
 sprt-302/Baseline RNA-Seq/input files
         new file:   baselinesetload.config.default
-        new file:   bin/run_baselinesetload.sh
+	new file:   bin/downloadBaselineFiles.py
+	new file:   bin/preprocessBaseline.py
+	new file:   bin/rnaseqBaseline.py
+	new file:   bin/rnaseqBaselineRpt.csh
+	new file:   bin/rnaseqBaselineRpt.csh.log
+	new file:   bin/run_downloadBaselineFiles.sh
+	new file:   bin/run_rnaseqBaseline.sh
 
 TAG: rnaseqload-6-0-26-2
 DATE: 11/24/2025
