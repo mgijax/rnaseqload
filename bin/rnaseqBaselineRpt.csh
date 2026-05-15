@@ -145,6 +145,16 @@ and mm._marker_status_key = 1
 group by r._experiment_key
 ;
 
+-- are there any experiments in the 1
+select old._rnaseqcombined_key, oldset._experiment_key, newset._rnaseqset_key
+from GXD_HTSample_RNASeqCombined old, GXD_HTSample_RNASeqSet oldset,
+        GXD_HTSample_RNASeqSet newset
+where old._CreatedBy_key = 1613
+and old._rnaseqset_key = oldset._rnaseqset_key
+and oldset._experiment_key = newset._experiment_key
+and newset._createdby_key = 1673
+;
+
 EOSQL
 
 date |tee -a $LOG

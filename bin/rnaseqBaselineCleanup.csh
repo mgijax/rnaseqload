@@ -18,15 +18,20 @@ date | tee -a $LOG
 cat - <<EOSQL | ${PG_DBUTILS}/bin/doisql.csh $0 >> ${BASELINELOG} 2>&1
 
 -- remove old combo associated with markers that are now in baseline
-select old._rnaseqcombined_key
+select old._rnaseqcombined_key, oldset._experiment_key
 into temp table toDelete
-from GXD_HTSample_RNASeqCombined old
+from GXD_HTSample_RNASeqCombined old, GXD_HTSample_RNASeqSet oldset
 where old._CreatedBy_key = 1613
-and exists (select 1 from GXD_HTSample_RNASeqCombined new
-        where new._createdby_key = 1673
-        and new._rnaseqset_key = old._rnaseqset_key
+and old._rnaseqset_key = oldset._rnaseqset_key
+and exists (select 1 from GXD_HTSample_RNASeqCombined new,  GXD_HTSample_RNASeqSet newset
+	where oldset._experiment_key = newset._experiment_key
+        and new._createdby_key = 1673
+	and new._rnaseqset_key = newset._rnaseqset_key
         )
 ;
+
+create index idx1 on toDelete(_rnaseqcombined_key);
+
 delete from GXD_HTSample_RNASeqCombined
 using toDelete
 where toDelete._rnaseqcombined_key = GXD_HTSample_RNASeqCombined._rnaseqcombined_key
