@@ -298,7 +298,7 @@ def processRNASet():
         sampleMeta = []
         sampleMGI = []
 
-        # find samples
+        # save samples
         sampleResults = db.sql(''' select distinct name from samples where expID = '%s' ''' % (expID), 'auto')
         for s in sampleResults:
            sampleMGI.append(s['name'])
@@ -326,6 +326,7 @@ def processRNASet():
                 sampleMeta.append(sample)
         fpGroup.close()
 
+        # just report if MGI samples count != fpGroup count
         if len(sampleMGI) != len(sampleMeta):
             fpErrorSamples.write(expID + '\n')
 
