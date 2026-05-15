@@ -224,6 +224,9 @@ def initCombined():
     results = db.sql('''select nextval('gxd_htsample_rnaseqcombined_seq') as maxKey ''', 'auto')
     combinedKey = results[0]['maxKey']
 
+    db.sql(''' ALTER TABLE mgd.GXD_HTSample_RNASeqCombined DROP CONSTRAINT GXD_HTSample_RNASeqCombined_pkey CASCADE; ''', None)
+    db.commit()
+
     return 0
 
 # end initCombined()
@@ -532,6 +535,9 @@ def execCombinedBCP():
     (bcpCommand, db.get_sqlServer(), db.get_sqlDatabase(), combinedTable, outputDir, combinedBcp)
     print('%s' % bcpCmd)
     os.system(bcpCmd)
+
+    db.sql(''' ALTER TABLE mgd.GXD_HTSample_RNASeqCombined ADD PRIMARY KEY (_RNASeqCombined_key); ''', None)
+    db.commit()
 
     db.sql(''' select setval('gxd_htsample_rnaseqcombined_seq', (select max(_rnaseqcombined_key) from GXD_HTSample_RNASeqCombined)); ''', None)
     db.commit()
