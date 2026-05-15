@@ -51,13 +51,11 @@ delete from GXD_HTSample_RNASeqCombined where _CreatedBy_key = 1673;
 -- remove old combo associated with markers that are now in baseline
 select old._rnaseqcombined_key
 into temp table toDelete
-from GXD_HTSample_RNASeqCombined old, GXD_HTSample_RNASeqSet_Cache oldc
+from GXD_HTSample_RNASeqCombined old
 where old._CreatedBy_key = 1613
-and old._rnaseqcombined_key = oldc._rnaseqcombined_key 
-and exists (select 1 from GXD_HTSample_RNASeqCombined new, GXD_HTSample_RNASeqSet_Cache newc
+and exists (select 1 from GXD_HTSample_RNASeqCombined new
 	where new._createdby_key = 1673
-	and new._rnaseqcombined_key = newc._rnaseqcombined_key 
-	and newc._rnaseqset_key = oldc._rnaseqset_key 
+	and new._rnaseqset_key = old._rnaseqset_key 
 	)
 ;
 delete from GXD_HTSample_RNASeqCombined
