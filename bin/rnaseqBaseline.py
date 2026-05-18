@@ -585,16 +585,10 @@ def execSetBCP():
 #
 def execCombinedBCP():
 
-    db.sql(''' ALTER TABLE mgd.GXD_HTSample_RNASeqCombined DROP CONSTRAINT GXD_HTSample_RNASeqCombined_pkey CASCADE; ''', None)
-    db.commit()
-
     bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % \
     (bcpCommand, db.get_sqlServer(), db.get_sqlDatabase(), combinedTable, outputDir, combinedBcp)
     print('%s' % bcpCmd)
     os.system(bcpCmd)
-
-    db.sql(''' ALTER TABLE mgd.GXD_HTSample_RNASeqCombined ADD PRIMARY KEY (_RNASeqCombined_key); ''', None)
-    db.commit()
 
     db.sql(''' select setval('gxd_htsample_rnaseqcombined_seq', (select max(_rnaseqcombined_key) from GXD_HTSample_RNASeqCombined)); ''', None)
     db.commit()
@@ -610,8 +604,8 @@ def execCombinedBCP():
 init()
 initRNASet()
 processRNASet()
-#execSetBCP()
+execSetBCP()
 initCombined()
 processCombined()
-#execCombinedBCP()
+execCombinedBCP()
 
