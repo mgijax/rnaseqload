@@ -234,7 +234,7 @@ def initCombined():
 
     fpCombined = open('%s/%s' % (outputDir, combinedBcp), 'w')
     fpErrorEnsembl = open('%s/ensemblBaseline.error' % (logDir), 'w')
-    fpErrorEnsembl.write('ensemblId is associated with > 1 marker OR ensemblIds not in MGI\n\n')
+    fpErrorEnsembl.write('ensemblId associated with > 1 marker OR ensemblId not in MGI\n\n')
     fpErrorMarker = open('%s/markerBaseline.error' % (logDir), 'w')
     fpErrorMarker.write('markers assoicated with > 1 ensemblId\n\n')
 
