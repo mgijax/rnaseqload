@@ -61,6 +61,7 @@ fpSet = None
 fpMember = None
 fpCombined = None
 fpErrorEnsembl = None
+fpErrorMarker = None
 fpErrorResolved = None
 fpErrorUnResolved = None
 fpErrorSamples = None
@@ -175,7 +176,7 @@ def init():
         where a._mgitype_key = 2
         and a._logicaldb_key = 60
         and a.preferred = 1
-        group by a._object_key having count(a.accid) > 1
+        group by a._object_key having count(*) > 1
         )
         select a.accid, a._object_key, m.symbol
         from ensembls e, acc_accession a, mrk_marker m
@@ -228,12 +229,14 @@ def initRNASet():
 # initialize Combined
 #
 def initCombined():
-    global fpCombined, fpErrorEnsembl
+    global fpCombined, fpErrorEnsembl, fpErrorMarker
     global combinedKey
 
     fpCombined = open('%s/%s' % (outputDir, combinedBcp), 'w')
     fpErrorEnsembl = open('%s/ensemblBaseline.error' % (logDir), 'w')
-    fpErrorEnsembl.write('ensemblId not in MGI/not associated with a marker\n\n')
+    fpErrorEnsembl.write('ensemblIds not in MGI/not associated with a marker\n\n')
+    fpErrorMarker = open('%s/markerBaseline.error' % (logDir), 'w')
+    fpErrorMarker.write('markers assoicated with > 1 ensemblId\n\n')
 
     results = db.sql('''select nextval('gxd_htsample_rnaseqcombined_seq') as maxKey ''', 'auto')
     combinedKey = results[0]['maxKey']
@@ -448,10 +451,11 @@ def processRNASet():
 # create BCP files for RNASeqCombined
 #
 def processCombined():
-    global fpCombined, fpErrorEnsembl
+    global fpCombined, fpErrorEnsembl, fpErrorMarker
     global combinedKey
 
     ensemblError = []
+    markerError = {}
 
     #
     # for each expID
@@ -505,14 +509,14 @@ def processCombined():
                 print('skipping: ensembl id is associated with > 1 marker in MGI: %s, %s, %s' % (expID, ensemblId, ', '.join(e)))
                 continue
 
-            markerKey = tokens[1]
+            markerKey = int(tokens[1])
             markerSymbol = tokens[2]
- 
+                
             if markerKey in markerEnsembls:
-                e = []
-                for m in markerEnsembls[markerKey]:
-                    e.append(m['accid'])
-                print('skipping: marker is associated with > 1 ensemblId in MGI: %s, %s, %s' % (expID, markerSymbol, ', '.join(e)))
+                if markerSymbol not in markerError:
+                    markerError[markerSymbol] = []
+                    for m in markerEnsembls[markerKey]:
+                        markerError[markerSymbol].append(m['accid'])
                 continue
 
             if markerKey == '0':
@@ -543,6 +547,10 @@ def processCombined():
 
     fpErrorEnsembl.write('\n'.join(ensemblError) + '\n')
     fpErrorEnsembl.close()
+
+    for m in sorted(markerError):
+        fpErrorMarker.write(m + '\t' + '\t'.join(markerError[m]) + '\n')
+    fpErrorMarker.close()
 
     return 0
 

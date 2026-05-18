@@ -109,10 +109,17 @@ def ppEAETpmsFile(expID):
         return 1 # file does not exist
 
     ensemblDict = {}
-    results = db.sql('select accid, _object_key from acc_accession where _logicaldb_key = 60 and _mgitype_key = 2 and preferred = 1', 'auto')
+    results = db.sql('''
+        select a.accid, a._object_key, m.symbol 
+        from acc_accession a, mrk_marker m 
+        where a._logicaldb_key = 60 
+        and a._mgitype_key = 2 
+        and a.preferred = 1
+        and a._object_key = m._marker_key
+        ''', 'auto')
     for r in results:
         key = r['accid']
-        value = r['_object_key']
+        value = r
         if key not in ensemblDict:
             ensemblDict[key] = []
         ensemblDict[key].append(value)
@@ -133,10 +140,11 @@ def ppEAETpmsFile(expID):
         # if ensemblID is not in MGI, then set markerKey = 0
         # will handle this later during TPMS processing
         if ensemblID in ensemblDict:
-            markerKey = ensemblDict[ensemblID][0]
+            markerKey = ensemblDict[ensemblID][0]['_object_key']
+            markerSymbol = ensemblDict[ensemblID][0]['symbol']
         else:
             markerKey = 0
-        markerSymbol = str.strip(tokens[1])
+            markerSymbol = ''
 
         fpPP.write('%s\t%s\t%s' % (ensemblID, markerKey, markerSymbol))
 
