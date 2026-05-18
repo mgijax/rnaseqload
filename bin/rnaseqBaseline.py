@@ -234,7 +234,7 @@ def initCombined():
 
     fpCombined = open('%s/%s' % (outputDir, combinedBcp), 'w')
     fpErrorEnsembl = open('%s/ensemblBaseline.error' % (logDir), 'w')
-    fpErrorEnsembl.write('ensemblIds not in MGI/not associated with a marker\n\n')
+    fpErrorEnsembl.write('ensemblId is associated with > 1 marker OR ensemblIds not in MGI\n\n')
     fpErrorMarker = open('%s/markerBaseline.error' % (logDir), 'w')
     fpErrorMarker.write('markers assoicated with > 1 ensemblId\n\n')
 
@@ -454,7 +454,7 @@ def processCombined():
     global fpCombined, fpErrorEnsembl, fpErrorMarker
     global combinedKey
 
-    ensemblError = []
+    ensemblError = {}
     markerError = {}
 
     #
@@ -501,27 +501,24 @@ def processCombined():
 
             tokens = str.split(line[:-1], TAB)
             ensemblId = tokens[0]
-
-            if ensemblId in ensemblMarkers:
-                e = []
-                for m in ensemblMarkers[ensemblId]:
-                    e.append(m['symbol'])
-                print('skipping: ensembl id is associated with > 1 marker in MGI: %s, %s, %s' % (expID, ensemblId, ', '.join(e)))
-                continue
-
             markerKey = int(tokens[1])
             markerSymbol = tokens[2]
                 
+            # ensemblId has > 1 marker or ensemblId does not exist in MGI
+            if ensemblId in ensemblMarkers or markerKey == 0:
+                if ensemblId not in ensemblError:
+                    ensemblError[ensemblId] = []
+                    if ensemblId not in ensemblMarkers:
+                        continue
+                    for e in ensemblMarkers[ensemblId]:
+                        ensemblError[ensemblId].append(e['symbol'])
+                continue
+
             if markerKey in markerEnsembls:
                 if markerSymbol not in markerError:
                     markerError[markerSymbol] = []
                     for m in markerEnsembls[markerKey]:
                         markerError[markerSymbol].append(m['accid'])
-                continue
-
-            if markerKey == '0':
-                if ensemblId not in ensemblError:
-                    ensemblError.append(ensemblId)
                 continue
 
             for g in range(len(groupSet)):
@@ -545,7 +542,8 @@ def processCombined():
 
     fpCombined.close()
 
-    fpErrorEnsembl.write('\n'.join(ensemblError) + '\n')
+    for e in sorted(ensemblError):
+        fpErrorEnsembl.write(e + '\t' + '\t'.join(ensemblError[e]) + '\n')
     fpErrorEnsembl.close()
 
     for m in sorted(markerError):
@@ -612,8 +610,8 @@ def execCombinedBCP():
 init()
 initRNASet()
 processRNASet()
-execSetBCP()
+#execSetBCP()
 initCombined()
 processCombined()
-execCombinedBCP()
+#execCombinedBCP()
 
