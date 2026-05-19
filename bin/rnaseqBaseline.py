@@ -270,7 +270,7 @@ def processRNASet():
     global fpSet, fpMember, fpErrorResolved, fpErrorUnresolved, fpErrorSamples
     global setKey, memberKey
 
-    resolvedError = []
+    resolvedError = {}
     unresolvedError = []
 
     db.sql('''
@@ -423,7 +423,8 @@ def processRNASet():
                 setKey += 1
 
                 if expID not in resolvedError:
-                    resolvedError.append(expID + '\t' + groupSet)
+                    resolvedError[expID] = []
+                resolvedError[expID].append(groupSet)
 
             # other mismatch
             else:
@@ -435,7 +436,8 @@ def processRNASet():
     fpSet.close()
     fpMember.close()
 
-    fpErrorResolved.write('\n'.join(resolvedError) + '\n')
+    for e in sorted(resolvedError):
+        fpErrorResolved.write(e + '\t' + '\t'.join(resolvedError[e]) + '\n')
     fpErrorResolved.close()
 
     fpErrorUnresolved.write('\n'.join(unresolvedError) + '\n')

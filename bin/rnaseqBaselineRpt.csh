@@ -128,9 +128,8 @@ select _createdby_key, count(*) from gxd_htsample_rnaseqcombined group by _creat
 
 select r._experiment_key, count(*) as numResults
 into temp table a
-from gxd_htsample_rnaseqset_cache rc, gxd_htsample_rnaseqset r, gxd_htsample_rnaseqcombined m, mrk_marker mm
-where rc._rnaseqset_key = r._rnaseqset_key
-and rc._rnaseqcombined_key = m._rnaseqcombined_key
+from gxd_htsample_rnaseqset r, gxd_htsample_rnaseqcombined m, mrk_marker mm
+where r._rnaseqset_key = m._rnaseqset_key
 and m._marker_key = mm._marker_key
 and mm._marker_status_key = 1
 group by r._experiment_key
