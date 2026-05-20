@@ -39,7 +39,7 @@ import sys
 import loadlib
 import db
 
-#db.setTrace(True)
+db.setTrace(True)
 
 # bcp stuff
 bcpCommand = os.getenv('PG_DBUTILS') + '/bin/bcpin.csh'
@@ -206,14 +206,20 @@ def initRNASet():
     global setKey, memberKey
 
     fpSet = open('%s/%s' % (outputDir, setBcp), 'w')
-    fpMember =  open('%s/%s' % (outputDir, memberBcp), 'w')
+    fpMember = open('%s/%s' % (outputDir, memberBcp), 'w')
+
+    # errors that are not in the diagnostic report
     fpErrorResolved = open('%s/mismatchResolvedBaseline.error' % (logDir), 'w')
     fpErrorResolved.write('sample sex pooled\n')
-    fpErrorResolved.write('Experiment\tEA group\n')
+    fpErrorResolved.write('experiment\tEA group\n')
     fpErrorUnresolved = open('%s/mismatchUnresolvedBaseline.error' % (logDir), 'w')
-    fpErrorUnresolved.write('Experiment\tEA group\tSample\n')
+    fpErrorUnresolved.write('experiment\tEA group|sample\n')
     fpErrorSamples = open('%s/samplesBaseline.error' % (logDir), 'w')
-    fpErrorSamples.write('sample metadata conflicts\n\n')
+    fpErrorSamples.write('missing samples baseline\n\n')
+    fpErrorSamples.write('col 1: experiment\n')
+    fpErrorSamples.write('col 2: # of samples included in expression atlas grouping\n')
+    fpErrorSamples.write('col 3: # of relevant samples in HT index\n')
+    fpErrorSamples.write('col 4: sample mismatch\n\n')
 
     results = db.sql('''select nextval('gxd_htsample_rnaseqset_seq') as maxKey ''', 'auto')
     setKey = results[0]['maxKey']
@@ -236,7 +242,7 @@ def initCombined():
     fpErrorEnsembl = open('%s/ensemblBaseline.error' % (logDir), 'w')
     fpErrorEnsembl.write('ensemblId associated with > 1 marker OR ensemblId not in MGI\n\n')
     fpErrorMarker = open('%s/markerBaseline.error' % (logDir), 'w')
-    fpErrorMarker.write('markers assoicated with > 1 ensemblId\n\n')
+    fpErrorMarker.write('markers associated with > 1 ensemblId\n\n')
 
     results = db.sql('''select nextval('gxd_htsample_rnaseqcombined_seq') as maxKey ''', 'auto')
     combinedKey = results[0]['maxKey']
@@ -253,9 +259,9 @@ def calcLevel(avgQnTpm):
     level = None
     if avgQnTpm < 0.5:	
         level = BELOW_CUTOFF 
-    elif avgQnTpm >=  0.5 and avgQnTpm <= 10:
+    elif avgQnTpm >= 0.5 and avgQnTpm <= 10:
         level = LOW
-    elif avgQnTpm >=  11 and avgQnTpm <= 1000:
+    elif avgQnTpm >= 11 and avgQnTpm <= 1000:
         level = MED
     else:  # avgQnTpm > 1000:
         level = HIGH
@@ -271,7 +277,8 @@ def processRNASet():
     global setKey, memberKey
 
     resolvedError = {}
-    unresolvedError = []
+    unresolvedError = {}
+    sampleError = {}
 
     db.sql('''
         select n._object_key as _sample_key, n.note 
@@ -316,22 +323,23 @@ def processRNASet():
         # store sample per experiment
         for line in fpGroup.readlines():
             tokens = str.split(line, TAB)
-            groupSet = tokens[0]
-            sample = "'" + str.strip(tokens[3]) + "'"
-            key = groupSet
-            value = sample
-            if sample != prevSample:
+            key = tokens[0]
+            value = str.strip(tokens[3])
+            if value != prevSample:
                 if key not in groupMeta:
                     groupMeta[key] = []
-                groupMeta[key].append(value)
-                prevSample = sample
-            if sample not in sampleMeta:
-                sampleMeta.append(sample)
+                groupMeta[key].append("'" + value + "'")
+                prevSample = value
+            if value not in sampleMeta:
+                sampleMeta.append(value)
         fpGroup.close()
 
         # just report if MGI samples count != fpGroup count
         if len(sampleMGI) != len(sampleMeta):
-            fpErrorSamples.write(expID + '\n')
+            diff1 = [item for item in sampleMeta if item not in sampleMGI]
+            diff2 = [item for item in sampleMGI if item not in sampleMeta]
+            sampleError[expID] = []
+            sampleError[expID].append(str(len(sampleMeta)) + '\t' + str(len(sampleMGI)) + '\t' + ','.join(diff1) + ','.join(diff2))
 
         #
         # for each group
@@ -385,8 +393,9 @@ def processRNASet():
                     checkNoSexDict[key] = []
                 checkNoSexDict[key].append(sampleKey)
 
-            #print(len(checkAllDict))
+            #print('sampleResults:', expID, str(len(sampleResults)))
             #print(checkAllDict)
+            #print(checkNoSexDict)
 
             # no mismatch
             if len(checkAllDict) == 1:
@@ -408,6 +417,7 @@ def processRNASet():
             elif len(checkAllDict) > 1 and len(checkNoSexDict) == 1:
 
                 sexKey = 315166
+                print(sexKey)
 
                 fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
                     setKey, TAB, expKey, TAB, provider, TAB, groupSet, TAB, \
@@ -425,11 +435,13 @@ def processRNASet():
                 if expID not in resolvedError:
                     resolvedError[expID] = []
                 resolvedError[expID].append(groupSet)
+                print(resolvedError)
 
             # other mismatch
             else:
                 if expID not in unresolvedError:
-                    unresolvedError.append(expID + '\t' + groupSet + '\t' + sample)
+                    unresolvedError[expID] = []
+                unresolvedError[expID].append(groupSet + '|' + sample)
                 #print(checkAllDict)
                 #print(checkNoSexDict)
 
@@ -440,9 +452,12 @@ def processRNASet():
         fpErrorResolved.write(e + '\t' + '\t'.join(resolvedError[e]) + '\n')
     fpErrorResolved.close()
 
-    fpErrorUnresolved.write('\n'.join(unresolvedError) + '\n')
+    for e in sorted(unresolvedError):
+        fpErrorUnresolved.write(e + '\t' + '\t'.join(unresolvedError[e]) + '\n')
     fpErrorUnresolved.close()
 
+    for e in sorted(sampleError):
+        fpErrorSamples.write(e + '\t' + '\t'.join(sampleError[e]) + '\n')
     fpErrorSamples.close()
 
     return 0
@@ -469,7 +484,7 @@ def processCombined():
 
         # number of bioreplicates per experiment by groupSet
         replicates = {}
-        results = db.sql('''
+        bioresults = db.sql('''
                 select distinct s.expID, rm._rnaseqset_key, rs.groupset, count(rm._rnaseqsetmember_key) as countMember
                 from samples s, gxd_htsample_rnaseqsetmember rm, gxd_htsample_rnaseqset rs
                 where s._sample_key = rm._sample_key
@@ -477,9 +492,9 @@ def processCombined():
                 and s.expID = '%s'
                 group by s.expID, rm._rnaseqset_key, rs.groupset
             ''' % (expID), 'auto')
-        for r in results:
-            key = r['groupset']
-            value = r
+        for b in bioresults:
+            key = b['groupset']
+            value = b
             replicates[key] = []
             replicates[key].append(value)
 
@@ -606,8 +621,8 @@ def execCombinedBCP():
 init()
 initRNASet()
 processRNASet()
-execSetBCP()
+#execSetBCP()
 initCombined()
 processCombined()
-execCombinedBCP()
+#execCombinedBCP()
 

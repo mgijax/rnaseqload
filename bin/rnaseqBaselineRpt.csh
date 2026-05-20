@@ -128,38 +128,59 @@ select count(*) from gxd_htsample_rnaseqcombined where _createdby_key = 1673;
 select _createdby_key, count(*) from gxd_htsample_rnaseqset group by _createdby_key;
 select _createdby_key, count(*) from gxd_htsample_rnaseqcombined group by _createdby_key;
 
-select r._experiment_key, count(*) as numResults
-into temp table a
-from gxd_htsample_rnaseqset r, gxd_htsample_rnaseqcombined m, mrk_marker mm
-where r._rnaseqset_key = m._rnaseqset_key
-and m._marker_key = mm._marker_key
-and mm._marker_status_key = 1
-group by r._experiment_key
+select distinct a.accid, r._experiment_key, g._genotype_key, s.strain
+from acc_accession a, gxd_htsample_rnaseqset r, gxd_genotype g, prb_strain s
+where a._mgitype_key = 42
+and a._logicaldb_key = 189
+and a.preferred = 1
+and a._object_key = r._experiment_key
+and r._genotype_key = g._genotype_key
+and g._strain_key = s._strain_key
+--and not exists (select 1 from gxd_allelepair aa where g._genotype_key = aa._genotype_key)
+and r._createdby_key = 1673
+order by a.accid, s.strain
 ;
 
-select r._experiment_key, count(*) as numResults
-into temp table b
-from gxd_htsample_rnaseqset r, gxd_htsample_rnaseqcombined m, mrk_marker mm
-where r._rnaseqset_key = m._rnaseqset_key
-and m._marker_key = mm._marker_key
-and mm._marker_status_key = 1
-group by r._experiment_key
-;
+--select r._experiment_key, g._genotype_key, s.strain, r._createdby_key
+--from gxd_htsample_rnaseqset r, gxd_genotype g, prb_strain s
+--where r._genotype_key = g._genotype_key
+--and g._strain_key = s._strain_key
+--and exists (select 1 from gxd_allelepair aa where g._genotype_key = aa._genotype_key)
+--order by r._createdby_key, s.strain
+--;
+
+--select r._experiment_key, count(*) as numResults
+--into temp table a
+--from gxd_htsample_rnaseqset r, gxd_htsample_rnaseqcombined m, mrk_marker mm
+--where r._rnaseqset_key = m._rnaseqset_key
+--and m._marker_key = mm._marker_key
+--and mm._marker_status_key = 1
+--group by r._experiment_key
+--;
+
+--select r._experiment_key, count(*) as numResults
+--into temp table b
+--from gxd_htsample_rnaseqset r, gxd_htsample_rnaseqcombined m, mrk_marker mm
+--where r._rnaseqset_key = m._rnaseqset_key
+--and m._marker_key = mm._marker_key
+--and mm._marker_status_key = 1
+--group by r._experiment_key
+--;
 
 -- are there any experiments in the 1
-select old._rnaseqcombined_key, oldset._experiment_key, newset._rnaseqset_key
-from GXD_HTSample_RNASeqCombined old, GXD_HTSample_RNASeqSet oldset,
-        GXD_HTSample_RNASeqSet newset
-where old._CreatedBy_key = 1613
-and old._rnaseqset_key = oldset._rnaseqset_key
-and oldset._experiment_key = newset._experiment_key
-and newset._createdby_key = 1673
-;
+--select old._rnaseqcombined_key, oldset._experiment_key, newset._rnaseqset_key
+--from GXD_HTSample_RNASeqCombined old, GXD_HTSample_RNASeqSet oldset,
+--        GXD_HTSample_RNASeqSet newset
+--where old._CreatedBy_key = 1613
+--and old._rnaseqset_key = oldset._rnaseqset_key
+--and oldset._experiment_key = newset._experiment_key
+--and newset._createdby_key = 1673
+--;
 
-select distinct _marker_key
-from gxd_htsample_rnaseqcombined
-where _marker_key in (79559, 51389, 193172, 54345, 63868, 457016, 59010, 446540, 426272, 633827, 633841, 462799, 50578, 13004, 58264, 193898, 460129, 324682, 55282, 462572, 50504, 57533, 633847, 196238, 31865, 53493, 384828, 324182, 80937, 11813, 14883, 322170, 306160, 787424, 197065, 461805, 331138, 426758, 426360, 198858, 43740, 326110, 198450, 322243, 101137, 59342, 305633, 322024, 185382, 639640, 645479, 47349, 970754, 52982, 193804, 13010, 62139, 457957, 680005, 308615, 103731, 306046, 463209, 323939, 426036, 633475, 119570, 85736, 322862, 463131, 93082, 460538, 200254, 36952, 191299, 329064, 77087, 83365, 193084, 58457, 196999, 458901, 321036, 62777, 971427, 31282, 10819, 324103, 198196, 57165, 101920, 195887, 27129, 1006839, 192952, 45063, 196951, 459565, 55108, 646219, 61680, 313703, 32465, 461578, 104546, 31159, 58216, 461955, 415020, 191973, 459463, 307455, 105444, 104749, 57247, 307292, 425817, 309155, 331850, 58412, 463165, 62442, 198581, 463017, 41615, 72997, 9724, 306809, 194936, 101389, 46669, 415085, 158981, 198529, 51834, 429091, 57246, 600676, 444261, 25551, 382381, 426427, 307935, 972761, 56025, 461241, 667407, 192905, 12935, 324762, 195920, 101035, 459649, 193872, 460122)
-;
+--select distinct _marker_key
+--from gxd_htsample_rnaseqcombined
+--where _marker_key in (79559, 51389, 193172, 54345, 63868, 457016, 59010, 446540, 426272, 633827, 633841, 462799, 50578, 13004, 58264, 193898, 460129, 324682, 55282, 462572, 50504, 57533, 633847, 196238, 31865, 53493, 384828, 324182, 80937, 11813, 14883, 322170, 306160, 787424, 197065, 461805, 331138, 426758, 426360, 198858, 43740, 326110, 198450, 322243, 101137, 59342, 305633, 322024, 185382, 639640, 645479, 47349, 970754, 52982, 193804, 13010, 62139, 457957, 680005, 308615, 103731, 306046, 463209, 323939, 426036, 633475, 119570, 85736, 322862, 463131, 93082, 460538, 200254, 36952, 191299, 329064, 77087, 83365, 193084, 58457, 196999, 458901, 321036, 62777, 971427, 31282, 10819, 324103, 198196, 57165, 101920, 195887, 27129, 1006839, 192952, 45063, 196951, 459565, 55108, 646219, 61680, 313703, 32465, 461578, 104546, 31159, 58216, 461955, 415020, 191973, 459463, 307455, 105444, 104749, 57247, 307292, 425817, 309155, 331850, 58412, 463165, 62442, 198581, 463017, 41615, 72997, 9724, 306809, 194936, 101389, 46669, 415085, 158981, 198529, 51834, 429091, 57246, 600676, 444261, 25551, 382381, 426427, 307935, 972761, 56025, 461241, 667407, 192905, 12935, 324762, 195920, 101035, 459649, 193872, 460122)
+--;
 
 -- fe check
 --select count(e.*)
@@ -168,6 +189,13 @@ where _marker_key in (79559, 51389, 193172, 54345, 63868, 457016, 59010, 446540,
 --where e.experiment_key in (17734,17831)
 --and e.consolidated_sample_key = c.consolidated_sample_key
 --;
+
+--select count(m.marker_key) 
+--from marker m , expression_ht_consolidated_sample_measurement s
+--where m.organism = 'mouse' 
+--and m.status = 'official' 
+--and m.marker_key = s.marker_key
+
 
 EOSQL
 
