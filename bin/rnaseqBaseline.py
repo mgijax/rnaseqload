@@ -621,8 +621,8 @@ def execCombinedBCP():
 init()
 initRNASet()
 processRNASet()
-#execSetBCP()
+execSetBCP()
 initCombined()
 processCombined()
-#execCombinedBCP()
+execCombinedBCP()
 
