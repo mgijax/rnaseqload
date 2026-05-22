@@ -2,28 +2,27 @@
 #
 # Purpose: Create pre-prcoessing files for each Experiment in Baseline set
 #
-# Usage: rnaseqPPBaselineload.py
+#	 BASELINERAW_INPUTDIR
+#	 BASELINEINPUTDIR
 #
-# Env Vars:
-#	 BASELINEINPUTDIR - post processing files generated from RAW input files
-#	 BASELINERAW_INPUTDIR - files downloaded from source
-#	 BASELINEOUTPUTDIR - rnaseq bcp files
-#	 INSTALLDIR - for path to run_join script	 
-#	 EAE_TPMS_PP_FILE_TEMPLATE - path and template for processed eae files
-#    EAE_GROUP_PP_FILE_TEMPLATE - path and template for processed eae files
-#    AES_SDRF_LOCAL_FILE_TEMPLATE - path and template for processed eae files
+#   input files read from BASELINERAW_INPUTDIR
+#	 EAE_TPMS_LOCAL_FILE_TEMPLATE
+#    EAE_GROUP_LOCAL_FILE_TEMPLATE
+#    AES_SDRF_LOCAL_FILE_TEMPLATE 
 #
-# Inputs:
-#	1. Database: Baseline RNASeq Experiments set
-#	2. ArrayExpress files by experiment
-#	3. Expression Atlas files by experiment
-#	4. Configuration (see rnaseqload.config)
+#   generated pre-processing files created in BASELINEINPUTDIR
+#	 EAE_TPMS_PP_FILE_TEMPLATE
+#    EAE_GROUP_PP_FILE_TEMPLATE
 #
-# Outputs:
-#   BASELINEINPUTDIR
-#       xxx.group.txt
-#       xxx.tpms.txt
-# 
+# For each Experiment (xxx) from Baseline RNASeq MGI_Set
+#   for Experiment file in BASELINERAW_INPUTDIR
+#       process the tpms file (ppEAETpmsFile())
+#           -> BASELINEINPUTDIR/xxx.tpms.txt
+#       prcoess the sdrf file (ppAESSdrfFile())
+#           -> runToSampleDict
+#       process the configuration (ppEAEGroupFile())
+#           -> BASELINEINPUTDIR/xxx.group.txt
+#
 ###########################################################################
 
 import os

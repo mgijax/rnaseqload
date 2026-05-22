@@ -1,23 +1,23 @@
 ##########################################################################
 #
-# Purpose:
+# Purpose: Create/Load files for each Experiment in Baseline set
 #
 # processRNASet():
 #
-# For each Experiment from Baseline RNSeq MGI_Set
-#   compare GXD_HTSample to BASELINEINPUTDIR/xxx.group.txt
-#       GXD_HTSample : name (sample), age, organism, sex, stage, emapa, genotype
+# For each Experiment from Baseline RNASeq MGI_Set
+#   compare BASELINEINPUTDIR/xxx.group.txt with GXD_HTSample
 #       xxx.group.txt : group (g1, g2, etc.)
+#       GXD_HTSample : name (sample), age, organism, sex, stage, emapa, genotype
 #
 #   if no mismatch, then add to RNASeqSet
+#       load into GXD_HTSample_RNASeqSet, GXD_HTSample_RNASeqSetMember
 #   else if only mismatch is with sex, then set sex = Pooled, add to RNASeqSet
+#       load into GXD_HTSample_RNASeqSet, GXD_HTSample_RNASeqSetMember
 #   else, skip
-#
-#   load into GXD_HTSample_RNASeqSet, GXD_HTSample_RNASeqSetMember
 #
 # processCombined():
 #
-# For each Experiment from Baseline RNSeq MGI_Set
+# For each Experiment from Baseline RNASeq MGI_Set
 #   group the number of bioreplicates from RNASeqSet, RNASeqSetMember (replicates())
 #   for file in BASELINEINPUTDIR/xxx.tpms.txt
 #       determine avgQnTpm, level, countMember (from replicates())
