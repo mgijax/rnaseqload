@@ -46,11 +46,7 @@ rawRunList = []
 runToSampleDict = {}
 
 #
-# Purpose: loads a lookup of samples in the db for the given experiment
-# Returns: 0
-# Assumes: Nothing
-# Effects: queries a database
-# Throws: Nothing
+# loads a lookup of samples in the db for the given experiment
 #
 def loadSamples(expID):
     global sampleInMGI
@@ -74,11 +70,8 @@ def loadSamples(expID):
 # end loadSamples()
 
 #
-# Purpose: creates EAE_TPMS_PP_FILE_TEMPLATE file in BASELINEINPUTDIR folder for given expID
-# Returns: 0 if successful, 1 if unsuccessful
-# Assumes: Nothing
-# Effects: creates file in filesystem
-# Throws: Nothing
+# input  : EAE_TPMS_LOCAL_FILE_TEMPLATE
+# output : EAE_TPMS_PP_FILE_TEMPLATE
 #
 # format:
 #   ensembm ID
@@ -86,7 +79,6 @@ def loadSamples(expID):
 #   marker symbol
 #   each group (g1, g2, etc. value = 3rd value avg QN TPM)
 #
-
 def ppEAETpmsFile(expID):
 
     print('in ppEAETpmsFile(expID): %s' % expID)
@@ -161,11 +153,15 @@ def ppEAETpmsFile(expID):
 # end ppEAETpmsFile()
 
 #
-# Purpose: Reads the aesTemplate(AES_SDRF_LOCAL_FILE_TEMPLATE) and processes the runID -> Sample ID match
-# Returns: 0 if successful, 1 if unsuccessful
-# Assumes: Nothing
-# Effects: creates the runToSampleDict file (runID -> Sample ID)
-# Throws: Nothing
+# input  : AES_SDRF_LOCAL_FILE_TEMPLATE
+# output : runToSampleDict
+#   store all Source Name's per ENA_RUN
+#   E-ERAD-169.sdrf.txt : runToSampleDict['ERS223116'] = ['ERR323395', 'ERR323401']
+#
+# format:
+#   Source Name
+#   ENA_SAMPLE
+#   ENA_RUN
 #
 def ppAESSdrfFile(expID):
 
@@ -256,11 +252,8 @@ def ppAESSdrfFile(expID):
 # end ppAESSdrfFile()
 
 #
-# Purpose: Reads groupTermplate (EAE_GROUP_LOCAL_FILE_TEMPLATE) and runToSampleDict()
-# Returns: 0 if successful, 1 if unsuccessful
-# Assumes: Nothing
-# Effects: creates EAE_GROUP_PP_FILE_TEMPLATE file in BASELINEINPUTDIR folder for given expID
-# Throws: Nothing
+# input  : EAE_GROUP_LOCAL_FILE_TEMPLATE
+# output : EAE_GROUP_PP_FILE_TEMPLATE
 #
 # format:
 # 	group ID 
@@ -268,7 +261,6 @@ def ppAESSdrfFile(expID):
 # 	Run IDs
 #   Sample IDs
 #
-
 def ppEAEGroupFile(expID):
 
     print('in ppEAEGroupFile(expID): %s' % expID)
@@ -319,13 +311,18 @@ def ppEAEGroupFile(expID):
 # end ppEAEGroupFile()
  
 #
-# Purpose: pre processing
+# pre processing
 #   read EAE tpms, group and AES sdrf files
 #   generate tpms output file, group output file
-# Returns: 0 if successful; handles return codes from all functions it calls 
-# Assumes: Nothing
-# Effects:
-# Throws: Nothing
+#
+# inputs:
+#	 EAE_TPMS_LOCAL_FILE_TEMPLATE
+#    EAE_GROUP_LOCAL_FILE_TEMPLATE
+#    AES_SDRF_LOCAL_FILE_TEMPLATE 
+#
+# outputs:
+#	 EAE_TPMS_PP_FILE_TEMPLATE
+#    EAE_GROUP_PP_FILE_TEMPLATE
 #
 def process():
     global rawRunList
