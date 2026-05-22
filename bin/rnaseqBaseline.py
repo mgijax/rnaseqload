@@ -417,7 +417,6 @@ def processRNASet():
             elif len(checkAllDict) > 1 and len(checkNoSexDict) == 1:
 
                 sexKey = 315166
-                print(sexKey)
 
                 fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
                     setKey, TAB, expKey, TAB, provider, TAB, groupSet, TAB, \
@@ -435,15 +434,12 @@ def processRNASet():
                 if expID not in resolvedError:
                     resolvedError[expID] = []
                 resolvedError[expID].append(groupSet)
-                print(resolvedError)
 
             # other mismatch
             else:
                 if expID not in unresolvedError:
                     unresolvedError[expID] = []
                 unresolvedError[expID].append(groupSet + '|' + sample)
-                #print(checkAllDict)
-                #print(checkNoSexDict)
 
     fpSet.close()
     fpMember.close()
