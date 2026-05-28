@@ -72,22 +72,17 @@ logDir = os.getenv('LOGDIR')
 inputDir = os.getenv('INPUTDIR')
 rawInputDir = os.getenv('RAW_INPUTDIR')
 outputDir = os.getenv('OUTPUTDIR')
-binDir = '%s/bin' % os.getenv('INSTALLDIR')
-
-# curation and diagnostic logs
-fpCur = open (os.getenv('LOG_CUR'), 'a')
-fpDiag = open (os.getenv('LOG_DIAG'), 'a')
-# special report for Richard
-fpStudentRpt = open('%s/studentRnaSeq.txt' % outputDir, 'w')
 
 # bcp stuff
 rnaSeqBcpFile = os.getenv('RNASEQ_BCP')
-fpRnaSeqBcp = None # this will get assigned later, once per experiment
+fpRnaSeqBcp = None
 combinedBcpFile = os.getenv('COMBINED_BCP')
-fpCombinedBcp = None  # this will get assigned later, once per experiment
+fpCombinedBcp = None
 
+binDir = '%s/bin' % os.getenv('INSTALLDIR')
 bcpCommand = os.getenv('PG_DBUTILS') + '/bin/bcpin.csh'
 bcpCommandList = []
+
 rnaSeqTable = 'GXD_HTSample_RNASeq'
 combinedTable = 'GXD_HTSample_RNASeqCombined'
 
@@ -217,7 +212,7 @@ rnaSeqKey = None
 combinedKey = None
 
 #
-# Purpose:  create db connection, init lookups
+# Purpose: create db connection, init lookups
 # Returns: 0
 # Assumes: Nothing
 # Effects: opens a database connection, queries a database
@@ -435,14 +430,14 @@ def ppAESFile(expID):
     # create aes input file descriptor for this experiment
     #
     aesFile = aesTemplate % expID
-    #print('aesFile: %s' % aesFile)
+    print('aesFile: %s' % aesFile)
     try:
         fpAes = open(aesFile, 'r')
     except:
         return 1 # file does not exist
 
     # path the aes preprocessed file for this experiment
-    currentAesPPFile = aesPPTemplate %  expID
+    currentAesPPFile = aesPPTemplate % expID
     fpCurrentPP = open(currentAesPPFile, 'w')
     ppList = [] # weed out dupes before writing to the PP file
     
@@ -544,8 +539,7 @@ def splitOffGene(tokens):
 # end splitOffGene ()--------------------------------------------
 
 #
-# Purpose: writes all QC in various data structures to the curation log with proper
-#       header and total count
+# Purpose: writes all QC in various data structures to the curation log with proper header and total count
 # Returns: 0
 # Assumes: Nothing
 # Effects: writes to a file in filesystem
@@ -555,6 +549,8 @@ def writeQC():
 
     print('start time: %s' % mgi_utils.date())
     print('in writeQC()')
+
+    fpCur = open(os.getenv('LOG_CUR'), 'a')
 
     fpCur.write("%sExperimentIDs From Experiment Input File Not in the Database%s" % (CRT, CRT))
     fpCur.write('----------------------------------------------------%s' % CRT)
@@ -639,6 +635,8 @@ def writeQC():
     for e in highAveStdDevList:
         fpCur.write('%s%s' % (e, CRT))
     fpCur.write('Total: %s%s' % (len(highAveStdDevList), CRT))
+
+    fpCur.close()
 
     return 0
 
@@ -752,6 +750,7 @@ def ppEAEFile(expID):
             fpCurrentPP.write('%s%s%s%s%s%s' % (geneID, TAB, runID, TAB, tpm, CRT))
 
     fpCurrentPP.close();
+
     print('Processing Runs from the EAE file: %s' % (expID)) 
     print('end time: %s' % mgi_utils.date())
 
@@ -779,7 +778,7 @@ def createJoinedFile(joinedFile):
     statusCode = result.returncode
 
     if statusCode != 0:
-        msg = 'Joining %s and %s failed statusCode: %s stderr: %s%s' % 
+        msg = 'Joining %s and %s failed statusCode: %s stderr: %s%s' % \
             (currentEaePPFile, currentAesPPFile, statusCode, stderr, CRT)
         fpLog.write(msg)
         return statusCode
@@ -804,7 +803,7 @@ def processJoinedFile(expID, joinedFile):
     global runIdNotInAEList, nonRelSkippedList, JDOSkippedList
 
     print('start time: %s' % mgi_utils.date())
-    print('in joinedFile(exptID, joinedFile): %s, %s' % (exptID, joinedFile))
+    print('in joinedFile(expID, joinedFile): %s, %s' % (expID, joinedFile))
 
     # {geneID: {sampleID:[tpm1, ...], ...}, ...}
     geneDict = {}
@@ -983,7 +982,7 @@ def calcTPMAveSD(expID, geneDict):
     global sampleAveSDDict, highAveStdDevList
 
     print('start time: %s' % mgi_utils.date())
-    print('calcTPMAveSD(exptID, geneDict): %s' % expID)
+    print('calcTPMAveSD(expID, geneDict): %s' % expID)
 
     # {sampleKey:{markerKey:aveTPM, ...}, sampleKey2:{markerKey:aveTPM, ...}, ...}
     # input to QN
@@ -1021,10 +1020,8 @@ def calcTPMAveSD(expID, geneDict):
                 sampleAveSDDict[key] = []
             sampleAveSDDict[key].append(stdDevAve)
 
-            # this reports the run tpm's, the tpm average, the stdDev of the run
-            # tpms and the stdDevAve (stdDev/aveTpm) as well as the count of
-            # technical replicates (number of runs per sample)
-            #
+            # this reports the run tpm's, the tpm average, the stdDev of the run tpms 
+            # and the stdDevAve (stdDev/aveTpm) as well as the count of technical replicates (number of runs per sample)
             fpStudentRpt.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % \
                 (expID, TAB, geneID, TAB, sampleID, TAB, ', '.join(list(map(str, tpmList))), \
                     TAB, aveTpm, TAB, stdDev, TAB, stdDevAve, TAB, techReplCt, CRT))
@@ -1066,17 +1063,21 @@ def execBCP():
     print('start time: %s' % mgi_utils.date())
     print('in execBCP()')
 
+    # diagnostic log
+    fpDiag = open(os.getenv('LOG_DIAG'), 'a')
+
     # execute all the bcp files
     for bcpCmd in bcpCommandList:
         fpDiag.write('%s\n' % bcpCmd)
         os.system(bcpCmd)
+    fpDiag.close()
 
     # reset the rnaseq primary key sequence
     db.sql('''select setval('gxd_htsample_rnaseq_seq', (select max(_rnaseq_key) from gxd_htsample_rnaseq))''', None)
+    db.commit()
 
     # reset the rnaseq combined primary key sequence
     db.sql('''select setval('gxd_htsample_rnaseqcombined_seq', (select max(_rnaseqcombined_key) from gxd_htsample_rnaseqcombined))''', None)
-
     db.commit()
 
     print('end time: %s' % mgi_utils.date())
@@ -1151,6 +1152,9 @@ def process():
 
     print('start time: %s' % mgi_utils.date())
     print('in process())')
+
+    # special report for Richard
+    fpStudentRpt = open('%s/studentRnaSeq.txt' % outputDir, 'w')
 
     # write the header to the student report up front
     fpStudentRpt.write('expID%sgeneID%ssampleID%stechRepl%saveTpm%sstdDev%sstdDevAve%stechRepCt%s' % \
@@ -1355,55 +1359,39 @@ def process():
         # write out bcp for all replisets of this experiment
         writeBCP(expID, matrixList)
 
-    # we've processed all experiments, now execute bcp
-    execBCP()
-
     print('end time: %s' % mgi_utils.date())
+
+    fpStudentRpt.close()
 
     return 0
 
 # end process ()--------------------------------------------
 
 #
-# Purpose: closes all file descriptors that remain open 
-# 	across all experiments
-#
-def closefiles():
-
-    fpCur.close()
-    fpDiag.close()
-    fpStudentRpt.close()
-
-    return 0
-
-# end closefiles ()--------------------------------------------
-
-#
 # Main
 #
 
-# -------------------------------------------------------------
-
 print('start time: %s' % mgi_utils.date())
 sys.stdout.flush()
+
 if init() != 0:
-     exit(1, 'Error in init\n' )
-print('run init function: %s' % mgi_utils.date())
+     exit(1, 'Error in init()\n' )
+print('run init() function: %s' % mgi_utils.date())
 sys.stdout.flush()
 
-# -------------------------------------------------------------
 if process() != 0:
-     exit(1, 'Error in process\n' )
-print('run process function: %s' % mgi_utils.date())
+     exit(1, 'Error in process()\n' )
+print('run process() function: %s' % mgi_utils.date())
 sys.stdout.flush()
 
-# -------------------------------------------------------------
+#if execBCP() != 0:
+#     exit(1, 'Error in execBCP()\n' )
+#print('run execBCP(): %s' % mgi_utils.date())
+#sys.stdout.flush()
+
 if writeQC() != 0:
-     exit(1, 'Error in writeQC\n' )
-print('run writeQC function: %s' % mgi_utils.date())
+     exit(1, 'Error in writeQC()\n' )
+print('run writeQC() function: %s' % mgi_utils.date())
 sys.stdout.flush()
 
-# -------------------------------------------------------------
-
-closefiles()
 print('end time: %s' % mgi_utils.date())
