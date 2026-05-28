@@ -2,17 +2,18 @@
 #
 # Purpose: Wrapper for Base RNASeq load
 #
-# Step 1: delete existing Baseline RNASeqSet data
+# Step 1: process withdrawn markers
+#
+# Step 2: delete existing Baseline RNASeqSet data
 #
 # only run if new Baseline member is added
-# Step 2: run baseline MGI_Set, MGI_SetMember
+# Step 3: run baseline MGI_Set, MGI_SetMember
 #
-# only run if Step 2 is run OR if need to refresh raw input files
-# Step 3: run baseline download (raw_input_baseline)
-# Step 4: run baseline pre processing (input_baseline)
+# only run if Step 3 is run OR if need to refresh raw input files
+# Step 4: run baseline download (raw_input_baseline)
+# Step 5: run baseline pre processing (input_baseline)
 #
-# Step 5: run baseline: RNASeqSet, RNASeq_SetMember, RNASeqCombined
-# Step 6: process withdrawn markers
+# Step 6: run baseline: RNASeqSet, RNASeq_SetMember, RNASeqCombined
 #
 # MGI_Set = Baseline RNASeq Experiments
 # MGI_SetMember
@@ -33,37 +34,37 @@ fi
 rm -rf ${BASELINELOG}
 touch ${BASELINELOG}
 
+# make sure this is uncommented before tagging
+#date >> ${BASELINELOG} 2>&1
+#echo "Step 1: process withdrawn markers" >> ${BASELINELOG} 2>&1
+#${RNASEQLOAD}/bin/processWithdrawnMarkers.sh >> ${BASELINELOG} 2>&1
+
 date >> ${BASELINELOG} 2>&1
-echo "Step 1: delete existing Baseline RNASeqSet data" >> ${BASELINELOG} 2>&1
+echo "Step 2: delete existing Baseline RNASeqSet data" >> ${BASELINELOG} 2>&1
 ${RNASEQLOAD}/bin/rnaseqBaselineDelete.sh >> ${BASELINELOG} 2>&1
 
 # only run if adding a new Baseline member
-#date >> ${BASELINELOG} 2>&1
-#echo "Step 2: run baseline MGI_Set, MGI_SetMember" >> ${BASELINELOG} 2>&1
-#${RNASEQLOAD}/bin/run_setbaseline.sh >> ${BASELINELOG} 2>&1
+date >> ${BASELINELOG} 2>&1
+echo "Step 3: run baseline MGI_Set, MGI_SetMember" >> ${BASELINELOG} 2>&1
+${RNASEQLOAD}/bin/run_setbaseline.sh >> ${BASELINELOG} 2>&1
 
-# only needs to run if Step 2 is run
-#date >> ${BASELINELOG} 2>&1
-#echo "Step 3: run baseline download (raw_input_baseline)" >> ${BASELINELOG} 2>&1
-#${RNASEQLOAD}/bin/run_downloadBaselineFiles.sh >> ${BASELINELOG} 2>&1
+# only needs to run if Step 4 is run
+date >> ${BASELINELOG} 2>&1
+echo "Step 4: run baseline download (raw_input_baseline)" >> ${BASELINELOG} 2>&1
+${RNASEQLOAD}/bin/run_downloadBaselineFiles.sh >> ${BASELINELOG} 2>&1
 
-# only needs to run if Step 3 is run
-#date >> ${BASELINELOG} 2>&1
-#echo "Step 4: run baseline pre processing (input_baseline)" >> ${BASELINELOG} 2>&1
-#rm -rf ${BASELINEINPUTDIR}/*
-#${PYTHON} ${RNASEQLOAD}/bin/preprocessBaseline.py >> ${BASELINELOG} 2>&1
+# only needs to run if Step 5 is run
+date >> ${BASELINELOG} 2>&1
+echo "Step 5: run baseline pre processing (input_baseline)" >> ${BASELINELOG} 2>&1
+rm -rf ${BASELINEINPUTDIR}/*
+${PYTHON} ${RNASEQLOAD}/bin/preprocessBaseline.py >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
-echo "Step 5: run baseline: RNASeqSet, RNASeq_SetMember, RNASeqCombined" >> ${BASELINELOG} 2>&1
+echo "Step 6: run baseline: RNASeqSet, RNASeq_SetMember, RNASeqCombined" >> ${BASELINELOG} 2>&1
 ${MGD_DBSCHEMADIR}/index/GXD_HTSample_RNASeqCombined_drop.object >> ${BASELINELOG} 2>&1
 ${MGD_DBSCHEMADIR}/key/GXD_HTSample_RNASeqCombined_drop.object >> ${BASELINELOG} 2>&1
 ${PYTHON} ${RNASEQLOAD}/bin/rnaseqBaseline.py >> ${BASELINELOG} 2>&1
 ${MGD_DBSCHEMADIR}/key/GXD_HTSample_RNASeqCombined_create.object >> ${BASELINELOG} 2>&1
 ${MGD_DBSCHEMADIR}/index/GXD_HTSample_RNASeqCombined_create.object >> ${BASELINELOG} 2>&1
-
-# make sure this is uncommented before tagging
-#date >> ${BASELINELOG} 2>&1
-#echo "Step 6: process withdrawn markers" >> ${BASELINELOG} 2>&1
-#${RNASEQLOAD}/bin/processWithdrawnMarkers.sh >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
