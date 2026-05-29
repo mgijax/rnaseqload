@@ -34,12 +34,12 @@ create index idx2 on baseline (_object_key);
 
 select * from baseline;
 
+delete from GXD_HTSample_RNASeqCombined where _CreatedBy_key = 1673;
+
 delete from GXD_HTSample_RNASeqSet
 using baseline
-where baseline._object_key = GXD_HTSample_RNASeqSet._experiment_key
+where baseline._rnaset_key = GXD_HTSample_RNASeqSet._rnaset_key
 ;
-
-delete from GXD_HTSample_RNASeqCombined where _CreatedBy_key = 1673;
 
 select b.*, s.*, m.*
 from baseline b, GXD_HTSample_RNASeqSet s, GXD_HTSample_RNASeqSetMember m
