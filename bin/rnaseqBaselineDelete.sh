@@ -38,7 +38,7 @@ delete from GXD_HTSample_RNASeqCombined where _CreatedBy_key = 1673;
 
 delete from GXD_HTSample_RNASeqSet
 using baseline
-where baseline._rnaset_key = GXD_HTSample_RNASeqSet._rnaset_key
+where baseline._object_key = GXD_HTSample_RNASeqSet._experiment_key
 ;
 
 select b.*, s.*, m.*
