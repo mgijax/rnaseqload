@@ -29,8 +29,7 @@ and a._logicaldb_key = 189
 and a.preferred = 1
 ;
 
-create index idx1 on baseline (_rnaseqset_key);
-create index idx2 on baseline (_object_key);
+create index idx on baseline (_object_key);
 
 select * from baseline;
 
