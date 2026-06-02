@@ -1,27 +1,27 @@
 ##########################################################################
 #
-# Purpose: Create pre-prcoessing files for each Experiment in Baseline set
+# Purpose: Create pre-prcoessing files for each Experiment in Differential set
 #
-#	 BASELINERAW_INPUTDIR
-#	 BASELINEINPUTDIR
+#	 DIFFRAW_INPUTDIR
+#	 DIFFINPUTDIR
 #
-#   input files read from BASELINERAW_INPUTDIR
-#	 BASELINE_TPMS_LOCAL_FILE_TEMPLATE
-#    BASELINE_GROUP_LOCAL_FILE_TEMPLATE
-#    BASELINE_SDRF_LOCAL_FILE_TEMPLATE 
+#   input files read from DIFFRAW_INPUTDIR
+#	 DIFF_RAWCOUNTS_LOCAL_FILE_TEMPLATE
+#    DIFF_GROUP_LOCAL_FILE_TEMPLATE
+#    DIFF_SDRF_LOCAL_FILE_TEMPLATE 
 #
-#   generated pre-processing files created in BASELINEINPUTDIR
-#	 BASELINE_TPMS_PP_FILE_TEMPLATE
-#    BASELINE_GROUP_PP_FILE_TEMPLATE
+#   generated pre-processing files created in DIFFINPUTDIR
+#	 DIFF_RAWCOUNTS_PP_FILE_TEMPLATE
+#    DIFF_GROUP_PP_FILE_TEMPLATE
 #
-# For each Experiment (xxx) from Baseline RNASeq MGI_Set
-#   for Experiment file in BASELINERAW_INPUTDIR
-#       process the tpms file (ppEAETpmsFile())
-#           -> BASELINEINPUTDIR/xxx.tpms.txt
+# For each Experiment (xxx) from RNASeq MGI_Set
+#   for Experiment file in DIFFRAW_INPUTDIR
+#       process the rawcounts file (ppEAERawCountsFile())
+#           -> DIFFINPUTDIR/xxx.rawcounts.txt
 #       prcoess the sdrf file (ppAESSdrfFile())
 #           -> runToSampleDict
 #       process the configuration (ppEAEGroupFile())
-#           -> BASELINEINPUTDIR/xxx.group.txt
+#           -> DIFFINPUTDIR/xxx.group.txt
 #
 ###########################################################################
 
@@ -32,11 +32,11 @@ import db
 import mgi_utils
 
 # Expression Atlas Experiment file Template - name of file stored locally
-tpmsTemplate = '%s' % os.getenv('BASELINE_TPMS_LOCAL_FILE_TEMPLATE')
-tpmsPPTemplate = '%s' % os.getenv('BASELINE_TPMS_PP_FILE_TEMPLATE')
-groupTemplate = '%s' % os.getenv('BASELINE_GROUP_LOCAL_FILE_TEMPLATE')
-groupPPTemplate = '%s' % os.getenv('BASELINE_GROUP_PP_FILE_TEMPLATE')
-aesTemplate = '%s' % os.getenv('BASELINE_SDRF_LOCAL_FILE_TEMPLATE')
+rawcountsTemplate = '%s' % os.getenv('DIFF_RAWCOUNTS_LOCAL_FILE_TEMPLATE')
+rawcountsPPTemplate = '%s' % os.getenv('DIFF_RAWCOUNTS_PP_FILE_TEMPLATE')
+groupTemplate = '%s' % os.getenv('DIFF_GROUP_LOCAL_FILE_TEMPLATE')
+groupPPTemplate = '%s' % os.getenv('DIFF_GROUP_PP_FILE_TEMPLATE')
+aesTemplate = '%s' % os.getenv('DIFF_SDRF_LOCAL_FILE_TEMPLATE')
 
 # unique set of raw samples
 rawRunList = []
@@ -70,8 +70,8 @@ def loadSamples(expID):
 # end loadSamples()
 
 #
-# input  : BASELINE_TPMS_LOCAL_FILE_TEMPLATE
-# output : BASELINE_TPMS_PP_FILE_TEMPLATE
+# input  : DIFF_RAWCOUNTS_LOCAL_FILE_TEMPLATE
+# output : DIFF_RAWCOUNTS_PP_FILE_TEMPLATE
 #
 # format:
 #   ensembm ID
@@ -79,21 +79,21 @@ def loadSamples(expID):
 #   marker symbol
 #   each group (g1, g2, etc. value = 3rd value avg QN TPM)
 #
-def ppEAETpmsFile(expID):
+def ppEAERawCountsFile(expID):
 
-    print('in ppEAETpmsFile(expID): %s' % expID)
+    print('in ppEAERawCountsFile(expID): %s' % expID)
 
     #  read the input file
-    eaeFile = tpmsTemplate % expID
+    eaeFile = rawcountsTemplate % expID
     print('eaeFile: %s' % eaeFile)
     try:
         fpEae = open(eaeFile, 'r')
     except:
-        print('skipping: missing -tpms.tsv file: %s' % (expID))
+        print('skipping: missing -rawcounts.tsv file: %s' % (expID))
         return 1 # file does not exist
 
     #  create the output file
-    ppFile = tpmsPPTemplate % expID
+    ppFile = rawcountsPPTemplate % expID
     try:
         fpPP = open(ppFile, 'w')
     except:
@@ -129,7 +129,7 @@ def ppEAETpmsFile(expID):
         ensemblID = str.strip(tokens[0])
 
         # if ensemblID is not in MGI, then set markerKey = 0
-        # will handle this later during TPMS processing
+        # will handle this later during RAWCOUNTS processing
         if ensemblID in ensemblDict:
             markerKey = ensemblDict[ensemblID][0]['_object_key']
             markerSymbol = ensemblDict[ensemblID][0]['symbol']
@@ -150,10 +150,10 @@ def ppEAETpmsFile(expID):
 
     return 0
 
-# end ppEAETpmsFile()
+# end ppEAERawCountsFile()
 
 #
-# input  : BASELINE_SDRF_LOCAL_FILE_TEMPLATE
+# input  : DIFF_SDRF_LOCAL_FILE_TEMPLATE
 # output : runToSampleDict
 #   store all Source Name's per ENA_RUN
 #   E-ERAD-169.sdrf.txt : runToSampleDict['ERS223116'] = ['ERR323395', 'ERR323401']
@@ -252,8 +252,8 @@ def ppAESSdrfFile(expID):
 # end ppAESSdrfFile()
 
 #
-# input  : BASELINE_GROUP_LOCAL_FILE_TEMPLATE
-# output : BASELINE_GROUP_PP_FILE_TEMPLATE
+# input  : DIFF_GROUP_LOCAL_FILE_TEMPLATE
+# output : DIFF_GROUP_PP_FILE_TEMPLATE
 #
 # format:
 # 	group ID 
@@ -271,13 +271,16 @@ def ppEAEGroupFile(expID):
     except:
         print('skipping: missing -configuration.xml: %s' % (expID))
         return 1 # file does not exist
+    print(eaeFile)
 
     #  create the output file
+    print('ppFile...', expID, groupPPTemplate)
     ppFile = groupPPTemplate % expID
     try:
         fpPP = open(ppFile, 'w')
     except:
         return 1 # file does not exist
+    print('ppFile:' , ppFile)
 
     #
     # eaeFile is in XML format
@@ -289,6 +292,7 @@ def ppEAEGroupFile(expID):
     #            <assay>ERR4193655</assay>
     #        </assay_group>
 
+    print(eaeFile)
     tree = ET.parse(eaeFile)
     root = tree.getroot()
     assay_groups = root.findall('.//assay_group')
@@ -312,17 +316,17 @@ def ppEAEGroupFile(expID):
  
 #
 # pre processing
-#   read EAE tpms, group and AES sdrf files
-#   generate tpms output file, group output file
+#   read EAE rawcounts, group and AES sdrf files
+#   generate rawcounts output file, group output file
 #
 # inputs:
-#	 BASELINE_TPMS_LOCAL_FILE_TEMPLATE
-#    BASELINE_GROUP_LOCAL_FILE_TEMPLATE
-#    BASELINE_SDRF_LOCAL_FILE_TEMPLATE 
+#	 DIFF_RAWCOUNTS_LOCAL_FILE_TEMPLATE
+#    DIFF_GROUP_LOCAL_FILE_TEMPLATE
+#    DIFF_SDRF_LOCAL_FILE_TEMPLATE 
 #
 # outputs:
-#	 BASELINE_TPMS_PP_FILE_TEMPLATE
-#    BASELINE_GROUP_PP_FILE_TEMPLATE
+#	 DIFF_RAWCOUNTS_PP_FILE_TEMPLATE
+#    DIFF_GROUP_PP_FILE_TEMPLATE
 #
 def process():
     global rawRunList
@@ -330,7 +334,7 @@ def process():
     results = db.sql('''
         select a.accid
         from MGI_Set s, MGI_SetMember m , ACC_Accession a
-        where s.name = 'Baseline RNASeq Load Experiments'
+        where s.name = 'RNASeq Load Experiments'
         and s._set_key = m._set_key
         and s._mgitype_key = a._mgitype_key
         and m._object_key = a._object_key
@@ -345,11 +349,11 @@ def process():
 
         expID = str.strip(r['accid'])
 
-        # process the eae/tpms file for this expID
-        rc = ppEAETpmsFile(expID)
-        if rc != 0:
-            print('processing EAE tpms file returned rc %s, skipping file for %s' % (rc, expID))
-            continue
+        # process the eae/rawcounts file for this expID
+        #rc = ppEAERawCountsFile(expID)
+        #if rc != 0:
+        #    print('processing EAE rawcounts file returned rc %s, skipping file for %s' % (rc, expID))
+        #    continue
 
         # process the aes/sdrf file for this expID to create the runToSampleDict
         rc = ppAESSdrfFile(expID)
