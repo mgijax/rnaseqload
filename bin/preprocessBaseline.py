@@ -163,7 +163,7 @@ def ppEAETpmsFile(expID):
 #   ENA_SAMPLE
 #   ENA_RUN
 #
-def ppAESSdrfFile(expID):
+def ppAESSdrfFile(expID, objectKey):
 
     global rawRunList, runToSampleDict
 
@@ -236,6 +236,17 @@ def ppAESSdrfFile(expID):
             else:
                 print('skipping: sample is not in MGI: %s, sourceSample = %s, enaSample = %s' % (expID, sourceSample, str(enaSample)))
                 continue
+
+        # if sourceSample exists in MGI, is genotype = J:DO (_genotype_key = 90560), 
+        #   or Relevance != Yes (_relevance_key != 20475450), 
+        # then skip
+        ignoreResults = db.sql('''
+            select * from GXD_HTSample where (_genotype_key = 90560 or _relevance_key != 20475450)
+                and _experiment_key = %s and name = '%s' 
+            ''' % (objectKey, sourceSample), 'auto')
+        if len(ignoreResults) > 0:
+            #print('skipping: sample is J:DO or Relevance != Yes')
+            continue
 
         rawRunList.append(enaRun)
 
@@ -328,7 +339,7 @@ def process():
     global rawRunList
 
     results = db.sql('''
-        select a.accid
+        select a.accid, a._object_key
         from MGI_Set s, MGI_SetMember m , ACC_Accession a
         where s.name = 'Baseline RNASeq Load Experiments'
         and s._set_key = m._set_key
@@ -344,6 +355,7 @@ def process():
     for r in results:
 
         expID = str.strip(r['accid'])
+        objectKey = r['_object_key']
 
         # process the eae/tpms file for this expID
         rc = ppEAETpmsFile(expID)
@@ -352,7 +364,7 @@ def process():
             continue
 
         # process the aes/sdrf file for this expID to create the runToSampleDict
-        rc = ppAESSdrfFile(expID)
+        rc = ppAESSdrfFile(expID, objectKey)
         if rc != 0:
             print('processing AES sdrf file returned rc %s, skipping file for %s' % (rc, expID))
             continue
