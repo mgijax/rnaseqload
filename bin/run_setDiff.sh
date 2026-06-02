@@ -1,7 +1,7 @@
 #!/bin/csh
 #
 #  Purpose:
-#	quick script to run the baseline setload
+#	quick script to run the diff setload
 #
 
 if ( ${?MGICONFIG} == 0 ) then
@@ -9,7 +9,7 @@ if ( ${?MGICONFIG} == 0 ) then
 endif
 
 source ${MGICONFIG}/master.config.csh
-source ${RNASEQLOAD}/baselinesetload.config
+source ${RNASEQLOAD}/diffsetload.config
 
 cd ${LOADDIR}
 
@@ -23,13 +23,13 @@ if ( -e ${LASTRUN_FILE} ) then
         exit 0
 endif
 
-echo "Run baseline setload"  | tee -a ${LOG}
-${SETLOAD}/setload.csh ${RNASEQLOAD}/baselinesetload.config | tee -a ${LOG}
+echo "Run diff setload"  | tee -a ${LOG}
+${SETLOAD}/setload.csh ${RNASEQLOAD}/diffsetload.config | tee -a ${LOG}
 
 cat - <<EOSQL | ${PG_DBUTILS}/bin/doisql.csh $0 | tee -a $LOG
-select s.* from MGI_Set s where s.name = 'Baseline RNASeq Load Experiments';
+select s.* from MGI_Set s where s.name = 'RNASeq Load Experiments';
 select a.accid, m.* from MGI_Set s, MGI_SetMember m , ACC_Accession a
-where s.name = 'Baseline RNASeq Load Experiments'
+where s.name = 'RNASeq Load Experiments'
 and s._set_key = m._set_key
 and s._mgitype_key = a._mgitype_key
 and m._object_key = a._object_key
