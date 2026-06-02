@@ -128,18 +128,18 @@ select count(*) from gxd_htsample_rnaseqcombined where _createdby_key = 1673;
 select _createdby_key, count(*) from gxd_htsample_rnaseqset group by _createdby_key;
 select _createdby_key, count(*) from gxd_htsample_rnaseqcombined group by _createdby_key;
 
-select distinct a.accid, r._experiment_key, g._genotype_key, s.strain
-from acc_accession a, gxd_htsample_rnaseqset r, gxd_genotype g, prb_strain s
-where a._mgitype_key = 42
-and a._logicaldb_key = 189
-and a.preferred = 1
-and a._object_key = r._experiment_key
-and r._genotype_key = g._genotype_key
-and g._strain_key = s._strain_key
+--select distinct a.accid, r._experiment_key, g._genotype_key, s.strain
+--from acc_accession a, gxd_htsample_rnaseqset r, gxd_genotype g, prb_strain s
+--where a._mgitype_key = 42
+--and a._logicaldb_key = 189
+--and a.preferred = 1
+--and a._object_key = r._experiment_key
+--and r._genotype_key = g._genotype_key
+--and g._strain_key = s._strain_key
 --and not exists (select 1 from gxd_allelepair aa where g._genotype_key = aa._genotype_key)
-and r._createdby_key = 1673
-order by a.accid, s.strain
-;
+--and r._createdby_key = 1673
+--order by a.accid, s.strain
+--;
 
 --select r._experiment_key, g._genotype_key, s.strain, r._createdby_key
 --from gxd_htsample_rnaseqset r, gxd_genotype g, prb_strain s

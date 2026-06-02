@@ -31,6 +31,8 @@ import xml.etree.ElementTree as ET
 import db
 import mgi_utils
 
+#db.setTrace(True)
+
 # Expression Atlas Experiment file Template - name of file stored locally
 rawcountsTemplate = '%s' % os.getenv('DIFF_RAWCOUNTS_LOCAL_FILE_TEMPLATE')
 rawcountsPPTemplate = '%s' % os.getenv('DIFF_RAWCOUNTS_PP_FILE_TEMPLATE')
@@ -163,11 +165,11 @@ def ppEAERawCountsFile(expID):
 #   ENA_SAMPLE
 #   ENA_RUN
 #
-def ppAESSdrfFile(expID):
+def ppAESSdrfFile(expID, objectKey):
 
     global rawRunList, runToSampleDict
 
-    print('in ppAESSdrfFile(expID): %s' % expID)
+    print('in ppAESSdrfFile(expID, object_key): %s,%s' % (expID, objectKey))
 
     #  read the input file
     aesFile = aesTemplate % expID
@@ -237,6 +239,17 @@ def ppAESSdrfFile(expID):
                 print('skipping: sample is not in MGI: %s, sourceSample = %s, enaSample = %s' % (expID, sourceSample, str(enaSample)))
                 continue
 
+        # if sourceSample exists in MGI, is genotype = J:DO (_genotype_key = 90560), 
+        #   or Relevance != Yes (_relevance_key != 20475450), 
+        # then skip
+        ignoreResults = db.sql('''
+            select * from GXD_HTSample where (_genotype_key = 90560 or _relevance_key != 20475450)
+                and _experiment_key = %s and name = '%s' 
+            ''' % (objectKey, sourceSample), 'auto')
+        if len(ignoreResults) > 0:
+            #print('skipping: sample is J:DO or Relevance != Yes')
+            continue
+
         rawRunList.append(enaRun)
 
         key = enaRun
@@ -284,6 +297,7 @@ def ppEAEGroupFile(expID):
 
     #
     # eaeFile is in XML format
+    # exclude <assay_group id="xxx_yyy" label...
     #
     # iterate thru the eaeFile xml file
     #        <assay_group id="g1" label="brown adipose tissue">
@@ -298,12 +312,16 @@ def ppEAEGroupFile(expID):
     assay_groups = root.findall('.//assay_group')
     for ag in assay_groups:
         id = ag.get('id')
+        if str.find(id, '_') > -1:
+            continue
         label = ag.get('label')
         runids = []
         for child in ag:
             #print(child.tag, child.text)
             runID = child.text
             sampleID = 'missing'
+            if runID not in runToSampleDict:
+                continue
             if runID in runToSampleDict:
                 sampleID = runToSampleDict[runID][0]
             fpPP.write('%s\t%s\t%s\t%s\n' % (id, label, runID, sampleID))
@@ -332,7 +350,7 @@ def process():
     global rawRunList
 
     results = db.sql('''
-        select a.accid
+        select a.accid, a._object_key
         from MGI_Set s, MGI_SetMember m , ACC_Accession a
         where s.name = 'RNASeq Load Experiments'
         and s._set_key = m._set_key
@@ -348,6 +366,7 @@ def process():
     for r in results:
 
         expID = str.strip(r['accid'])
+        objectKey = r['_object_key']
 
         # process the eae/rawcounts file for this expID
         #rc = ppEAERawCountsFile(expID)
@@ -356,7 +375,7 @@ def process():
         #    continue
 
         # process the aes/sdrf file for this expID to create the runToSampleDict
-        rc = ppAESSdrfFile(expID)
+        rc = ppAESSdrfFile(expID, objectKey)
         if rc != 0:
             print('processing AES sdrf file returned rc %s, skipping file for %s' % (rc, expID))
             continue
