@@ -19,7 +19,7 @@ touch $LOG
 
 setenv LASTRUN_FILE ${SETDATADIR}/lastrun.diff
 if ( -e ${LASTRUN_FILE} ) then
-        echo "LASTRUN_FILE exists - skipping load" | tee -a ${LOG}
+        echo "${LASTRUN_FILE} exists - skipping load" | tee -a ${LOG}
         exit 0
 endif
 
