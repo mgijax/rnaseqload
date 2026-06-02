@@ -3,17 +3,17 @@
 # Purpose:
 #       Download ArrayExpress and Expression Atlas files by experiment
 #
-# Usage: downloadBaselineFiles.py
+# Usage: downloadDiffFiles.py
 # Env Vars:
 #	 1. LOGDIR 
-#	 2. BASELINERAW_INPUTDIR - files are downloaded to this directory
-#	 3a. EAE_TPMS_URL_TEMPLATE - url template for Expression Atlas
+#	 2. DIFFRAW_INPUTDIR - files are downloaded to this directory
+#	 3a. EAE_RAWCOUNTS_URL_TEMPLATE - url template for Expression Atlas
 #	 3b. EAE_GROUP_URL_TEMPLATE - url template for Expression Atlas
 #	 3c. AES_SDRF_URL_TEMPLATE - url template for Expression Atlas
 #	 4. DOWNLOAD_OK - if exists then error-free download
 #
 # Inputs:
-#	1. Database - the experiments in the 'Baseline RNASeq Load Experiment' Set
+#	1. Database - the experiments in the 'RNASeq Load Experiment' Set
 #		and the experiments loaded 
 #	2. Configuration (see rnaseqload.config)
 #
@@ -37,15 +37,12 @@ import mgi_utils
 import db
 
 # paths to logs, input
-rawInputDir = os.getenv('BASELINERAW_INPUTDIR')
+rawInputDir = os.getenv('DIFFRAW_INPUTDIR')
 
 # Expression Atlas Experiment file URL Templage
-eatTemplate  = os.getenv('EAE_TPMS_URL_TEMPLATE')
-eatLocalFileTemplate = os.getenv('EAE_TPMS_LOCAL_FILE_TEMPLATE')
+eatTemplate  = os.getenv('EAE_RAWCOUNTS_URL_TEMPLATE')
 eagTemplate  = os.getenv('EAE_GROUP_URL_TEMPLATE')
-eagLocalFileTemplate = os.getenv('EAE_GROUP_LOCAL_FILE_TEMPLATE')
 aesTemplate  = os.getenv('AES_SDRF_URL_TEMPLATE')
-aesLocalFileTemplate = os.getenv('AES_SDRF_LOCAL_FILE_TEMPLATE')
 
 # number of files unable to be downloaded
 errorCt = 0
@@ -66,7 +63,7 @@ def init():
     rnaSeqSetResults = db.sql('''
         select a.accid
         from MGI_Set s, MGI_SetMember m , ACC_Accession a
-        where s.name = 'Baseline RNASeq Load Experiments'
+        where s.name = 'RNASeq Load Experiments'
         and s._set_key = m._set_key
         and s._mgitype_key = a._mgitype_key
         and m._object_key = a._object_key
@@ -78,10 +75,10 @@ def init():
 
 # end init() -------------------------------------------------------------
 
-def downloadTPMS(expID):
+def downloadRAWCOUNTS(expID):
 
     eaeURL = eatTemplate % (expID, expID)
-    outputFile = rawInputDir + '/' + expID + '-tpms.tsv'
+    outputFile = rawInputDir + '/' + expID + '-raw-counts.tsv'
     cmd = ['wget', eaeURL]
     cmd.extend(['-O', outputFile])
     result = subprocess.run(cmd, check=True)
@@ -94,7 +91,7 @@ def downloadTPMS(expID):
 
     return statusCode
 
-# end downloadTPMS -------------------------------------------------------------
+# end downloadRAWCOUNTS -------------------------------------------------------------
 
 def downloadGROUP(expID):
 
@@ -151,7 +148,7 @@ def downloadFiles():
 
         print('Download files for experiment ID: %s\n' % (expID))
 
-        e_rc = downloadTPMS(expID)
+        e_rc = downloadRAWCOUNTS(expID)
         if e_rc != 0:
             errorCt += 1
             print('skipping EAE file for %s with wget return code %s\n' % (expID, e_rc))

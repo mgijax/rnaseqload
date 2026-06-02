@@ -41,11 +41,8 @@ rawInputDir = os.getenv('BASELINERAW_INPUTDIR')
 
 # Expression Atlas Experiment file URL Templage
 eatTemplate  = os.getenv('EAE_TPMS_URL_TEMPLATE')
-eatLocalFileTemplate = os.getenv('EAE_TPMS_LOCAL_FILE_TEMPLATE')
 eagTemplate  = os.getenv('EAE_GROUP_URL_TEMPLATE')
-eagLocalFileTemplate = os.getenv('EAE_GROUP_LOCAL_FILE_TEMPLATE')
 aesTemplate  = os.getenv('AES_SDRF_URL_TEMPLATE')
-aesLocalFileTemplate = os.getenv('AES_SDRF_LOCAL_FILE_TEMPLATE')
 
 # number of files unable to be downloaded
 errorCt = 0
