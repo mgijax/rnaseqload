@@ -439,7 +439,7 @@ def processRNASet():
             else:
                 if expID not in unresolvedError:
                     unresolvedError[expID] = []
-                unresolvedError[expID].append(groupSet + '|' + sample)
+                unresolvedError[expID].append(groupSet + '|' + ','.join(groupMeta[groupSet]))
 
     fpSet.close()
     fpMember.close()

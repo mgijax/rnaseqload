@@ -13,10 +13,10 @@ fi
 
 . ${RNASEQLOAD}/rnaseqload.config
 
-rm -rf ${DIFFERENTIALLOG}
-touch ${DIFFERENTIALLOG}
+rm -rf ${DIFFLOG}
+touch ${DIFFLOG}
 
-cat - <<EOSQL | ${PG_DBUTILS}/bin/doisql.csh $0 >> ${DIFFERENTIALLOG} 2>&1
+cat - <<EOSQL | ${PG_DBUTILS}/bin/doisql.csh $0 >> ${DIFFLOG} 2>&1
 
 delete from GXD_HTSample_RNASeq where _CreatedBy_key = 1613;
 delete from GXD_HTSample_RNASeqCombined where _CreatedBy_key = 1613;
