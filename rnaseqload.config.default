@@ -78,7 +78,7 @@ export DIFFDOWNLOAD_OK BASELINEDOWNLOAD_OK
 # URL files fetched into BASELINERAW_INPUTDIR
 EAE_TPMS_URL_TEMPLATE="ftp.ebi.ac.uk/pub/databases/microarray/data/atlas/experiments/%s/%s-tpms.tsv"
 EAE_GROUP_URL_TEMPLATE="ftp.ebi.ac.uk/pub/databases/microarray/data/atlas/experiments/%s/%s-configuration.xml"
-EAE_RAWCOUNTS_URL_TEMPLATE="ftp.ebi.ac.uk/pub/databases/microarray/data/atlas/experiments/%s/%s-rawcounts.tsv"
+EAE_RAWCOUNTS_URL_TEMPLATE="ftp.ebi.ac.uk/pub/databases/microarray/data/atlas/experiments/%s/%s-raw-counts.tsv"
 AES_SDRF_URL_TEMPLATE="ftp.ebi.ac.uk/biostudies/fire/%s/%s/%s/Files/%s.sdrf.txt"
 export EAE_TPMS_URL_TEMPLATE EAE_GROUP_URL_TEMPLATE AES_SDRF_URL_TEMPLATE EAE_RAWCOUNTS_URL_TEMPLATE
 
