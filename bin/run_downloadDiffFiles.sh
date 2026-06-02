@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # Purpose:
-#	Download Baseline AES & EAE files
+#	Download Diff AES & EAE files
 #
 
 cd `dirname $0`
@@ -19,25 +19,25 @@ else
     exit 1
 fi
 
-if [ -f ${BASELINELOG_DOWNLOAD} ]
-    rm -rf ${BASELINELOG_DOWNLOAD}
+if [ -f ${DIFFLOG_DOWNLOAD} ]
+    rm -rf ${DIFFLOG_DOWNLOAD}
 then
-    touch ${BASELINELOG_DOWNLOAD}
+    touch ${DIFFLOG_DOWNLOAD}
 fi
 
-LASTRUN_FILE=${BASELINERAW_INPUTDIR}/lastrun
+LASTRUN_FILE=${DIFFRAW_INPUTDIR}/lastrun
 if [ -f ${LASTRUN_FILE} ]
 then
-        echo "LASTRUN_FILE exists - skipping load" | tee -a ${BASELINELOG_DOWNLOAD}
+        echo "${LASTRUN_FILE} exists - skipping load" | tee -a ${DIFFLOG_DOWNLOAD}
         exit 0
 fi
 
-date | tee -a ${BASELINELOG_DOWNLOAD}
+date | tee -a ${DIFFLOG_DOWNLOAD}
 
 echo "Downloading input files" 
-rm -rf ${BASELINELOG_DOWNLOAD}
-rm -rf ${RAW_INPUTDIR}/*
-${PYTHON} ${RNASEQLOAD}/bin/downloadBaselineFiles.py >> ${BASELINELOG_DOWNLOAD} 2>&1
+rm -rf ${DIFFLOG_DOWNLOAD}
+rm -rf ${DIFFRAW_INPUTDIR}/*
+${PYTHON} ${RNASEQLOAD}/bin/downloadDiffFiles.py >> ${DIFFLOG_DOWNLOAD} 2>&1
 STAT=$?
 
 #
@@ -48,4 +48,4 @@ then
     touch ${LASTRUN_FILE}
 fi
 
-date | tee -a ${BASELINELOG_DOWNLOAD}
+date | tee -a ${DIFFLOG_DOWNLOAD}

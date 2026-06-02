@@ -28,7 +28,7 @@ fi
 LASTRUN_FILE=${BASELINERAW_INPUTDIR}/lastrun
 if [ -f ${LASTRUN_FILE} ]
 then
-        echo "LASTRUN_FILE exists - skipping load" | tee -a ${BASELINELOG_DOWNLOAD}
+        echo "${LASTRUN_FILE} exists - skipping load" | tee -a ${BASELINELOG_DOWNLOAD}
         exit 0
 fi
 
@@ -36,7 +36,7 @@ date | tee -a ${BASELINELOG_DOWNLOAD}
 
 echo "Downloading input files" 
 rm -rf ${BASELINELOG_DOWNLOAD}
-rm -rf ${RAW_INPUTDIR}/*
+rm -rf ${BASELINERAW_INPUTDIR}/*
 ${PYTHON} ${RNASEQLOAD}/bin/downloadBaselineFiles.py >> ${BASELINELOG_DOWNLOAD} 2>&1
 STAT=$?
 
