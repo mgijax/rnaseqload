@@ -3,16 +3,10 @@
 # Purpose: Wrapper for Baseline RNASeq load
 #
 # Step 1: process withdrawn markers
-#
 # Step 2: delete existing Baseline RNASeqSet data
-#
-# only run if new Baseline member is added
 # Step 3: run baseline MGI_Set, MGI_SetMember
-#
-# only run if Step 3 is run OR if need to refresh raw input files
 # Step 4: run baseline download (raw_input_baseline)
 # Step 5: run baseline pre processing (input_baseline)
-#
 # Step 6: run baseline: RNASeqSet, RNASeq_SetMember, RNASeqCombined
 #
 # MGI_Set = Baseline RNASeq Experiments
@@ -43,17 +37,14 @@ date >> ${BASELINELOG} 2>&1
 echo "Step 2: delete existing Baseline RNASeqSet data" >> ${BASELINELOG} 2>&1
 ${RNASEQLOAD}/bin/rnaseqBaselineDelete.sh >> ${BASELINELOG} 2>&1
 
-# only run if adding a new Baseline member
 date >> ${BASELINELOG} 2>&1
 echo "Step 3: run baseline MGI_Set, MGI_SetMember" >> ${BASELINELOG} 2>&1
 ${RNASEQLOAD}/bin/run_setBaseline.sh >> ${BASELINELOG} 2>&1
 
-# only needs to run if Step 4 is run
 date >> ${BASELINELOG} 2>&1
 echo "Step 4: run baseline download (raw_input_baseline)" >> ${BASELINELOG} 2>&1
 ${RNASEQLOAD}/bin/run_downloadBaselineFiles.sh >> ${BASELINELOG} 2>&1
 
-# only needs to run if Step 5 is run
 date >> ${BASELINELOG} 2>&1
 echo "Step 5: run baseline pre processing (input_baseline)" >> ${BASELINELOG} 2>&1
 rm -rf ${BASELINEINPUTDIR}/*
