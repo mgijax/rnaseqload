@@ -17,11 +17,11 @@ setenv LOG $0.log
 rm -rf $LOG
 touch $LOG
 
-setenv LASTRUN_FILE ${SETDATADIR}/lastrun.baseline
-if ( -e ${LASTRUN_FILE} ) then
-        echo "${LASTRUN_FILE} exists - skipping load" | tee -a ${LOG}
-        exit 0
-endif
+#setenv LASTRUN_FILE ${SETDATADIR}/lastrun.baseline
+#if ( -e ${LASTRUN_FILE} ) then
+#        echo "${LASTRUN_FILE} exists - skipping load" | tee -a ${LOG}
+#        exit 0
+#endif
 
 echo "Run baseline setload"  | tee -a ${LOG}
 ${SETLOAD}/setload.csh ${RNASEQLOAD}/baselinesetload.config | tee -a ${LOG}
@@ -41,4 +41,4 @@ EOSQL
 #
 # Touch the "lastrun" file to note when the load was run.
 #
-touch ${LASTRUN_FILE}
+#touch ${LASTRUN_FILE}

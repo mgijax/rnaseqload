@@ -25,12 +25,12 @@ then
     touch ${BASELINELOG_DOWNLOAD}
 fi
 
-LASTRUN_FILE=${BASELINERAW_INPUTDIR}/lastrun
-if [ -f ${LASTRUN_FILE} ]
-then
-        echo "${LASTRUN_FILE} exists - skipping load" | tee -a ${BASELINELOG_DOWNLOAD}
-        exit 0
-fi
+#LASTRUN_FILE=${BASELINERAW_INPUTDIR}/lastrun
+#if [ -f ${LASTRUN_FILE} ]
+#then
+#        echo "${LASTRUN_FILE} exists - skipping load" | tee -a ${BASELINELOG_DOWNLOAD}
+#        exit 0
+#fi
 
 date | tee -a ${BASELINELOG_DOWNLOAD}
 
@@ -38,14 +38,14 @@ echo "Downloading input files"
 rm -rf ${BASELINELOG_DOWNLOAD}
 rm -rf ${BASELINERAW_INPUTDIR}/*
 ${PYTHON} ${RNASEQLOAD}/bin/downloadBaselineFiles.py >> ${BASELINELOG_DOWNLOAD} 2>&1
-STAT=$?
+#STAT=$?
 
 #
 # Touch the "lastrun" file to note when the load was run.
 #
-if [ ${STAT} = 0 ]
-then
-    touch ${LASTRUN_FILE}
-fi
+#if [ ${STAT} = 0 ]
+#then
+#    touch ${LASTRUN_FILE}
+#fi
 
 date | tee -a ${BASELINELOG_DOWNLOAD}
