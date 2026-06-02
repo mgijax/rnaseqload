@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Purpose: Wrapper for Base RNASeq load
+# Purpose: Wrapper for Baseline RNASeq load
 #
 # Step 1: process withdrawn markers
 #
@@ -46,7 +46,7 @@ ${RNASEQLOAD}/bin/rnaseqBaselineDelete.sh >> ${BASELINELOG} 2>&1
 # only run if adding a new Baseline member
 date >> ${BASELINELOG} 2>&1
 echo "Step 3: run baseline MGI_Set, MGI_SetMember" >> ${BASELINELOG} 2>&1
-${RNASEQLOAD}/bin/run_setbaseline.sh >> ${BASELINELOG} 2>&1
+${RNASEQLOAD}/bin/run_setBaseline.sh >> ${BASELINELOG} 2>&1
 
 # only needs to run if Step 4 is run
 date >> ${BASELINELOG} 2>&1

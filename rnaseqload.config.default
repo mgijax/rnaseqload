@@ -52,6 +52,11 @@ BASELINEOUTPUTDIR=${FILEDIR}/output_baseline
 BASELINERAW_INPUTDIR=${FILEDIR}/raw_input_baseline
 export BASELINEINPUTDIR BASELINEOUTPUTDIR BASELINERAW_INPUTDIR
 
+DIFFINPUTDIR=${FILEDIR}/input_differential
+DIFFOUTPUTDIR=${FILEDIR}/output_differential
+DIFFRAW_INPUTDIR=${FILEDIR}/raw_input_differential
+export DIFFINPUTDIR DIFFOUTPUTDIR DIFFRAW_INPUTDIR
+
 # Complete path name of the rnaseqload log files
 LOG_FILE=${LOGDIR}/rnaseqload.log
 LOG_PROC=${LOGDIR}/rnaseqload.proc.log
@@ -61,19 +66,21 @@ LOG_VAL=${LOGDIR}/rnaseqload.val.log
 LOG_DOWNLOAD=${LOGDIR}/downloadFiles.log
 BASELINELOG_DOWNLOAD=${LOGDIR}/downloadBaselineFiles.log
 BASELINELOG=${LOGDIR}/rnaseqBaseline.log
-export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL LOG_DOWNLOAD BASELINELOG_DOWNLOAD BASELINELOG
+DIFFLOG_DOWNLOAD=${LOGDIR}/downloadDifferentialFiles.log
+DIFFLOG=${LOGDIR}/rnaseqDifferential.log
+export LOG_FILE LOG_PROC LOG_DIAG LOG_CUR LOG_VAL LOG_DOWNLOAD BASELINELOG_DOWNLOAD BASELINELOG DIFFLOG_DOWNLOAD DIFFLOG
 
 # if this file exists then there is a full data set
-DOWNLOAD_OK=${RAW_INPUTDIR}/download_ok
-export DOWNLOAD_OK
+DIFFDOWNLOAD_OK=${DIFFRAW_INPUTDIR}/download_ok
 BASELINEDOWNLOAD_OK=${BASELINERAW_INPUTDIR}/download_ok
-export DOWNLOAD_OK BASELINEDOWNLOAD_OK
+export DIFFDOWNLOAD_OK BASELINEDOWNLOAD_OK
 
 # URL files fetched into BASELINERAW_INPUTDIR
 EAE_TPMS_URL_TEMPLATE="ftp.ebi.ac.uk/pub/databases/microarray/data/atlas/experiments/%s/%s-tpms.tsv"
 EAE_GROUP_URL_TEMPLATE="ftp.ebi.ac.uk/pub/databases/microarray/data/atlas/experiments/%s/%s-configuration.xml"
+EAE_RAWCOUNTS_URL_TEMPLATE="ftp.ebi.ac.uk/pub/databases/microarray/data/atlas/experiments/%s/%s-rawcounts.tsv"
 AES_SDRF_URL_TEMPLATE="ftp.ebi.ac.uk/biostudies/fire/%s/%s/%s/Files/%s.sdrf.txt"
-export EAE_TPMS_URL_TEMPLATE EAE_GROUP_URL_TEMPLATE AES_SDRF_URL_TEMPLATE
+export EAE_TPMS_URL_TEMPLATE EAE_GROUP_URL_TEMPLATE AES_SDRF_URL_TEMPLATE EAE_RAWCOUNTS_URL_TEMPLATE
 
 # Name of files fetched from URL
 EAE_TPMS_LOCAL_FILE_TEMPLATE=${BASELINERAW_INPUTDIR}/%s-tpms.tsv
