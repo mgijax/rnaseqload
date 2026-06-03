@@ -21,8 +21,8 @@
 #       process the configuration (ppEAEGroupFile())
 #           -> DIFFINPUTDIR/xxx.group.txt
 #           -> runToGroupDict
-#       process the rawcounts file (ppEAERawCountsFile())
-#           -> DIFFINPUTDIR/xxx.rawcounts.txt
+#       process the raw counts file (ppEAERawCountsFile())
+#           -> DIFFINPUTDIR/xxx.raw_counts.txt
 #
 ###########################################################################
 
@@ -431,6 +431,10 @@ def process():
 
         expID = str.strip(r['accid'])
         objectKey = r['_object_key']
+
+        #
+        # order is important!
+        #
 
         # process the aes/sdrf file for this expID to create the runToSampleDict
         rc = ppAESSdrfFile(expID, objectKey)
