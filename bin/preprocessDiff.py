@@ -16,12 +16,13 @@
 #
 # For each Experiment (xxx) from RNASeq MGI_Set
 #   for Experiment file in DIFFRAW_INPUTDIR
-#       process the rawcounts file (ppEAERawCountsFile())
-#           -> DIFFINPUTDIR/xxx.rawcounts.txt
 #       prcoess the sdrf file (ppAESSdrfFile())
 #           -> runToSampleDict
 #       process the configuration (ppEAEGroupFile())
 #           -> DIFFINPUTDIR/xxx.group.txt
+#           -> runToGroupDict
+#       process the rawcounts file (ppEAERawCountsFile())
+#           -> DIFFINPUTDIR/xxx.rawcounts.txt
 #
 ###########################################################################
 
@@ -43,9 +44,12 @@ aesTemplate = '%s' % os.getenv('DIFF_SDRF_LOCAL_FILE_TEMPLATE')
 # unique set of raw samples
 rawRunList = []
 
-# which samples to this run belong to
+# which samples belong to this run
 # run -> sample
 runToSampleDict = {}
+# which group belong to this run
+# run -> group
+runToGroupDict = {}
 
 #
 # loads a lookup of samples in the db for the given experiment
@@ -74,6 +78,11 @@ def loadSamples(expID):
 #
 # input  : DIFF_RAWCOUNTS_LOCAL_FILE_TEMPLATE
 # output : DIFF_RAWCOUNTS_PP_FILE_TEMPLATE
+#
+# input:
+#   ensembl ID
+#   name
+#   samples
 #
 # format:
 #   ensembm ID
@@ -118,16 +127,45 @@ def ppEAERawCountsFile(expID):
         ensemblDict[key].append(value)
 
     # read the header from fpEae and create header for fpPP
+    # each "run" is in its own column
+    # each oolumn belongs to a specific group (runToGroupDict['ERR4873299'][0] = 'g1')
+    # track the column -> group (columnGroup[2] = ['g1'])
+    # 1 group can be in more than 1 column
+    # 1 column can only be in 1 group
     headerList = str.split(fpEae.readline(), '\t')
-    groupSet = []
+    col = 2
+    columnGroup = {}
+    groupList = []
     for h in headerList[2:]:
-        groupSet.append(str.strip(h))
-    fpPP.write('ensembl_id\t_marker_key\tsymbol\t' + '\t'.join(groupSet) + '\n')
+
+        h = str.strip(h)
+
+        if h not in runToGroupDict:
+            print('skipping: run not found in runToGroupDict: %s, %s' % (expID, h))
+            continue
+
+        grp = runToGroupDict[h][0]
+
+        columnGroup[col] = []
+        columnGroup[col].append(grp)
+
+        if grp not in groupList:
+            groupList.append(grp)
+
+        col += 1
+
+    fpPP.write('ensembl_id\t_marker_key\tsymbol\t')
+    fpPP.write('\t'.join(groupList) + '\n')
+    print(headerList)
+    #print(columnGroup)
+    print(groupList)
 
     # iterate thru the fpEae input file
     for line in fpEae.readlines():
 
-        tokens = str.split(line, '\t')
+        groupTPM = {}
+
+        tokens = str.split(line[:-1], '\t')
         ensemblID = str.strip(tokens[0])
 
         # if ensemblID is not in MGI, then set markerKey = 0
@@ -141,10 +179,24 @@ def ppEAERawCountsFile(expID):
 
         fpPP.write('%s\t%s\t%s' % (ensemblID, markerKey, markerSymbol))
 
-        for g in range(len(groupSet)):
-            values = tokens[g+2].split(',')
-            fpPP.write('\t' + values[2])
+        # for each column in this row
+        #   determine the "group" for the column (see columnGroup)
+        #   append the tpm value to the "group" (groupTPM)
+        col = 2
+        for value in tokens[2:]:
+             if col not in columnGroup:
+                #only print for debugging as this returns many rows
+                #print('skipping: column not found in columnGroup: %s, %s' % (expID, col))
+                continue
+             grp = columnGroup[col][0]
+             if grp not in groupTPM:
+                groupTPM[grp] = []
+             groupTPM[grp].append(value)
+             col += 1
 
+        #print(groupTPM)    
+        for grp in groupTPM:
+            fpPP.write('\t' + ','.join(groupTPM[grp]))
         fpPP.write('\n')
 
     fpEae.close();
@@ -171,6 +223,8 @@ def ppAESSdrfFile(expID, objectKey):
 
     print('in ppAESSdrfFile(expID, object_key): %s,%s' % (expID, objectKey))
 
+    runToSampleDict = {}
+
     #  read the input file
     aesFile = aesTemplate % expID
     try:
@@ -183,7 +237,7 @@ def ppAESSdrfFile(expID, objectKey):
     #
     headerList = str.split(fpAes.readline(), '\t')
     if headerList == ['']: # means file is empty
-        print ('skipping: missing header: %s' % (expID))
+        print('skipping: missing header: %s' % (expID))
         return 1
 
     # load sampleInMGI() for expID
@@ -275,8 +329,11 @@ def ppAESSdrfFile(expID, objectKey):
 #   Sample IDs
 #
 def ppEAEGroupFile(expID):
+    global runToGroupDict
 
     print('in ppEAEGroupFile(expID): %s' % expID)
+
+    runToGroupDict = {}
 
     #  read the input file
     try:
@@ -324,9 +381,16 @@ def ppEAEGroupFile(expID):
                 continue
             if runID in runToSampleDict:
                 sampleID = runToSampleDict[runID][0]
+
+            # save this to use in ppEAERawCountsFile()
+            if id not in runToGroupDict:
+                runToGroupDict[runID] = []
+            runToGroupDict[runID].append(id)
+
             fpPP.write('%s\t%s\t%s\t%s\n' % (id, label, runID, sampleID))
 
     fpPP.close();
+    print(runToGroupDict)
 
     return 0
 
@@ -368,12 +432,6 @@ def process():
         expID = str.strip(r['accid'])
         objectKey = r['_object_key']
 
-        # process the eae/rawcounts file for this expID
-        #rc = ppEAERawCountsFile(expID)
-        #if rc != 0:
-        #    print('processing EAE rawcounts file returned rc %s, skipping file for %s' % (rc, expID))
-        #    continue
-
         # process the aes/sdrf file for this expID to create the runToSampleDict
         rc = ppAESSdrfFile(expID, objectKey)
         if rc != 0:
@@ -384,6 +442,12 @@ def process():
         rc = ppEAEGroupFile(expID)
         if rc != 0:
             print('processing EAE group file returned rc %s, skipping file for %s' % (rc, expID))
+            continue
+
+        # process the eae/rawcounts file for this expID
+        rc = ppEAERawCountsFile(expID)
+        if rc != 0:
+            print('processing EAE rawcounts file returned rc %s, skipping file for %s' % (rc, expID))
             continue
 
     return 0
