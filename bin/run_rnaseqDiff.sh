@@ -33,9 +33,9 @@ touch ${DIFFLOG}
 #echo "Step 1: process withdrawn markers" >> ${DIFFLOG} 2>&1
 #${RNASEQLOAD}/bin/processWithdrawnMarkers.sh >> ${DIFFLOG} 2>&1
 
-#date >> ${DIFFLOG} 2>&1
-#echo "Step 2: delete existing Diff RNASeqSet data" >> ${DIFFLOG} 2>&1
-#${RNASEQLOAD}/bin/rnaseqDiffDelete.sh >> ${DIFFLOG} 2>&1
+date >> ${DIFFLOG} 2>&1
+echo "Step 2: delete existing Diff RNASeqSet data" >> ${DIFFLOG} 2>&1
+${RNASEQLOAD}/bin/rnaseqDiffDelete.sh >> ${DIFFLOG} 2>&1
 
 #date >> ${DIFFLOG} 2>&1
 #echo "Step 3: run differential MGI_Set, MGI_SetMember" >> ${DIFFLOG} 2>&1
@@ -52,10 +52,10 @@ ${PYTHON} ${RNASEQLOAD}/bin/preprocessDiff.py >> ${DIFFLOG} 2>&1
 
 date >> ${DIFFLOG} 2>&1
 echo "Step 6: run differential: RNASeqSet, RNASeq_SetMember, RNASeqCombined" >> ${DIFFLOG} 2>&1
-#${MGD_DBSCHEMADIR}/index/GXD_HTSample_RNASeqCombined_drop.object >> ${DIFFLOG} 2>&1
-#${MGD_DBSCHEMADIR}/key/GXD_HTSample_RNASeqCombined_drop.object >> ${DIFFLOG} 2>&1
+${MGD_DBSCHEMADIR}/index/GXD_HTSample_RNASeqCombined_drop.object >> ${DIFFLOG} 2>&1
+${MGD_DBSCHEMADIR}/key/GXD_HTSample_RNASeqCombined_drop.object >> ${DIFFLOG} 2>&1
 ${PYTHON} ${RNASEQLOAD}/bin/rnaseqDiff.py >> ${DIFFLOG} 2>&1
-#${MGD_DBSCHEMADIR}/key/GXD_HTSample_RNASeqCombined_create.object >> ${DIFFLOG} 2>&1
-#${MGD_DBSCHEMADIR}/index/GXD_HTSample_RNASeqCombined_create.object >> ${DIFFLOG} 2>&1
+${MGD_DBSCHEMADIR}/key/GXD_HTSample_RNASeqCombined_create.object >> ${DIFFLOG} 2>&1
+${MGD_DBSCHEMADIR}/index/GXD_HTSample_RNASeqCombined_create.object >> ${DIFFLOG} 2>&1
 
 date >> ${DIFFLOG} 2>&1
