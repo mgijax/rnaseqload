@@ -1222,7 +1222,7 @@ def process():
         if PseudobulkExpt.isPseudobulkData(expID):
             pseudobulkDataframeList = []
             pseudobulkExpt = PseudobulkExpt(expID)            
-            pseudobulkExpt.isWriteDetailFiles = False
+            pseudobulkExpt.isWriteDetailFiles = True
             pseudobulkExpt.initExperimentKey()
             # run all of structure
             for bulkData in PseudobulkConfig.BULK_DATA_LIST:
@@ -1492,7 +1492,7 @@ def process_one_experiment(expID, pseudobulkExpt=None):
         writeBCP(expID, matrixList)
 
     # we've processed all experiments, now execute bcp
-    execBCP()
+    #execBCP()
 
     return pseudobulkDataframeList
 

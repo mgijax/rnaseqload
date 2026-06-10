@@ -134,10 +134,10 @@ class PseudobulkConfig:
         return self.toFile(f'{self.getFileNamePrefix()}_{groupName}_Replicate_Group_Average_{numOfReplicates}_samples.csv')
 
     def getAllMergedFile(self):
-        return self.toFile(f'All_Structure_Detail.csv')
+        return self.toFile(f'All_Structure_No_Zero_Detail.csv')
 
     def getAllMergedFileTpmOnly(self):
-        return self.toFile(f'All_Structure_Avg_Only_batch_2.csv')
+        return self.toFile(f'All_Structure_No_Zero_Avg_TPM.csv')
 
     @staticmethod
     def findBulk(name):

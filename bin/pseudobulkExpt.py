@@ -113,17 +113,17 @@ class PseudobulkExpt:
         
         # multi marker per ensembl
         if geneID in multiMarkerEnsemblDict:
-            return False
+            return (False, "multi marker per ensembl")
         # multi ensembl per marker
         if geneID in multiEnsemblMarkerDict:
-            return False
+            return (False, f"multi ensembl per marker: {geneID}={multiEnsemblMarkerDict[geneID]}")
         # not in MGI
         if geneID not in ensemblMarkerSet and geneID not in ensemblSequenceSet:        
-            return False
+            return (False, "not in MGI")
         # assoc only with a sequence
         if geneID not in ensemblMarkerSet and geneID in ensemblSequenceSet:
-            return False
-        return True
+            return (False, "assoc only with a sequence")
+        return (True, "")
 
     def createJoinedFile(self, joinedFile, multiMarkerEnsemblDict, multiEnsemblMarkerDict,
                          ensemblMarkerSet, ensemblSequenceSet):
@@ -187,10 +187,11 @@ class PseudobulkExpt:
                 gene_i, sample_j, val = line.strip().split()
 
                 gene_id = genes[int(gene_i) - 1]
-                if not self.isValidGene(gene_id, multiMarkerEnsemblDict, multiEnsemblMarkerDict,
-                         ensemblMarkerSet, ensemblSequenceSet):
-                    log.info(f"Skip {gene_id}")
-                    continue
+                isValid, errorMessage = self.isValidGene(gene_id, multiMarkerEnsemblDict, multiEnsemblMarkerDict,
+                         ensemblMarkerSet, ensemblSequenceSet)
+                if not isValid:
+                    log.info(f"Skip {gene_id} {errorMessage}")
+                    #continue
 
                 sample_id = samples[int(sample_j) - 1]
                 run_id = sample_to_run.get(sample_id, "NA")
@@ -285,13 +286,16 @@ class PseudobulkExpt:
                     indexSampleKeyDict[idx] = sampleKey
                     indexSampleNameDict[idx] = colName
 
+            isvalidGeneCount = 0
             for i, row in enumerate(reader):
                 # if i >= 100:  
                 #     break
                 gene_id = row[0]
-                if not self.isValidGene(gene_id, multiMarkerEnsemblDict, multiEnsemblMarkerDict,
-                            ensemblMarkerSet, ensemblSequenceSet):
-                        #log.info(f"Skip {gene_id}")
+                isValid, errorMessage = self.isValidGene(gene_id, multiMarkerEnsemblDict, multiEnsemblMarkerDict,
+                                        ensemblMarkerSet, ensemblSequenceSet)
+                if not isValid:
+                        isvalidGeneCount += 1
+                        log.info(f"Skip {isvalidGeneCount}. {gene_id} {errorMessage}")
                         continue
                 markerKey = ensemblMarkerDict[gene_id]
                 #log.info(f"aveTPMDict {gene_id}")
@@ -310,40 +314,58 @@ class PseudobulkExpt:
                 
         return aveTPMDict      
 
-    def toPivotSql(self, pivotFields):
+    def toPivotSql(self, columnNames, isUseCoalesce=True):
         pivotSql = ''
-        for i, item in enumerate(pivotFields):
+        for i, name in enumerate(columnNames):
             if i > 0:
                 pivotSql += ",\n"
-            if isinstance(item, list):
-                nameAs = ''
-                for i, name in enumerate(item):
-                    if i > 0:
-                        nameAs += PseudobulkConfig.AND
-                    nameAs += name
+
+            if isUseCoalesce:
+                pivotSql += f'COALESCE(MAX(tpm_round) FILTER (WHERE bioreplicate_name = \'{name}\'), 0)  AS "{name}"'
             else:
-                nameAs = item
-            pivotSql += f'COALESCE(MAX(tpm_round) FILTER (WHERE bioreplicate_name = \'{nameAs}\'), 0)  AS "{nameAs}"'
+                pivotSql += f'MAX(tpm_round) FILTER (WHERE bioreplicate_name = \'{name}\')  AS "{name}"'
         return pivotSql
 
     def toCaseSql(self, pivotFields):
         caseSql = "CASE "
         for item in pivotFields:
             if isinstance(item, list):
-                nameAs = ''
+                name = ''
                 caseSql += f"WHEN individual IN ("
-                for i, name in enumerate(item):
+                for i, field in enumerate(item):
                     if i > 0:
-                        nameAs += PseudobulkConfig.AND
+                        name += PseudobulkConfig.AND
                         caseSql += ","
-                    nameAs += name
-                    caseSql += f"'{name}'"
-                caseSql += f") THEN '{nameAs}' "
+                    name += field
+                    caseSql += f"'{field}'"
+                caseSql += f") THEN '{name}' "
 
             else:
                 caseSql += f"WHEN individual IN ('{item}') THEN '{item}' "
         caseSql += " END"
-        return caseSql   
+        return caseSql 
+
+    def toCauseSql(self, columnNames):
+        causeSql = ""
+        for i, name in enumerate(columnNames):
+            if i > 0:
+                causeSql += " AND "
+            causeSql += f'"{name}">0'
+        return causeSql
+
+    def toColumnNames(self, pivotFields):
+        columnNames = []
+        for field in pivotFields:
+            if isinstance(field, list):
+                name = ''
+                for i, n in enumerate(field):
+                    if i > 0:
+                        name += PseudobulkConfig.AND
+                    name += n
+            else:
+                name = field
+            columnNames.append(name)
+        return columnNames        
     
     def createPseudobulkFile(self, db):
 
@@ -358,16 +380,19 @@ class PseudobulkExpt:
             log.info(f"Existing, Skipping creating file: {outputFile}")
             # return outputFile
 
-        pivotSql = ''
         caseSql = ''
+        causeSql = ''
         if self.config.runOption["optionName"] == 'A':
-            caseSql = 'individual'
             pivotFields = self.config.bulkData["pivotAFields"]
-            pivotSql = self.toPivotSql(pivotFields)          
+            caseSql = 'individual'
+            columnNames = pivotFields
         else:
             pivotFields = self.config.bulkData["pivotBFields"]
-            pivotSql = self.toPivotSql(pivotFields)
             caseSql = self.toCaseSql(pivotFields)
+            columnNames = self.toColumnNames(pivotFields)
+
+        pivotSql = self.toPivotSql(columnNames)       
+        causeSql = self.toCauseSql(columnNames)       
 
         organismPartCause = ''
         if organismPart and len(organismPart) > 0:
@@ -428,15 +453,20 @@ class PseudobulkExpt:
         db.sql(query, 'auto')
        
         query = '''
-            SELECT 
-                gene,
-                {pivotSql}
-            FROM {pseduobulk_table_name}
-            GROUP BY gene
+            WITH data as (
+                SELECT 
+                    gene,
+                    {pivotSql}
+                FROM {pseduobulk_table_name}
+                GROUP BY gene
+            )
+            SELECT * FROM data
+            WHERE {causeSql}
             ORDER BY gene
         '''.format(
                 pseduobulk_table_name=pseudobulkTableName,
-                pivotSql=pivotSql
+                pivotSql=pivotSql,
+                causeSql=causeSql
         )
         log.info(query)
         results = db.sql(query, 'auto')        
@@ -449,7 +479,113 @@ class PseudobulkExpt:
         # only if want to preserve them for debug
         # db.commit()
 
+        self.runGeneSummary(db, self.config.runOption["optionName"], tissue, organismPart, pseudobulkTableName, columnNames)
         return outputFile
+    
+    def toGeneCountSelectField(self, option, columnNames, countColumnName):
+        if option == 'A':
+            op = 'OR'
+        else:
+            op = 'AND'
+        caseSql = 'CASE WHEN '
+        for i, name in enumerate(columnNames):
+            if i > 0:
+                caseSql += f' {op} '
+            caseSql += f'"{name}" IS NULL'
+        caseSql += f'  THEN NULL ELSE '
+
+        for i, name in enumerate(columnNames):
+            if i > 0:
+                caseSql += ' + '
+            if option == 'A':
+                caseSql += f'"{name}"'
+            else:
+                caseSql += f'COALESCE("{name}",0)'
+
+        caseSql += f' END AS {countColumnName}'
+        return caseSql    
+    
+    def runGeneSummary(self, db, option, tissue, organismPart, pseudobulkTableName, columnNames):
+        pivotSql = self.toPivotSql(columnNames, False)
+        femaleColumnName = f'"{option}_Female"'
+        maleColumnName = f'"{option}_Male"'
+
+        femaleColumns = []
+        maleColumns = []
+        for name in columnNames:
+            if name.endswith("F"):
+                femaleColumns.append(name)
+            elif name.endswith("M"):
+                maleColumns.append(name)
+
+        query = '''
+            WITH geneData AS (
+                WITH data AS (
+                    SELECT
+                        gene,
+                        {pivotSql}
+                    FROM {pseduobulk_table_name}
+                    GROUP BY gene
+                )
+                SELECT *,
+                    {femaleSelectField},
+                    {maleSelectField}
+                FROM data
+                ORDER BY gene
+            )
+            SELECT 
+                COUNT({femaleColumnName}) Female_Count, 
+                COUNT({maleColumnName}) Male_Count,
+                COUNT(*) FILTER (WHERE {femaleColumnName} IS NOT NULL AND {maleColumnName} IS NOT NULL) AS Female_and_Male_Count, 
+                COUNT(*) Total 
+            FROM geneData
+        '''.format(pseduobulk_table_name=pseudobulkTableName,
+                   pivotSql=pivotSql,
+                   femaleSelectField=self.toGeneCountSelectField(option, femaleColumns, femaleColumnName),
+                   maleSelectField=self.toGeneCountSelectField(option, maleColumns, maleColumnName),
+                   femaleColumnName=femaleColumnName,
+                   maleColumnName=maleColumnName
+                  )
+        log.info(query)
+
+        results = db.sql(query, 'auto')
+        for r in results:
+            femaleCount = r['Female_Count']
+            maleCount = r['Male_Count']
+            femaleAndMale = r['Female_and_Male_Count']
+            total = r['Total']
+            self.insertGeneSummary(db, option, tissue, organismPart, femaleCount, maleCount, femaleAndMale, total)
+
+    def insertGeneSummary(self, db, option, tissue, organismPart, femaleCount, maleCount, femaleAndMale, total):
+
+        if len(organismPart) > 0:
+            orgPart = organismPart
+        else:
+            orgPart = 'All'
+        query = '''
+            CREATE TABLE IF NOT EXISTS tm_gene_count_summary
+            (
+                tissue text COLLATE pg_catalog."default",
+                organism_part text COLLATE pg_catalog."default",
+                bulk_option text COLLATE pg_catalog."default",
+                female_count bigint,
+                male_count bigint,
+                female_and_male_count bigint,
+                total bigint
+            );
+            INSERT INTO tm_gene_count_summary(
+	            tissue, organism_part, bulk_option, female_count, male_count, female_and_male_count, total)
+	        VALUES ({tissue}, {organismPart}, {option}, {femaleCount}, {maleCount}, {femaleAndMale}, {total});
+            '''.format(tissue=self.sqlEscape(tissue),
+                       organismPart=self.sqlEscape(orgPart),
+                       option=self.sqlEscape(option),
+                       femaleCount=femaleCount,
+                       maleCount=maleCount,
+                       femaleAndMale=femaleAndMale,
+                       total=total)
+        log.info(query)
+        results = db.sql(query, 'auto')
+        db.commit()
     
     def writeQNInputOutputFile(self, key, qnInput, qnOutput, ensemblGeneDict):
         if not self.isWriteDetailFiles:
