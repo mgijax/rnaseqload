@@ -482,7 +482,7 @@ class PseudobulkExpt:
         self.runGeneSummary(db, self.config.runOption["optionName"], tissue, organismPart, pseudobulkTableName, columnNames)
         return outputFile
     
-    def toGeneCountSelectField(self, option, columnNames, countColumnName):
+    def toGeneCountSelectField(self, option, columnNames, countColumnName, sampleCountName):
         if option == 'A':
             op = 'OR'
         else:
@@ -501,14 +501,22 @@ class PseudobulkExpt:
                 caseSql += f'"{name}"'
             else:
                 caseSql += f'COALESCE("{name}",0)'
+        caseSql += f' END AS {countColumnName},\n'
 
-        caseSql += f' END AS {countColumnName}'
+        for i, name in enumerate(columnNames):
+            if i > 0:
+                caseSql += ' + '
+            caseSql += f'("{name}" IS NOT NULL)::int'
+        caseSql += f' AS {sampleCountName}'
+
         return caseSql    
     
     def runGeneSummary(self, db, option, tissue, organismPart, pseudobulkTableName, columnNames):
         pivotSql = self.toPivotSql(columnNames, False)
         femaleColumnName = f'"{option}_Female"'
         maleColumnName = f'"{option}_Male"'
+        femaleSampleCountName = f'"{option}_Female_Sample_Count"'
+        maleSampleCountName = f'"{option}_Male_Sample_Count"'
 
         femaleColumns = []
         maleColumns = []
@@ -519,44 +527,59 @@ class PseudobulkExpt:
                 maleColumns.append(name)
 
         query = '''
-            WITH geneData AS (
-                WITH data AS (
-                    SELECT
-                        gene,
-                        {pivotSql}
-                    FROM {pseduobulk_table_name}
-                    GROUP BY gene
+            WITH summaryData AS (
+                WITH geneData AS (
+                    WITH data AS (
+                        SELECT
+                            gene,
+                            {pivotSql}
+                        FROM {pseduobulk_table_name}
+                        GROUP BY gene
+                    )
+                    SELECT *,
+                        {femaleSelectField},
+                        {maleSelectField}
+                    FROM data
+                    ORDER BY gene
                 )
-                SELECT *,
-                    {femaleSelectField},
-                    {maleSelectField}
-                FROM data
-                ORDER BY gene
+                SELECT 
+                    COUNT({femaleColumnName}) Female_Count, 
+                    COUNT({maleColumnName}) Male_Count,
+                    COUNT(*) FILTER (WHERE {femaleColumnName} IS NOT NULL AND {maleColumnName} IS NOT NULL) AS Female_and_Male_Count, 
+                    COUNT(*) Total_Genes,
+                    COUNT(*) FILTER (WHERE {femaleSampleCountName} < (SELECT MAX({femaleSampleCountName}) FROM geneData)) AS Female_Null_Count,
+                    COUNT(*) FILTER (WHERE {femaleSampleCountName} = 0) AS Female_All_Null,
+                    COUNT(*) FILTER (WHERE {maleSampleCountName} < (SELECT MAX({maleSampleCountName}) FROM geneData)) AS Male_Null_Count,
+                    COUNT(*) FILTER (WHERE {maleSampleCountName} = 0) AS Male_All_Null
+                    
+                FROM geneData
             )
-            SELECT 
-                COUNT({femaleColumnName}) Female_Count, 
-                COUNT({maleColumnName}) Male_Count,
-                COUNT(*) FILTER (WHERE {femaleColumnName} IS NOT NULL AND {maleColumnName} IS NOT NULL) AS Female_and_Male_Count, 
-                COUNT(*) Total 
-            FROM geneData
+            SELECT Total_Genes, Female_Null_Count,
+                Female_All_Null, (Total_Genes-Female_All_Null) AS Female_Adjusted_Total, 
+                (Female_Null_Count-Female_All_Null) AS Female_Recoverable_Genes,
+                ROUND(100.0 *  (Female_Null_Count-Female_All_Null)/(Total_Genes-Female_All_Null), 2) AS Female_Recoverable_Percentage,
+
+                Male_Null_Count,
+                Male_All_Null, (Total_Genes-Male_All_Null) AS Male_Adjusted_Total, 
+                (Male_Null_Count-Male_All_Null) AS Male_Recoverable_Genes,
+                ROUND(100.0 *  (Male_Null_Count-Male_All_Null)/(Total_Genes-Male_All_Null), 2) AS Male_Recoverable_Percentage
+            FROM summaryData
         '''.format(pseduobulk_table_name=pseudobulkTableName,
                    pivotSql=pivotSql,
-                   femaleSelectField=self.toGeneCountSelectField(option, femaleColumns, femaleColumnName),
-                   maleSelectField=self.toGeneCountSelectField(option, maleColumns, maleColumnName),
+                   femaleSelectField=self.toGeneCountSelectField(option, femaleColumns, femaleColumnName, femaleSampleCountName),
+                   maleSelectField=self.toGeneCountSelectField(option, maleColumns, maleColumnName, maleSampleCountName),
                    femaleColumnName=femaleColumnName,
-                   maleColumnName=maleColumnName
+                   maleColumnName=maleColumnName,
+                   femaleSampleCountName=femaleSampleCountName,
+                   maleSampleCountName=maleSampleCountName
                   )
         log.info(query)
 
         results = db.sql(query, 'auto')
         for r in results:
-            femaleCount = r['Female_Count']
-            maleCount = r['Male_Count']
-            femaleAndMale = r['Female_and_Male_Count']
-            total = r['Total']
-            self.insertGeneSummary(db, option, tissue, organismPart, femaleCount, maleCount, femaleAndMale, total)
+            self.insertGeneSummary(db, option, tissue, organismPart, r)
 
-    def insertGeneSummary(self, db, option, tissue, organismPart, femaleCount, maleCount, femaleAndMale, total):
+    def insertGeneSummary(self, db, option, tissue, organismPart, row):
 
         if len(organismPart) > 0:
             orgPart = organismPart
@@ -568,21 +591,39 @@ class PseudobulkExpt:
                 tissue text COLLATE pg_catalog."default",
                 organism_part text COLLATE pg_catalog."default",
                 bulk_option text COLLATE pg_catalog."default",
-                female_count bigint,
-                male_count bigint,
-                female_and_male_count bigint,
-                total bigint
+                total_genes bigint,
+                female_null_count bigint,
+                female_all_null bigint,
+                female_adjusted_total bigint,
+                female_recoverable_genes bigint,
+                female_recoverable_percentage numeric,
+                male_null_count bigint,
+                male_all_null bigint,
+                male_adjusted_total bigint,
+                male_recoverable_genes bigint,
+                male_recoverable_percentage numeric
             );
             INSERT INTO tm_gene_count_summary(
-	            tissue, organism_part, bulk_option, female_count, male_count, female_and_male_count, total)
-	        VALUES ({tissue}, {organismPart}, {option}, {femaleCount}, {maleCount}, {femaleAndMale}, {total});
+	            tissue, organism_part, bulk_option, total_genes, 
+                female_null_count, female_all_null, female_adjusted_total, female_recoverable_genes, female_recoverable_percentage, 
+	            male_null_count, male_all_null, male_adjusted_total, male_recoverable_genes, male_recoverable_percentage)
+	        VALUES ({tissue}, {organismPart}, {option}, {total_genes}, 
+                {female_null_count}, {female_all_null}, {female_adjusted_total}, {female_recoverable_genes}, {female_recoverable_percentage}, 
+                {male_null_count}, {male_all_null}, {male_adjusted_total}, {male_recoverable_genes}, {male_recoverable_percentage})
             '''.format(tissue=self.sqlEscape(tissue),
                        organismPart=self.sqlEscape(orgPart),
                        option=self.sqlEscape(option),
-                       femaleCount=femaleCount,
-                       maleCount=maleCount,
-                       femaleAndMale=femaleAndMale,
-                       total=total)
+                       total_genes=row["total_genes"],
+                       female_null_count=row["female_null_count"],
+                       female_all_null=row["female_all_null"],
+                       female_adjusted_total=row["female_adjusted_total"],
+                       female_recoverable_genes=row["female_recoverable_genes"],
+                       female_recoverable_percentage=row["female_recoverable_percentage"],
+                       male_null_count=row["male_null_count"],
+                       male_all_null=row["male_all_null"],
+                       male_adjusted_total=row["male_adjusted_total"],
+                       male_recoverable_genes=row["male_recoverable_genes"],
+                       male_recoverable_percentage=row["male_recoverable_percentage"])
         log.info(query)
         results = db.sql(query, 'auto')
         db.commit()
