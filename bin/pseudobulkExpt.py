@@ -398,11 +398,8 @@ class PseudobulkExpt:
         if organismPart and len(organismPart) > 0:
             organismPartCause = f"AND LOWER(grp.organism_part) = {self.sqlEscape(organismPart.lower())}"
 
-        query = '''
-            DROP TABLE IF EXISTS {rpkSumTable};
-            DROP TABLE IF EXISTS {pseudobulkTableName};
-
-            WITH data AS (
+        imput = self.config.imput
+        dataQuery = '''
                 SELECT g.gene, grp.individual, SUM(g.value) AS count_sum,
                     {caseSql} AS bioreplicate_name
                 FROM tm_gene_expression g
@@ -412,6 +409,16 @@ class PseudobulkExpt:
                     AND LOWER(grp.tissue) = {tissue}
                     {organismPartCause}    
                 GROUP BY g.gene, grp.individual
+        '''
+        if imput:
+            dataQuery = f"SELECT * FROM tm_im_lung_{imput}_{self.config.runOption["optionName"].lower()}"
+
+        query = '''
+            DROP TABLE IF EXISTS {rpkSumTable};
+            DROP TABLE IF EXISTS {pseudobulkTableName};
+
+            WITH data AS (
+                {dataQuery}
             )
             SELECT d.gene, d.bioreplicate_name, SUM(d.count_sum)::bigint AS count_sum, g.gene_length, 
             0.0 rpk, 0.0 tpm, 0.0  tpm_round
@@ -443,6 +450,7 @@ class PseudobulkExpt:
             END;           
 
         '''.format(
+                dataQuery=dataQuery,
                 pseudobulkTableName=pseudobulkTableName,
                 rpkSumTable=rpkSumTable,
                 caseSql=caseSql,
@@ -461,7 +469,7 @@ class PseudobulkExpt:
                 GROUP BY gene
             )
             SELECT * FROM data
-            WHERE {causeSql}
+            --WHERE {causeSql}
             ORDER BY gene
         '''.format(
                 pseduobulk_table_name=pseudobulkTableName,
@@ -479,7 +487,7 @@ class PseudobulkExpt:
         # only if want to preserve them for debug
         # db.commit()
 
-        self.runGeneSummary(db, self.config.runOption["optionName"], tissue, organismPart, pseudobulkTableName, columnNames)
+        #self.runGeneSummary(db, self.config.runOption["optionName"], tissue, organismPart, pseudobulkTableName, columnNames)
         return outputFile
     
     def toGeneCountSelectField(self, option, columnNames, countColumnName, sampleCountName):

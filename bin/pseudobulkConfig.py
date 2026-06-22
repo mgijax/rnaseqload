@@ -15,6 +15,8 @@ class PseudobulkConfig:
 
         self.dataDir = os.getenv('INPUTDIR')
         self.initReplicateGroup()
+        self.imput = "remove_null"
+        # original average eucknn metabimpute_rf remove_null
 
     def initReplicateGroup(self):
         db.useOneConnection(1)
@@ -134,10 +136,10 @@ class PseudobulkConfig:
         return self.toFile(f'{self.getFileNamePrefix()}_{groupName}_Replicate_Group_Average_{numOfReplicates}_samples.csv')
 
     def getAllMergedFile(self):
-        return self.toFile(f'All_Structure_No_Zero_Detail.csv')
+        return self.toFile(f'{self.imput}_Detail.csv')
 
     def getAllMergedFileTpmOnly(self):
-        return self.toFile(f'All_Structure_No_Zero_Avg_TPM.csv')
+        return self.toFile(f'{self.imput}_TPM.csv')
 
     @staticmethod
     def findBulk(name):
@@ -250,22 +252,24 @@ class PseudobulkConfig:
         "shortName": "Lung",
         "tissue": "Lung",
         "organismPart": "lung",
-        "pivotAFields": ["3_38_F", "3_39_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
-        "pivotBFields": ["3_38_F", "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
+        "pivotAFields": ["3_8_M", "3_9_M", "3_10_M", "3_11_M"],
+        "pivotBFields": [["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
+        # "pivotAFields": ["3_38_F", "3_39_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
+        # "pivotBFields": ["3_38_F", "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
     }
 
-    BULK_DATA_LIST.append(Bladder)
-    BULK_DATA_LIST.append(Pancreas)    
-    BULK_DATA_LIST.append(Fat_gonadal)    
-    BULK_DATA_LIST.append(Fat_interscapular) 
-    BULK_DATA_LIST.append(Intestine_ascending)    
+    # BULK_DATA_LIST.append(Bladder)
+    # BULK_DATA_LIST.append(Pancreas)    
+    # BULK_DATA_LIST.append(Fat_gonadal)    
+    # BULK_DATA_LIST.append(Fat_interscapular) 
+    # BULK_DATA_LIST.append(Intestine_ascending)    
 
-    BULK_DATA_LIST.append(heart_left)
-    BULK_DATA_LIST.append(heart_heart)
-    BULK_DATA_LIST.append(heart_all)
-    BULK_DATA_LIST.append(Intestine_all)
-    BULK_DATA_LIST.append(liver)
-    BULK_DATA_LIST.append(spleen)
+    # BULK_DATA_LIST.append(heart_left)
+    # BULK_DATA_LIST.append(heart_heart)
+    # BULK_DATA_LIST.append(heart_all)
+    # BULK_DATA_LIST.append(Intestine_all)
+    # BULK_DATA_LIST.append(liver)
+    # BULK_DATA_LIST.append(spleen)
     BULK_DATA_LIST.append(lung)
 
     RUN_OPTIONS = []

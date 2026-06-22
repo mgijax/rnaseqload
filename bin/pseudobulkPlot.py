@@ -4,6 +4,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+import glob
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
@@ -329,7 +330,7 @@ class PseudobulkPlot:
 
         print("All plots saved to:", outdir)                        
 
-def main():
+def main2():
     pseudobulkPlot = PseudobulkPlot('') 
     pseudobulkPlot.plot_all_structure()
     # scPlot.plot_before_after('Option_A_QN_input_female_(3_samples).csv', 'Option_A_QN_output_female_(3_samples).csv', 'Option A Female', 'Option_A_Female.png')
@@ -356,6 +357,160 @@ def main():
     # scPlot.boxplot('Boxplot for 4 Group Female 1 (2 Samples)', 'sex_4_group_QN_output_female_1_2.csv') 
     # scPlot.boxplot('Boxplot for 4 Group Female 2 (1 Samples)', 'sex_4_group_QN_output_female_2_1.csv') 
     # scPlot.boxplot('Boxplot for 4 Group Male 1 (2 Samples)', 'sex_4_group_QN_output_male_1_2.csv') 
+
+
+
+class Imputation:
+
+    def __init__(self, data_dir):
+        self.files = glob.glob(os.path.join(data_dir, "*.csv"))
+        self.matrix = None
+
+
+    def load(self):
+        self.matrix = pd.DataFrame({
+            os.path.basename(f):
+                pd.read_csv(f).iloc[:,1:].mean(axis=1)
+            for f in self.files
+        })
+        return self.matrix
+
+
+    def summary(self):
+        if self.matrix is None: self.load()
+        return self.matrix.describe()
+
+
+    def distribution(self, out="distribution.png"):
+        if self.matrix is None: self.load()
+        df = self.matrix.melt(var_name="Method", value_name="TPM")
+        df["logTPM"] = np.log2(df.TPM+1)
+        sns.violinplot(data=df, x="Method", y="logTPM")
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.savefig(out, dpi=300)
+        plt.close()
+
+
+    def correlation(self, out="correlation.png"):
+        if self.matrix is None: self.load()
+        sns.heatmap(
+            self.matrix.corr(),
+            annot=True
+        )
+        plt.tight_layout()
+        plt.savefig(out, dpi=300)
+        plt.close()
+
+    def pca(self, out="pca.png"):
+        if self.matrix is None:
+            self.load()
+
+        x = self.matrix.dropna(how="all")
+
+        # fill remaining missing values
+        x = x.apply(
+            lambda r: r.fillna(r.mean()),
+            axis=1
+        )
+
+        # log transform
+        x = np.log2(x + 1)
+
+        # samples as rows
+        x = x.T
+
+        labels = x.index
+
+        # scale
+        x = StandardScaler().fit_transform(x)
+
+        # PCA
+        p = PCA(2).fit_transform(x)
+
+        plt.figure(figsize=(6,5))
+
+        plt.scatter(
+            p[:,0],
+            p[:,1]
+        )
+
+        for i, n in enumerate(labels):
+            plt.text(
+                p[i,0],
+                p[i,1],
+                n
+            )
+
+        plt.xlabel("PC1")
+        plt.ylabel("PC2")
+        plt.tight_layout()
+
+        plt.savefig(
+            out,
+            dpi=300
+        )
+
+        plt.close()
+
+    def heatmap(self, out="heatmap.png", top=100):
+        if self.matrix is None: self.load()
+
+        df = self.matrix.loc[
+            self.matrix.var(axis=1)
+            .nlargest(top)
+            .index
+        ]
+
+        sns.heatmap(
+            np.log2(df+1)
+        )
+
+        plt.tight_layout()
+        plt.savefig(out, dpi=300)
+        plt.close()
+
+    def dataDiff(self, out="data_diff.csv"):
+        dfs = [
+            pd.read_csv(f).rename(
+                columns=lambda c: c if c=="gene" else
+                f"{os.path.basename(f).split('.')[0]}_{c}"
+            )
+            for f in self.files
+        ]
+
+        df = dfs[0]
+        for x in dfs[1:]:
+            df = df.merge(x, on="gene", how="outer")
+
+        same = lambda r, c: int(r[c].dropna().nunique() == 1)
+
+        df["diffA"] = df.apply(
+            lambda r: same(r, [c for c in df if "_A_" in c]), axis=1)
+
+        df["diffB"] = df.apply(
+            lambda r: same(r, [c for c in df if "_B_" in c]), axis=1)
+
+        df.columns = [c.replace("_replicate_group_avg","") for c in df.columns]
+
+        df = df[
+            ["gene"] +
+            [c for c in df if "_A_" in c] +
+            [c for c in df if "_B_" in c] +
+            [c for c in df if c not in ["gene"] and "_A_" not in c and "_B_" not in c]
+]
+        df.to_csv(out, index=False)
+        return df        
+
+def main():
+    imp = Imputation("/data/loads/liangh/rnaseqload/imput")
+    imp.load()
+    imp.dataDiff()
+    # imp.distribution()
+    # imp.correlation()
+    # imp.pca()
+    # imp.heatmap(top=200)
+    # print(imp.summary())
 
 if __name__ == "__main__":
     main()
