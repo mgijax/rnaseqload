@@ -186,8 +186,8 @@ if __name__ == "__main__":
 
 
     # pg_db.set_sqlLogin(
-    #     user="mgd_dbo",
-    #     password="db0dev",
+    #     user="xxx",
+    #     password="xxx",
     #     server="bhmgidb06ld.jax.org",
     #     database="liangh_pub2"
     # )
