@@ -18,7 +18,7 @@ touch ${BASELINELOG}
 
 cat - <<EOSQL | ${PG_DBUTILS}/bin/doisql.csh $0 >> ${BASELINELOG} 2>&1
 
-# delete _CreatedBy_key = 1613 for the baseline experiments
+-- delete _CreatedBy_key = 1613 for the baseline experiments
 select s.*
 into temp toDelete
 from GXD_HTSample_RNASeqSet s, MGI_SetMember sm
