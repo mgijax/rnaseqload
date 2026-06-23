@@ -3,8 +3,8 @@
 # Purpose: Wrapper for Baseline RNASeq load
 #
 # Step 1: process withdrawn markers
-# Step 2: delete existing Baseline RNASeqSet data
-# Step 3: run baseline MGI_Set, MGI_SetMember
+# Step 2: run baseline MGI_Set, MGI_SetMember
+# Step 3: delete existing Baseline RNASeqSet data
 # Step 4: run baseline download (raw_input_baseline)
 # Step 5: run baseline pre processing (input_baseline)
 # Step 6: run baseline: RNASeqSet, RNASeq_SetMember, RNASeqCombined
@@ -34,12 +34,12 @@ touch ${BASELINELOG}
 #${RNASEQLOAD}/bin/processWithdrawnMarkers.sh >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
-echo "Step 2: delete existing Baseline RNASeqSet data" >> ${BASELINELOG} 2>&1
-${RNASEQLOAD}/bin/rnaseqBaselineDelete.sh >> ${BASELINELOG} 2>&1
+echo "Step 2: run baseline MGI_Set, MGI_SetMember" >> ${BASELINELOG} 2>&1
+${RNASEQLOAD}/bin/run_setBaseline.sh >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
-echo "Step 3: run baseline MGI_Set, MGI_SetMember" >> ${BASELINELOG} 2>&1
-${RNASEQLOAD}/bin/run_setBaseline.sh >> ${BASELINELOG} 2>&1
+echo "Step 3: delete existing Baseline RNASeqSet data" >> ${BASELINELOG} 2>&1
+${RNASEQLOAD}/bin/rnaseqBaselineDelete.sh >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
 echo "Step 4: run baseline download (raw_input_baseline)" >> ${BASELINELOG} 2>&1
