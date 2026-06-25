@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # Purpose:
-#	Download Baseline AES & EAE files
+#	Download Raw Baseline files
 #
 
 cd `dirname $0`
@@ -19,33 +19,21 @@ else
     exit 1
 fi
 
-if [ -f ${BASELINELOG_DOWNLOAD} ]
-    rm -rf ${BASELINELOG_DOWNLOAD}
-then
-    touch ${BASELINELOG_DOWNLOAD}
-fi
+rm -rf ${BASELINELOG_DOWNLOAD}
 
-#LASTRUN_FILE=${BASELINERAW_INPUTDIR}/lastrun
-#if [ -f ${LASTRUN_FILE} ]
-#then
-#        echo "${LASTRUN_FILE} exists - skipping load" | tee -a ${BASELINELOG_DOWNLOAD}
-#        exit 0
-#fi
+LASTRUN_FILE=${BASELINERAW_INPUTDIR}/lastrun
+if [ -f ${LASTRUN_FILE} ]
+then
+        echo "${LASTRUN_FILE} exists - skipping run_downloadBaselineFiles.sh" | tee -a ${BASELINELOG_DOWNLOAD}
+        exit 0
+fi
 
 date | tee -a ${BASELINELOG_DOWNLOAD}
 
 echo "Downloading input files" 
-rm -rf ${BASELINELOG_DOWNLOAD}
 rm -rf ${BASELINERAW_INPUTDIR}/*
 ${PYTHON} ${RNASEQLOAD}/bin/downloadBaselineFiles.py >> ${BASELINELOG_DOWNLOAD} 2>&1
-#STAT=$?
 
-#
-# Touch the "lastrun" file to note when the load was run.
-#
-#if [ ${STAT} = 0 ]
-#then
-#    touch ${LASTRUN_FILE}
-#fi
+touch ${LASTRUN_FILE}
 
 date | tee -a ${BASELINELOG_DOWNLOAD}

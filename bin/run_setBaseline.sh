@@ -23,6 +23,8 @@ if ( -e ${LASTRUN_FILE} ) then
         exit 0
 endif
 
+date | tee -a ${LOG}
+
 echo "Run baseline setload"  | tee -a ${LOG}
 ${SETLOAD}/setload.csh ${RNASEQLOAD}/baselinesetload.config | tee -a ${LOG}
 
@@ -38,7 +40,6 @@ and a.preferred = 1
 ;
 EOSQL
 
-#
-# Touch the "lastrun" file to note when the load was run.
-#
 touch ${LASTRUN_FILE}
+
+date | tee -a ${LOG}
