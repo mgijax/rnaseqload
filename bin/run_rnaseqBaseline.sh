@@ -4,9 +4,9 @@
 #
 # process withdrawn markers : run from loadadmin/prod/sundaytasks2.csh
 # Step 1: run baseline MGI_Set, MGI_SetMember
-# Step 2: delete existing Baseline RNASeqSet data
-# Step 3: run baseline download (raw_input_baseline)
-# Step 4: run baseline pre processing (input_baseline)
+# Step 2: run baseline download (raw_input_baseline)
+# Step 3: run baseline pre processing (input_baseline)
+# Step 4: delete existing Baseline RNASeqSet data
 # Step 5: run baseline: RNASeqSet, RNASeq_SetMember, RNASeqCombined
 #
 # MGI_Set = Baseline RNASeq Experiments
@@ -40,17 +40,17 @@ then
 fi
 
 date >> ${BASELINELOG} 2>&1
-echo "Step 2: delete existing Baseline RNASeqSet data" >> ${BASELINELOG} 2>&1
-${RNASEQLOAD}/bin/rnaseqBaselineDelete.sh >> ${BASELINELOG} 2>&1
-
-date >> ${BASELINELOG} 2>&1
-echo "Step 3: run baseline download (raw_input_baseline)" >> ${BASELINELOG} 2>&1
+echo "Step 2: run baseline download (raw_input_baseline)" >> ${BASELINELOG} 2>&1
 ${RNASEQLOAD}/bin/run_downloadBaselineFiles.sh >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
-echo "Step 4: run baseline pre processing (input_baseline)" >> ${BASELINELOG} 2>&1
+echo "Step 3: run baseline pre processing (input_baseline)" >> ${BASELINELOG} 2>&1
 rm -rf ${BASELINEINPUTDIR}/*
 ${PYTHON} ${RNASEQLOAD}/bin/preprocessBaseline.py >> ${BASELINELOG} 2>&1
+
+date >> ${BASELINELOG} 2>&1
+echo "Step 4: delete existing Baseline RNASeqSet data" >> ${BASELINELOG} 2>&1
+${RNASEQLOAD}/bin/rnaseqBaselineDelete.sh >> ${BASELINELOG} 2>&1
 
 date >> ${BASELINELOG} 2>&1
 echo "Step 5: run baseline: RNASeqSet, RNASeq_SetMember, RNASeqCombined" >> ${BASELINELOG} 2>&1
