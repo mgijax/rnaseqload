@@ -18,9 +18,7 @@
 # processCombined():
 #
 # For each Experiment from Differential RNASeq MGI_Set
-#   group the number of bioreplicates from RNASeqSet, RNASeqSetMember (replicates())
-#   for file in DIFFINPUTDIR/xxx.tpms.txt
-#       determine avgQnTpm, level, countMember (from replicates())
+#   load into GXD_HTSample_RNASeq
 #   load into GXD_HTSample_RNASeqCombined
 #
 # Inputs:
@@ -52,14 +50,17 @@ outputDir = os.getenv('DIFFOUTPUTDIR')
 setTable = 'GXD_HTSample_RNASeqSet'
 memberTable = 'GXD_HTSample_RNASeqSetMember'
 combinedTable = 'GXD_HTSample_RNASeqCombined'
+seqTable = 'GXD_HTSample_RNASeq'
 
 setBcp = '%s.bcp' % setTable
 memberBcp = '%s.bcp' % memberTable
 combinedBcp = '%s.bcp' % combinedTable
+seqBcp = '%s.bcp' % seqTable
 
 fpSet = None
 fpMember = None
 fpCombined = None
+fpSeq = None
 fpErrorEnsembl = None
 fpErrorMarker = None
 fpErrorResolved = None
@@ -82,6 +83,7 @@ createdByKey = 1613
 setKey = None
 memberKey = None
 combinedKey = None
+seqey = None
 
 ensemblMarkers = {}
 markerEnsembls = {}
@@ -236,10 +238,11 @@ def initRNASet():
 # initialize Combined
 #
 def initCombined():
-    global fpCombined, fpErrorEnsembl, fpErrorMarker
-    global combinedKey
+    global fpCombined, fpSeq, fpErrorEnsembl, fpErrorMarker
+    global combinedKey, seqKey
 
     fpCombined = open('%s/%s' % (outputDir, combinedBcp), 'w')
+    fpSeq = open('%s/%s' % (outputDir, seqBcp), 'w')
     fpErrorEnsembl = open('%s/ensemblDifferential.error' % (logDir), 'w')
     fpErrorEnsembl.write('ensemblId associated with > 1 marker OR ensemblId not in MGI\n\n')
     fpErrorMarker = open('%s/markerDifferential.error' % (logDir), 'w')
@@ -247,6 +250,9 @@ def initCombined():
 
     results = db.sql('''select nextval('gxd_htsample_rnaseqcombined_seq') as maxKey ''', 'auto')
     combinedKey = results[0]['maxKey']
+
+    results = db.sql('''select nextval('gxd_htsample_rnaseq_seq') as maxKey ''', 'auto')
+    seqKey = results[0]['maxKey']
 
     return 0
 
@@ -464,11 +470,11 @@ def processRNASet():
 # end processRNASet()
 
 #
-# create BCP files for RNASeqCombined
+# create BCP files for RNASeqCombined and RNASeq
 #
 def processCombined():
-    global fpCombined, fpErrorEnsembl, fpErrorMarker
-    global combinedKey
+    global fpCombined, fpSeq, fpErrorEnsembl, fpErrorMarker
+    global combinedKey, seqKey
 
     ensemblError = {}
     markerError = {}
@@ -557,6 +563,7 @@ def processCombined():
         fpTpms.close()
 
     fpCombined.close()
+    fpSeq.close()
 
     for e in sorted(ensemblError):
         fpErrorEnsembl.write(e + '\t' + '\t'.join(ensemblError[e]) + '\n')
@@ -602,9 +609,17 @@ def execSetBCP():
 def execCombinedBCP():
 
     bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % \
+    (bcpCommand, db.get_sqlServer(), db.get_sqlDatabase(), seqTable, outputDir, seqBcp)
+    print('%s' % bcpCmd)
+    os.system(bcpCmd)
+
+    bcpCmd = '%s %s %s %s %s %s "\\t" "\\n" mgd' % \
     (bcpCommand, db.get_sqlServer(), db.get_sqlDatabase(), combinedTable, outputDir, combinedBcp)
     print('%s' % bcpCmd)
     os.system(bcpCmd)
+
+    db.sql(''' select setval('gxd_htsample_rnaseq_seq', (select max(_rnaseq_key) from GXD_HTSample_RNASeq)); ''', None)
+    db.commit()
 
     db.sql(''' select setval('gxd_htsample_rnaseqcombined_seq', (select max(_rnaseqcombined_key) from GXD_HTSample_RNASeqCombined)); ''', None)
     db.commit()

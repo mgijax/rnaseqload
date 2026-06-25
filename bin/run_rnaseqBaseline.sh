@@ -28,14 +28,16 @@ fi
 rm -rf ${BASELINELOG}
 touch ${BASELINELOG}
 
-# this needs to run weekly by loadadmin/prod/sundaytasks1.csh
-#date >> ${BASELINELOG} 2>&1
-#echo "process withdrawn markers" >> ${BASELINELOG} 2>&1
-#${RNASEQLOAD}/bin/processWithdrawnMarkers.sh >> ${BASELINELOG} 2>&1
-
 date >> ${BASELINELOG} 2>&1
 echo "Step 1: run baseline MGI_Set, MGI_SetMember" >> ${BASELINELOG} 2>&1
 ${RNASEQLOAD}/bin/run_setBaseline.sh >> ${BASELINELOG} 2>&1
+
+LASTRUN_FILE=${SETLOADDIR}/lastrun.baseline
+if [ -f ${LASTRUN_FILE} ]
+then
+        echo "${LASTRUN_FILE} exists - skipping run_rnaseqBaseline.sh" >> ${BASELINELOG} 2>&1
+        exit 0
+fi
 
 date >> ${BASELINELOG} 2>&1
 echo "Step 2: delete existing Baseline RNASeqSet data" >> ${BASELINELOG} 2>&1
