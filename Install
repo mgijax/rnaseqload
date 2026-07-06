@@ -104,12 +104,4 @@ then
     mkdir -p ${BASELINERAW_INPUTDIR}
 fi
 
-# placeholder so rm in download script doesn't report error
-touch ${RAW_INPUTDIR}/temp.aes.txt
-touch  ${RAW_INPUTDIR}/temp.eae.txt
-touch  ${RAW_INPUTDIR}/temp.joined.txt
-touch ${BASELINERAW_INPUTDIR}/temp.aes.txt
-touch  ${BASELINERAW_INPUTDIR}/temp.eae.txt
-touch  ${BASELINERAW_INPUTDIR}/temp.joined.txt
-
 exit 0
