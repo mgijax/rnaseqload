@@ -32,12 +32,12 @@ date >> ${BASELINELOG} 2>&1
 echo "Step 1: run baseline MGI_Set, MGI_SetMember" >> ${BASELINELOG} 2>&1
 ${RNASEQLOAD}/bin/run_setBaseline.sh >> ${BASELINELOG} 2>&1
 
-LASTRUN_FILE=${SETLOADDIR}/lastrun.baseline
-if [ -f ${LASTRUN_FILE} ]
-then
-        echo "${LASTRUN_FILE} exists - skipping run_rnaseqBaseline.sh" >> ${BASELINELOG} 2>&1
-        exit 0
-fi
+#LASTRUN_FILE=${SETLOADDIR}/lastrun.baseline
+#if [ -f ${LASTRUN_FILE} ]
+#then
+#        echo "${LASTRUN_FILE} exists - skipping run_rnaseqBaseline.sh" >> ${BASELINELOG} 2>&1
+#        exit 0
+#fi
 
 date >> ${BASELINELOG} 2>&1
 echo "Step 2: run baseline download (raw_input_baseline)" >> ${BASELINELOG} 2>&1
