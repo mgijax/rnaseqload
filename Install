@@ -51,20 +51,6 @@ then
 fi
 
 #
-# run DLAInstall for each configuration file
-#
-echo 'running DLAINSTALL'
-${DLAINSTALL} ${DEV}
-
-#
-# Create the input directory if it doesn't exist.
-#
-if [ ! -d ${INPUTDIR} ]
-then
-    mkdir -p ${INPUTDIR}
-fi
-
-#
 # Create the raw inputDir if it does not exist
 #
 if [ ! -d ${RAW_INPUTDIR} ]
