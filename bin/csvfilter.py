@@ -1,216 +1,86 @@
 import os
 import pandas as pd
+import numpy as np
 import pg_db
 import os, glob
+import matplotlib.pyplot as plt
+import seaborn as sns
+from itertools import combinations
+import numpy as np
+import pandas as pd
 
-class CsvFilter:
-    def __init__(self, data_dir):
-        self.data_dir = data_dir
-        self.sample_columns = [
-            "3_8_M",
-            "3_9_M",
-            "3_10_M",
-            "3_11_M"
-        ]
+class CSVFileMerger:
 
-    def remove_all_null_rows(self, input_file, output_file):
-        input_path = os.path.join(self.data_dir, input_file)
-        output_path = os.path.join(self.data_dir, output_file)
+    def __init__(self, input_dir, output_dir, merged_file_name):
+        self.input_dir = input_dir
+        self.output_dir = output_dir
+        self.merged_file_name = merged_file_name
 
-        df = pd.read_csv(input_path)
+    def run(self, tissue):
+        files = glob.glob(os.path.join(self.input_dir, tissue, "*.csv"))
+        dfs = []
 
-        # remove rows where all sample columns are NULL
-        #df = df.dropna(subset=self.sample_columns, how="all")
+        left_null_files = {"remove_null_TPM.csv"}
+        left_zero_files = {"saver_all_TPM.csv", "saver_replace_null_only_TPM.csv"}
 
-        # replace remaining NULL values with zero
-        #df[self.sample_columns] = df[self.sample_columns].fillna(0)
+        for f in files:
+            tag = os.path.splitext(os.path.basename(f))[0].replace("_TPM", "")
 
-        # remove rows where ANY sample column is NULL
-        df = df.dropna(subset=self.sample_columns, how="any")
-
-        # replace NULL with row average
-        # df[self.sample_columns] = df[self.sample_columns].apply(
-        #     lambda row: row.fillna(row.mean()),
-        #     axis=1
-        # )
-
-        df.to_csv(output_path, index=False)
-
-        print(f"Output written to {output_path}")
-        print(f"Rows remaining: {len(df)}")
-
-    def merge_columns(self, input_file, output_file):
-        input_path = os.path.join(self.data_dir, input_file)
-        output_path = os.path.join(self.data_dir, output_file)
-
-        df = pd.read_csv(input_path)
-    # fill NULL with row mean
-        # df[self.sample_columns] = df[self.sample_columns].apply(
-        #     lambda row: row.fillna(row.mean()),
-        #     axis=1
-        # )
-
-        # merge columns by sum
-        df["3_8_M_n_3_9_M"] = df["3_8_M"] + df["3_9_M"]
-        df["3_10_M_n_3_11_M"] = df["3_10_M"] + df["3_11_M"]
-
-        # optional: drop original columns
-        df = df.drop(columns=self.sample_columns)
-
-        # write output
-        df.to_csv(output_path, index=False)
-
-        print(f"Output written to {output_path}")
-        print(f"Rows remaining: {len(df)}")        
-
-
-
-
-class CsvToPgDB:
-    def __init__(self, data_dir, table_name):
-        self.data_dir = data_dir
-        self.table_name = table_name
-
-    def transform(self, input_file, temp_file):
-        input_path = os.path.join(self.data_dir, input_file)
-        temp_path = os.path.join(self.data_dir, temp_file)
-
-        df = pd.read_csv(input_path)
-
-        # wide -> long
-        value_cols = [c for c in df.columns if c != "gene"]
-
-        df_long = df.melt(
-            id_vars=["gene"],
-            value_vars=value_cols,
-            var_name="individual",
-            value_name="count_sum"
-        )
-
-        df_long["bioreplicate_name"] = df_long["individual"]
-
-        # write TSV for COPY
-        df_long.to_csv(temp_path, sep="\t", index=False, header=False)
-
-        return temp_path
-
-    def load(self, temp_file):
-        temp_path = os.path.join(self.data_dir, temp_file)
-
-        with open(temp_path, "r") as f:
-            pg_db.executeCopyFrom(
-                f,
-                self.table_name,
-                sep="\t",
-                null=r"\N"
+            df_tmp = pd.read_csv(f).rename(
+                columns=lambda c:
+                    "gene" if c == "gene"
+                    else f"{tag}_A" if "_A_" in c
+                    else f"{tag}_B" if "_B_" in c
+                    else tag
             )
 
-        pg_db.commit()
+            dfs.append((os.path.basename(f), df_tmp))
 
-        print(f"Loaded into table: {self.table_name}")
+        # Inner join all files except the three left-join files
+        inner_dfs = [
+            df for name, df in dfs
+            if name not in left_null_files and name not in left_zero_files
+        ]
+        left_null_dfs = [df for name, df in dfs if name in left_null_files]
+        left_zero_dfs = [df for name, df in dfs if name in left_zero_files]
 
-    def create_table(self):
-        sql = f"""
-        DROP TABLE IF EXISTS {self.table_name};
-        CREATE TABLE IF NOT EXISTS {self.table_name}
-        (
-            gene text COLLATE pg_catalog."default",
-            individual character varying COLLATE pg_catalog."default",
-            count_sum real,
-            bioreplicate_name character varying COLLATE pg_catalog."default"
-        )
-        """
-        pg_db.sql(sql)
-        pg_db.commit()
-        print(f"Table ensured: {self.table_name}")        
+        df = inner_dfs[0]
 
-    def run(self, input_file):
-        self.create_table()
-        temp_file = "tmp_long.tsv"
-        self.transform(input_file, temp_file)
-        self.load(temp_file)
+        for df_tmp in inner_dfs[1:]:
+            df = df.merge(df_tmp, on="gene", how="inner")
 
+        for df_tmp in left_null_dfs:
+            df = df.merge(df_tmp, on="gene", how="left")
 
-class DataDiff:
+        for df_tmp in left_zero_dfs:
+            cols = df_tmp.columns.drop("gene")
+            df = df.merge(df_tmp, on="gene", how="left")
+            df[cols] = df[cols].fillna(0) 
 
-    def __init__(self, data_dir):
-        self.files = glob.glob(os.path.join(data_dir, "*.csv"))
-        self.df = None
+        sort_order = [
+            "gene","E-MTAB-4035","E-MTAB-8573","E-GEOD-65775","E-GEOD-74747","E-MTAB-2801","E-MTAB-4035",
+            "average_A","null_to_zero_A","metabimpute_rf_A",
+            "remove_null_A","saver_all_A","saver_replace_null_only_A",
+            "average_B","null_to_zero_B","metabimpute_rf_B","remove_null_B",
+            "saver_all_B","saver_replace_null_only_B"
+        ]
 
+        sort_position = {col: i for i, col in enumerate(sort_order)}
 
-    def run(self, out="data_diff.csv"):
+        df = df[sorted(df.columns, key=lambda c: sort_position.get(c, len(sort_order)))]
 
-        dfs = []
-        for f in self.files:
-            tag = os.path.splitext(os.path.basename(f))[0]
+        output_tissue_dir = os.path.join(self.output_dir, tissue)
+        os.makedirs(output_tissue_dir, exist_ok=True)
 
-            df = pd.read_csv(f)
-            df = df.rename(columns=lambda c: "gene" if c=="gene"
-                           else f"{tag}_{c.replace('_replicate_group_avg','')}")
-
-            dfs.append(df)
-
-        df = dfs[0]
-        for x in dfs[1:]:
-            df = df.merge(x, on="gene", how="outer")
-
-        colsA = [c for c in df if "_A_" in c]
-        colsB = [c for c in df if "_B_" in c]
-
-        same = lambda r, c: int(r[c].dropna().nunique() == 1)
-
-        df["diffA"] = df.apply(lambda r: same(r, colsA), axis=1)
-        df["diffB"] = df.apply(lambda r: same(r, colsB), axis=1)
-
-        df = df[["gene"] + colsA + colsB +
-                [c for c in df if c not in (["gene"]+colsA+colsB)]]
-
+        out = os.path.join(output_tissue_dir, self.merged_file_name)
         df.to_csv(out, index=False)
-        self.df = df
+
         return df
 
-
 if __name__ == "__main__":
-    # csv_filter = CsvFilter("/data/loads/liangh/rnaseqload/input")
-    # csv_filter.remove_all_null_rows(
-    #     "Lung_A_with_null.csv",
-    #     "Lung_A_remove_null.csv"
-    # )
-
-    # csv_filter = CsvFilter("/data/loads/liangh/rnaseqload/input")
-    # csv_filter.merge_columns(
-    #     "Lung_A_metabimpute_rf.csv",
-    #     "Lung_B_metabimpute_rf.csv"
-    # )
-    
-
-
-    # pg_db.set_sqlLogin(
-    #     user="xxx",
-    #     password="xxx",
-    #     server="bhmgidb06ld.jax.org",
-    #     database="liangh_pub2"
-    # )
-    # pg_db.useOneConnection(True)
-
-    # pg_db.sql("select 1")
-    # print("DB connection OK")
-
-
-    # files = ["Lung_A_average.csv","Lung_A_eucknn.csv","Lung_A_metabimpute_rf.csv",
-    #          "Lung_A_original.csv","Lung_A_remove_null.csv","Lung_B_average.csv",
-    #          "Lung_B_eucknn.csv","Lung_B_metabimpute_rf.csv","Lung_B_original.csv","Lung_B_remove_null.csv"]
-    # tables = ["tm_im_lung_average_a","tm_im_lung_eucknn_a","tm_im_lung_metabimpute_rf_a",
-    #         "tm_im_lung_original_a","tm_im_lung_remove_null_a","tm_im_lung_average_b",
-    #         "tm_im_lung_eucknn_b","tm_im_lung_metabimpute_rf_b","tm_im_lung_original_b","tm_im_lung_remove_null_b"]
-    # for i, file in enumerate(files):
-    #     tableName = tables[i]
-    #     loader = CsvToPgDB(
-    #         data_dir="/data/loads/liangh/rnaseqload/input",
-    #         table_name=tableName
-    #     )
-    #     loader.run(file)
-
-    d = DataDiff("/data/loads/liangh/rnaseqload/imput")
-    result = d.run("/data/loads/liangh/rnaseqload/imput/merged_diff.csv")
-    print(result.head())    
+    d = CSVFileMerger("/data/loads/liangh/rnaseqload/tpm/", "/data/loads/liangh/rnaseqload/bland_altman", "merged_tpm.csv")
+    tissues = ["heart", "intestine", "lung", "spleen"]
+    for tissue in tissues:
+        result = d.run(tissue)
+        print(f"\n{tissue}")
+        print(result.head()) 

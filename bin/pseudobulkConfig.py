@@ -15,8 +15,8 @@ class PseudobulkConfig:
 
         self.dataDir = os.getenv('INPUTDIR')
         self.initReplicateGroup()
-        self.imput = "remove_null"
-        # original average eucknn metabimpute_rf remove_null
+        self.imput = "average" # "remove_null" #'metabimpute_rf'
+        # null_to_zero average eucknn metabimpute_rf remove_null
 
     def initReplicateGroup(self):
         db.useOneConnection(1)
@@ -195,8 +195,10 @@ class PseudobulkConfig:
         "shortName": "Intestine_ascending",
         "tissue": "Large_Intestine",
         "organismPart": "ascending colon",
-        "pivotAFields": ["3_38_F", "3_39_F", "3_56_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
-        "pivotBFields": [["3_38_F", "3_56_F"], "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
+        "pivotAFields": ["3_8_M", "3_9_M", "3_10_M", "3_11_M"],
+        "pivotBFields": [["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]] 
+        # "pivotAFields": ["3_38_F", "3_39_F", "3_56_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
+        # "pivotBFields": [["3_38_F", "3_56_F"], "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
     }
 
     heart_left = {
@@ -220,8 +222,10 @@ class PseudobulkConfig:
         "shortName": "Heart_All",
         "tissue": "Heart",
         "organismPart": "",
-        "pivotAFields": ["3_38_F", "3_39_F", "3_56_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
-        "pivotBFields": [["3_38_F", "3_56_F"], "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
+        "pivotAFields": ["3_8_M", "3_9_M", "3_10_M", "3_11_M"],
+        "pivotBFields": [["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]        
+        # "pivotAFields": ["3_38_F", "3_39_F", "3_56_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
+        # "pivotBFields": [["3_38_F", "3_56_F"], "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
     }
     Intestine_all = {
         "name": "Large_Intestine__All",
@@ -244,8 +248,10 @@ class PseudobulkConfig:
         "shortName": "Spleen",
         "tissue": "Spleen",
         "organismPart": "spleen",
-        "pivotAFields": ["3_38_F", "3_39_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
-        "pivotBFields": ["3_38_F", "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
+        "pivotAFields": ["3_8_M", "3_9_M", "3_10_M", "3_11_M"],
+        "pivotBFields": [["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]        
+        # "pivotAFields": ["3_38_F", "3_39_F", "3_8_M", "3_9_M", "3_10_M", "3_11_M"],
+        # "pivotBFields": ["3_38_F", "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
     }
     lung = {
         "name": "Lung",
@@ -262,7 +268,7 @@ class PseudobulkConfig:
     # BULK_DATA_LIST.append(Pancreas)    
     # BULK_DATA_LIST.append(Fat_gonadal)    
     # BULK_DATA_LIST.append(Fat_interscapular) 
-    # BULK_DATA_LIST.append(Intestine_ascending)    
+    BULK_DATA_LIST.append(Intestine_ascending)    
 
     # BULK_DATA_LIST.append(heart_left)
     # BULK_DATA_LIST.append(heart_heart)
@@ -270,7 +276,7 @@ class PseudobulkConfig:
     # BULK_DATA_LIST.append(Intestine_all)
     # BULK_DATA_LIST.append(liver)
     # BULK_DATA_LIST.append(spleen)
-    BULK_DATA_LIST.append(lung)
+    # BULK_DATA_LIST.append(lung)
 
     RUN_OPTIONS = []
     optionA = {

@@ -1222,7 +1222,7 @@ def process():
         if PseudobulkExpt.isPseudobulkData(expID):
             pseudobulkDataframeList = []
             pseudobulkExpt = PseudobulkExpt(expID)            
-            pseudobulkExpt.isWriteDetailFiles = True
+            pseudobulkExpt.isWriteDetailFiles = False
             pseudobulkExpt.initExperimentKey()
             # run all of structure
             for bulkData in PseudobulkConfig.BULK_DATA_LIST:

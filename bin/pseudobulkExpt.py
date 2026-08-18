@@ -402,16 +402,20 @@ class PseudobulkExpt:
         dataQuery = '''
                 SELECT g.gene, grp.individual, SUM(g.value) AS count_sum,
                     {caseSql} AS bioreplicate_name
-                FROM tm_gene_expression g
+                FROM tm_gene_expression_saver_spleen_imput g
                 JOIN tm_group grp 
                     ON g.group_id = grp.group_id
-                    AND grp.cell_type is not null
+                    AND grp.cell_type is not null AND length(grp.cell_type) > 0
                     AND LOWER(grp.tissue) = {tissue}
                     {organismPartCause}    
                 GROUP BY g.gene, grp.individual
-        '''
+        '''.format(
+                caseSql=caseSql,
+                tissue=self.sqlEscape(tissue.lower()),
+                organismPartCause=organismPartCause)
+        
         if imput:
-            dataQuery = f"SELECT * FROM tm_im_lung_{imput}_{self.config.runOption["optionName"].lower()}"
+            dataQuery = f"SELECT * FROM tm_temp_intestine_{imput}_{self.config.runOption["optionName"].lower()}"
 
         query = '''
             DROP TABLE IF EXISTS {rpkSumTable};
@@ -487,7 +491,7 @@ class PseudobulkExpt:
         # only if want to preserve them for debug
         # db.commit()
 
-        #self.runGeneSummary(db, self.config.runOption["optionName"], tissue, organismPart, pseudobulkTableName, columnNames)
+       # self.runGeneSummary(db, self.config.runOption["optionName"], tissue, organismPart, pseudobulkTableName, columnNames)
         return outputFile
     
     def toGeneCountSelectField(self, option, columnNames, countColumnName, sampleCountName):
