@@ -104,5 +104,22 @@ class BlandAltman:
 
 
 if __name__=="__main__":
-    ba=BlandAltman("/data/loads/liangh/rnaseqload/tpm")
-    ba.process("lung", "merged_tpm.csv", ["E-MTAB-4035","E-MTAB-8573"])
+    ba=BlandAltman("/data/loads/liangh/rnaseqload/bland_altman")
+
+    tissueRefs = {}
+    # tissueRefs["heart"] = ["E-GEOD-65775", "E-GEOD-74747"]
+    # tissueRefs["intestine"] = ["E-MTAB-2801"]
+    # tissueRefs["lung"] = ["E-MTAB-4035","E-MTAB-8573"]
+    # tissueRefs["spleen"] = ["E-MTAB-4035"]
+
+    # miss match
+    ba=BlandAltman("/data/loads/liangh/rnaseqload/bland_altman_mismatch")
+    tissueRefs["heart"] = ["E-MTAB-4035"] 
+    tissueRefs["intestine"] = ["E-GEOD-65775", "E-GEOD-74747"] 
+    tissueRefs["lung"] = ["E-MTAB-2801"]
+    tissueRefs["spleen"] = ["E-MTAB-4035","E-MTAB-8573"]
+
+
+    for tissue, refs in tissueRefs.items():
+        print(f"\n{tissue}: {refs}")
+        ba.process(tissue, "merged_tpm.csv", refs)

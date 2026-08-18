@@ -78,7 +78,7 @@ class CSVFileMerger:
         return df
 
 if __name__ == "__main__":
-    d = CSVFileMerger("/data/loads/liangh/rnaseqload/tpm/", "/data/loads/liangh/rnaseqload/bland_altman", "merged_tpm.csv")
+    d = CSVFileMerger("/data/loads/liangh/rnaseqload/tpm_mismatch/", "/data/loads/liangh/rnaseqload/bland_altman_mismatch", "merged_tpm.csv")
     tissues = ["heart", "intestine", "lung", "spleen"]
     for tissue in tissues:
         result = d.run(tissue)
