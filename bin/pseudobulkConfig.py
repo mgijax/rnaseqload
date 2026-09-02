@@ -15,7 +15,7 @@ class PseudobulkConfig:
 
         self.dataDir = os.getenv('INPUTDIR')
         self.initReplicateGroup()
-        self.imput = "average" # "remove_null" #'metabimpute_rf'
+        self.imput = "metabimpute_rf" # "remove_null" #'metabimpute_rf'
         # null_to_zero average eucknn metabimpute_rf remove_null
 
     def initReplicateGroup(self):
@@ -268,7 +268,7 @@ class PseudobulkConfig:
     # BULK_DATA_LIST.append(Pancreas)    
     # BULK_DATA_LIST.append(Fat_gonadal)    
     # BULK_DATA_LIST.append(Fat_interscapular) 
-    BULK_DATA_LIST.append(Intestine_ascending)    
+    # BULK_DATA_LIST.append(Intestine_ascending)    
 
     # BULK_DATA_LIST.append(heart_left)
     # BULK_DATA_LIST.append(heart_heart)
@@ -276,7 +276,7 @@ class PseudobulkConfig:
     # BULK_DATA_LIST.append(Intestine_all)
     # BULK_DATA_LIST.append(liver)
     # BULK_DATA_LIST.append(spleen)
-    # BULK_DATA_LIST.append(lung)
+    BULK_DATA_LIST.append(lung)
 
     RUN_OPTIONS = []
     optionA = {

@@ -8,13 +8,15 @@ class BlandAltman:
 
     def __init__(self,dataDir):
         self.dataDir=dataDir
+        self.dataFileDir=os.path.join(self.dataDir,'data_file')
+        os.makedirs(self.dataFileDir,exist_ok=True)
 
     def process(self, tissue, inputFile, refsColumns):
 
         df=pd.read_csv(os.path.join(self.dataDir, tissue, inputFile))
         methods=[c for c in df.columns if c != "gene"]
 
-        outdir=os.path.join(self.dataDir, tissue, "bland_altman")
+        outdir=os.path.join(self.dataDir, tissue)
         os.makedirs(outdir,exist_ok=True)
 
         summary=[]
@@ -102,24 +104,66 @@ class BlandAltman:
         report.to_csv(os.path.join(outdir,"bland_altman_summary.csv"),index=False,float_format="%.9f")
         print(report.round(9))
 
+    def splitFile(self, tissue, inputFile, refsColumns):
+
+        df = pd.read_csv(os.path.join(self.dataDir, tissue, inputFile))
+        methods = [c for c in df.columns if c != "gene"]
+
+        outdir = os.path.join(self.dataFileDir, tissue)
+        os.makedirs(outdir, exist_ok=True)
+
+        for ref in refsColumns:
+            methods_copy = methods.copy()
+            methods_copy.remove(ref)
+
+            for method in methods_copy:
+
+                d = df[["gene", ref, method]].dropna()
+
+                if d.empty:
+                    continue
+
+                # Reference TPM
+                d[["gene", ref]].rename(
+                    columns={ref: "tpm"}
+                ).to_csv(
+                    os.path.join(
+                        outdir,
+                        f"{ref}.csv"
+                    ),
+                    index=False
+                )
+
+                # Method TPM
+                d[["gene", method]].rename(
+                    columns={method: "tpm"}
+                ).to_csv(
+                    os.path.join(
+                        outdir,
+                        f"{method}.csv"
+                    ),
+                    index=False
+                )
 
 if __name__=="__main__":
-    ba=BlandAltman("/data/loads/liangh/rnaseqload/bland_altman")
+    # ba=BlandAltman("/data/loads/liangh/rnaseqload/bland_altman")
 
-    tissueRefs = {}
+    # tissueRefs = {}
     # tissueRefs["heart"] = ["E-GEOD-65775", "E-GEOD-74747"]
     # tissueRefs["intestine"] = ["E-MTAB-2801"]
     # tissueRefs["lung"] = ["E-MTAB-4035","E-MTAB-8573"]
     # tissueRefs["spleen"] = ["E-MTAB-4035"]
 
     # miss match
+    tissueRefs = {}
     ba=BlandAltman("/data/loads/liangh/rnaseqload/bland_altman_mismatch")
     tissueRefs["heart"] = ["E-MTAB-4035"] 
     tissueRefs["intestine"] = ["E-GEOD-65775", "E-GEOD-74747"] 
     tissueRefs["lung"] = ["E-MTAB-2801"]
     tissueRefs["spleen"] = ["E-MTAB-4035","E-MTAB-8573"]
-
+    ba.process("heart", "merged_tpm.csv",  ["E-MTAB-4035"])
 
     for tissue, refs in tissueRefs.items():
         print(f"\n{tissue}: {refs}")
         ba.process(tissue, "merged_tpm.csv", refs)
+        #ba.splitFile(tissue, "merged_tpm.csv", refs)

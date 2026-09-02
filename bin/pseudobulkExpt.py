@@ -415,7 +415,7 @@ class PseudobulkExpt:
                 organismPartCause=organismPartCause)
         
         if imput:
-            dataQuery = f"SELECT * FROM tm_temp_intestine_{imput}_{self.config.runOption["optionName"].lower()}"
+            dataQuery = f"SELECT * FROM tm_temp_lung_{imput}_{self.config.runOption["optionName"].lower()}"
 
         query = '''
             DROP TABLE IF EXISTS {rpkSumTable};
