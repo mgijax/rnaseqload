@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # Purpose:
-#	Download Diff AES & EAE files
+#	Download Raw Differential files
 #
 
 cd `dirname $0`
@@ -19,33 +19,21 @@ else
     exit 1
 fi
 
-if [ -f ${DIFFLOG_DOWNLOAD} ]
-    rm -rf ${DIFFLOG_DOWNLOAD}
-then
-    touch ${DIFFLOG_DOWNLOAD}
-fi
+rm -rf ${DIFFLOG_DOWNLOAD}
 
 #LASTRUN_FILE=${DIFFRAW_INPUTDIR}/lastrun
 #if [ -f ${LASTRUN_FILE} ]
 #then
-#        echo "${LASTRUN_FILE} exists - skipping load" | tee -a ${DIFFLOG_DOWNLOAD}
+#        echo "${LASTRUN_FILE} exists - skipping run_downloadDiffFiles.sh" | tee -a ${DIFFLOG_DOWNLOAD}
 #        exit 0
 #fi
 
 date | tee -a ${DIFFLOG_DOWNLOAD}
 
 echo "Downloading input files" 
-rm -rf ${DIFFLOG_DOWNLOAD}
 rm -rf ${DIFFRAW_INPUTDIR}/*
 ${PYTHON} ${RNASEQLOAD}/bin/downloadDiffFiles.py >> ${DIFFLOG_DOWNLOAD} 2>&1
-#STAT=$?
 
-#
-# Touch the "lastrun" file to note when the load was run.
-#
-#if [ ${STAT} = 0 ]
-#then
-#    touch ${LASTRUN_FILE}
-#fi
+touch ${LASTRUN_FILE}
 
 date | tee -a ${DIFFLOG_DOWNLOAD}
