@@ -22,7 +22,7 @@ fi
 
 rm -rf ${DIFFLOG_DOWNLOAD}
 
-#LASTRUN_FILE=${DIFFRAW_INPUTDIR}/lastrun
+LASTRUN_FILE=${DIFFRAW_INPUTDIR}/lastrun
 #if [ -f ${LASTRUN_FILE} ]
 #then
 #        echo "${LASTRUN_FILE} exists - skipping run_downloadDiffFiles.sh" | tee -a ${DIFFLOG_DOWNLOAD}
@@ -37,6 +37,7 @@ ${PYTHON} ${RNASEQLOAD}/bin/downloadDiffFiles.py >> ${DIFFLOG_DOWNLOAD} 2>&1
 
 echo "Generate the tsvGenesExcluded list" 
 ${RNASEQLOAD}/bin/excludedGenesDiff.sh >> ${DIFFLOG_DOWNLOAD} 2>&1
+
 touch ${LASTRUN_FILE}
 
 date | tee -a ${DIFFLOG_DOWNLOAD}
