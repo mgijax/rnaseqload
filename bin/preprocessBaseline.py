@@ -74,7 +74,7 @@ def loadSamples(expID):
 # output : BASELINE_TPMS_PP_FILE_TEMPLATE
 #
 # format:
-#   ensembm ID
+#   ensembl ID
 #   marker key
 #   marker symbol
 #   each group (g1, g2, etc. value = 3rd value avg QN TPM)
