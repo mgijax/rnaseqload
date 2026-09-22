@@ -43,7 +43,8 @@ groupPPTemplate = '%s' % os.getenv('DIFF_GROUP_PP_FILE_TEMPLATE')
 aesTemplate = '%s' % os.getenv('DIFF_SDRF_LOCAL_FILE_TEMPLATE')
 
 # excluded genes
-excludeGenes = []
+tsvGenesExcluded = os.getenv('DIFFRAW_INPUTDIR') + '/tsvGenesExcluded'
+excludedGenes = []
 
 # unique set of raw samples
 rawRunList = []
@@ -87,49 +88,21 @@ def loadSamples(expID):
 #
 # input:
 #   ensembl ID
-#   name
-#   samples
-#
-# format:
-#   ensembl ID
-#   marker key
-#   marker symbol
-#   each group (g1, g2, etc. value = 3rd value avg QN TPM)
 #
 def loadExcludedGenes():
-    global excludeGenes
+    global excludedGenes
 
     print('in loadExcludedGenes()')
 
-    results = db.sql('''
-        select a.accid, a._object_key
-        from MGI_Set s, MGI_SetMember m , ACC_Accession a
-        where s.name = 'RNASeq Load Experiments'
-        and s._set_key = m._set_key
-        and s._mgitype_key = a._mgitype_key
-        and m._object_key = a._object_key
-        and a._logicaldb_key = 189
-        and a.preferred = 1
-        ''', 'auto')
+    #  read the tsvGenesExcluded
+    print('tsvGenesExcluded: %s' % tsvGenesExcluded)
 
-    #
-    # for each expID in the MGI_Set:
-    # 	if the ensembl
-    #
-    for r in results:
+    # iterate thru the fpTsvGenesExcluded input file
+    with open(tsvGenesExcluded, "r") as file:
+        excludedGenes = file.read().strip().split()
 
-        expID = str.strip(r['accid'])
-
-    #  read the input file
-    eaeFile = rawcountsTemplate % expID
-    print('eaeFile: %s' % eaeFile)
-    try:
-        fpEae = open(eaeFile, 'r')
-    except:
-        print('skipping: missing -rawcounts.tsv file: %s' % (expID))
-        return 1 # file does not exist
-
-    fpEae.close();
+    #print(excludedGenes)
+    print('excludedGenes: ', str(len(excludedGenes)))
 
     return 0
 
@@ -241,6 +214,11 @@ def ppEAERawCountsFile(expID):
 
         tokens = str.split(line[:-1], '\t')
         ensemblID = str.strip(tokens[0])
+
+        # if ensemblID is in excludedGenes, then skip
+	if ensemblID in excludedGenes:
+	    print('skipping: ensemblid is in the exclude set: %s, %s' % (expID, ensemblID))
+	    continue
 
         # if ensemblID is not in MGI, then set markerKey = 0
         # will handle this later during RAWCOUNTS processing
@@ -542,6 +520,8 @@ def process():
 #
 
 print('start time: %s' %  mgi_utils.date())
+if loadExcludedGenes() != 0:
+     exit(1, 'Error in loadExcludedGenes()\n')
 if process() != 0:
      exit(1, 'Error in process()\n')
 print('end time: %s' %  mgi_utils.date())

@@ -36,7 +36,7 @@ rm -rf ${DIFFRAW_INPUTDIR}/*
 ${PYTHON} ${RNASEQLOAD}/bin/downloadDiffFiles.py >> ${DIFFLOG_DOWNLOAD} 2>&1
 
 echo "Generate the tsvGenesExcluded list" 
-${RNASEQLOAD}/bin/excludedGenes.sh >> ${DIFFLOG_DOWNLOAD} 2>&1
+${RNASEQLOAD}/bin/excludedGenesDiff.sh >> ${DIFFLOG_DOWNLOAD} 2>&1
 touch ${LASTRUN_FILE}
 
 date | tee -a ${DIFFLOG_DOWNLOAD}
