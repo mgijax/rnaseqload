@@ -216,9 +216,9 @@ def ppEAERawCountsFile(expID):
         ensemblID = str.strip(tokens[0])
 
         # if ensemblID is in excludedGenes, then skip
-	if ensemblID in excludedGenes:
-	    print('skipping: ensemblid is in the exclude set: %s, %s' % (expID, ensemblID))
-	    continue
+        if ensemblID in excludedGenes:
+            #print('skipping: ensemblid is in the exclude set: %s, %s' % (expID, ensemblID))
+            continue
 
         # if ensemblID is not in MGI, then set markerKey = 0
         # will handle this later during RAWCOUNTS processing
@@ -470,6 +470,9 @@ def ppEAEGroupFile(expID):
 def process():
     global rawRunList
 
+    # set the excludedGenes list
+    loadExcludedGenes()
+
     results = db.sql('''
         select a.accid, a._object_key
         from MGI_Set s, MGI_SetMember m , ACC_Accession a
@@ -520,8 +523,6 @@ def process():
 #
 
 print('start time: %s' %  mgi_utils.date())
-if loadExcludedGenes() != 0:
-     exit(1, 'Error in loadExcludedGenes()\n')
 if process() != 0:
      exit(1, 'Error in process()\n')
 print('end time: %s' %  mgi_utils.date())
