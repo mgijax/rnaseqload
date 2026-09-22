@@ -23,6 +23,7 @@
 #           -> runToGroupDict
 #       process the raw counts file (ppEAERawCountsFile())
 #           -> DIFFINPUTDIR/xxx.raw_counts.txt
+#           -> only process genes that appear in *all* raw_counts.txt files
 #
 ###########################################################################
 
@@ -32,7 +33,7 @@ import xml.etree.ElementTree as ET
 import db
 import mgi_utils
 
-#db.setTrace(True)
+db.setTrace(True)
 
 # Expression Atlas Experiment file Template - name of file stored locally
 rawcountsTemplate = '%s' % os.getenv('DIFF_RAWCOUNTS_LOCAL_FILE_TEMPLATE')
@@ -40,6 +41,9 @@ rawcountsPPTemplate = '%s' % os.getenv('DIFF_RAWCOUNTS_PP_FILE_TEMPLATE')
 groupTemplate = '%s' % os.getenv('DIFF_GROUP_LOCAL_FILE_TEMPLATE')
 groupPPTemplate = '%s' % os.getenv('DIFF_GROUP_PP_FILE_TEMPLATE')
 aesTemplate = '%s' % os.getenv('DIFF_SDRF_LOCAL_FILE_TEMPLATE')
+
+# excluded genes
+excludeGenes = []
 
 # unique set of raw samples
 rawRunList = []
@@ -77,6 +81,62 @@ def loadSamples(expID):
 
 #
 # input  : DIFF_RAWCOUNTS_LOCAL_FILE_TEMPLATE
+#
+# genes that do not appear in all raw-counts.txt files
+# all genes must appear in all raw-counts.txt files
+#
+# input:
+#   ensembl ID
+#   name
+#   samples
+#
+# format:
+#   ensembl ID
+#   marker key
+#   marker symbol
+#   each group (g1, g2, etc. value = 3rd value avg QN TPM)
+#
+def loadExcludedGenes():
+    global excludeGenes
+
+    print('in loadExcludedGenes()')
+
+    results = db.sql('''
+        select a.accid, a._object_key
+        from MGI_Set s, MGI_SetMember m , ACC_Accession a
+        where s.name = 'RNASeq Load Experiments'
+        and s._set_key = m._set_key
+        and s._mgitype_key = a._mgitype_key
+        and m._object_key = a._object_key
+        and a._logicaldb_key = 189
+        and a.preferred = 1
+        ''', 'auto')
+
+    #
+    # for each expID in the MGI_Set:
+    # 	if the ensembl
+    #
+    for r in results:
+
+        expID = str.strip(r['accid'])
+
+    #  read the input file
+    eaeFile = rawcountsTemplate % expID
+    print('eaeFile: %s' % eaeFile)
+    try:
+        fpEae = open(eaeFile, 'r')
+    except:
+        print('skipping: missing -rawcounts.tsv file: %s' % (expID))
+        return 1 # file does not exist
+
+    fpEae.close();
+
+    return 0
+
+# end loadExcludedGenes()
+
+#
+# input  : DIFF_RAWCOUNTS_LOCAL_FILE_TEMPLATE
 # output : DIFF_RAWCOUNTS_PP_FILE_TEMPLATE
 #
 # input:
@@ -85,7 +145,7 @@ def loadSamples(expID):
 #   samples
 #
 # format:
-#   ensembm ID
+#   ensembl ID
 #   marker key
 #   marker symbol
 #   each group (g1, g2, etc. value = 3rd value avg QN TPM)
@@ -132,11 +192,18 @@ def ppEAERawCountsFile(expID):
     # track the column -> group (columnGroup[2] = ['g1'])
     # 1 group can be in more than 1 column
     # 1 column can only be in 1 group
+    # 
+    # some raw-counts have duplicate headers & columns
+    # example: E-MTAB-8161.raw-counts.txt
+    # logic added:  uniqueHeaderList, dupSkip
+    #
+
     headerList = str.split(fpEae.readline(), '\t')
+    uniqueHeaderList = list(dict.fromkeys(headerList))
     col = 2
     columnGroup = {}
     groupList = []
-    for h in headerList[2:]:
+    for h in uniqueHeaderList[2:]:
 
         h = str.strip(h)
 
@@ -146,18 +213,25 @@ def ppEAERawCountsFile(expID):
 
         grp = runToGroupDict[h][0]
 
+        if grp not in groupList:
+            groupList.append(grp)
+            if len(headerList) > len(uniqueHeaderList):
+                dupSkip = 1
+            else:
+                dupSkip = 0
+
         columnGroup[col] = []
         columnGroup[col].append(grp)
 
-        if grp not in groupList:
-            groupList.append(grp)
-
-        col += 1
+        if dupSkip:
+            col += 2
+        else:
+            col += 1
 
     fpPP.write('ensembl_id\t_marker_key\tsymbol\t')
     fpPP.write('\t'.join(groupList) + '\n')
     print(headerList)
-    #print(columnGroup)
+    print(columnGroup)
     print(groupList)
 
     # iterate thru the fpEae input file
@@ -180,18 +254,23 @@ def ppEAERawCountsFile(expID):
         fpPP.write('%s\t%s\t%s' % (ensemblID, markerKey, markerSymbol))
 
         # for each column in this row
+        #   token 2 may have dupliates; so skip dupliates
         #   determine the "group" for the column (see columnGroup)
         #   append the tpm value to the "group" (groupTPM)
         col = 2
         for value in tokens[2:]:
+
              if col not in columnGroup:
                 #only print for debugging as this returns many rows
                 #print('skipping: column not found in columnGroup: %s, %s' % (expID, col))
+                col += 1
                 continue
+
              grp = columnGroup[col][0]
              if grp not in groupTPM:
                 groupTPM[grp] = []
              groupTPM[grp].append(value)
+
              col += 1
 
         #print(groupTPM)    

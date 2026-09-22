@@ -5,15 +5,9 @@
 # processRNASet():
 #
 # For each Experiment from Differential RNASeq MGI_Set
-#   compare DIFFINPUTDIR/xxx.group.txt with GXD_HTSample
-#       xxx.group.txt : group (g1, g2, etc.)
+#   for each GXD_HTSammple
 #       GXD_HTSample : name (sample), age, organism, sex, stage, emapa, genotype
-#
-#   if no mismatch, then add to RNASeqSet
 #       load into GXD_HTSample_RNASeqSet, GXD_HTSample_RNASeqSetMember
-#   else if only mismatch is with sex, then set sex = Pooled, add to RNASeqSet
-#       load into GXD_HTSample_RNASeqSet, GXD_HTSample_RNASeqSetMember
-#   else, skip
 #
 # processCombined():
 #
@@ -283,10 +277,6 @@ def processRNASet():
     global fpSet, fpMember, fpErrorResolved, fpErrorUnresolved, fpErrorSamples
     global setKey, memberKey
 
-    resolvedError = {}
-    unresolvedError = {}
-    sampleError = {}
-
     db.sql('''
         select n._object_key as _sample_key, n.note 
         into temporary table sampleNotes 
@@ -300,170 +290,53 @@ def processRNASet():
     #
     # for each expID
     #
-    results = db.sql(''' select distinct expID from samples ''', 'auto')
+    results = db.sql(''' select expID from experiments ''', 'auto')
     for r in results:
 
-        #
-        # read the "group.txt" file
-        # create groupMeta by group (g1, g2, etc.)
-        # each group contains the set of samples that belong to that group
-        #
-        groupMeta = {}
-        prevSample = ''
-        expID = r['expID']
+    	expID = r['expID']
 
-        sampleMeta = []
-        sampleMGI = []
-
-        # save samples
-        sampleResults = db.sql(''' select distinct name from samples where expID = '%s' ''' % (expID), 'auto')
-        for s in sampleResults:
-           sampleMGI.append(s['name'])
-
-        try:
-            fpGroup = open('%s/%s.group.txt' % (inputDir, expID), 'r')
-        except:
-            print('experiment does not exist in %s/%s.group.txt' % (inputDir, expID))
-            continue
-        
-        # store group/sample
-        # store sample per experiment
-        for line in fpGroup.readlines():
-            tokens = str.split(line, TAB)
-            key = tokens[0]
-            value = str.strip(tokens[3])
-            if value != prevSample:
-                if key not in groupMeta:
-                    groupMeta[key] = []
-                groupMeta[key].append("'" + value + "'")
-                prevSample = value
-            if value not in sampleMeta:
-                sampleMeta.append(value)
-        fpGroup.close()
-
-        # just report if MGI samples count != fpGroup count
-        if len(sampleMGI) != len(sampleMeta):
-            diff1 = [item for item in sampleMeta if item not in sampleMGI]
-            diff2 = [item for item in sampleMGI if item not in sampleMeta]
-            sampleError[expID] = []
-            sampleError[expID].append(str(len(sampleMeta)) + '\t' + str(len(sampleMGI)) + '\t' + ','.join(diff1) + ','.join(diff2))
-
-        #
-        # for each group
-        #   select MGI rows for all samples in the group
-        #
-        for groupSet in groupMeta:
-            print(groupSet + '|' + ','.join(groupMeta[groupSet]))
-
-            checkAllDict = {}
-            checkNoSexDict = {}
-            sampleKeySet = []
-
-            byGroup = ','.join(groupMeta[groupSet])
-
-            sampleResults = db.sql('''
-                select distinct s.expID, s.name, s._experiment_key, s._sample_key, s.age,
+    	sampleResults = db.sql('''
+            select distinct s._experiment_key, s.expID, s.name, s._experiment_key, s._sample_key, s.age,
                     s._organism_key, s._sex_key, s._stage_key, s._emapa_key, s._genotype_key, 
                     n.note 
-                from samples s
-                left outer join sampleNotes n on (s._sample_key = n._sample_key)
-                where s.expID = '%s' and rtrim(s.name) in (%s)
-                ''' % (expID, byGroup), 'auto')
+            from samples s
+            left outer join sampleNotes n on (s._sample_key = n._sample_key)
+	    where s.expID = '%s'
+            ''' % (expID), 'auto')
 
-            #
-            # compare samples _organism_key, age, _emapa_key, _stage_key, _sex_key, _genotype_key
-            #
-            print(sampleResults)
-            for s in sampleResults:
+	#
+	# for each sample in the experiment
+	#
+    	for s in sampleResults:
 
-                expKey = s['_experiment_key']
-                sample = s['name']
-                age = s['age']
-                orgKey = s['_organism_key']
-                sexKey = s['_sex_key']
-                emapaKey = s['_emapa_key']
-                stageKey = s['_stage_key']
-                genotypeKey = s['_genotype_key']
+        	expKey = s['_experiment_key']
+        	sampleKey = s['_sample_key']
+        	sample = s['name']
+        	age = s['age']
+        	orgKey = s['_organism_key']
+        	sexKey = s['_sex_key']
+        	emapaKey = s['_emapa_key']
+        	stageKey = s['_stage_key']
+        	genotypeKey = s['_genotype_key']
 
-                note = s['note']
-                if note == None:
-                    note = ''
+        	note = s['note']
+        	if note == None:
+            		note = ''
 
-                sampleKey = s['_sample_key']
-                sampleKeySet.append(sampleKey)
+        	fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
+            		setKey, TAB, expKey, TAB, provider, TAB, TAB, \
+            		age, TAB, orgKey, TAB, sexKey, TAB, \
+            		emapaKey, TAB, stageKey, TAB, genotypeKey, TAB, note, TAB, \
+            		createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
 
-                key = '%s|%s|%s|%s|%s|%s|%s|%s' % (expKey, age, orgKey, sexKey, emapaKey, stageKey, genotypeKey, note)
-                if key not in checkAllDict:
-                    checkAllDict[key] = []
-                checkAllDict[key].append(sampleKey)
+        	fpMember.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
+                	memberKey, TAB, setKey, TAB, sampleKey, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
 
-                key = '%s|%s|%s|%s|%s|%s|%s' % (expKey, age, orgKey, emapaKey, stageKey, genotypeKey, note)
-                if key not in checkNoSexDict:
-                    checkNoSexDict[key] = []
-                checkNoSexDict[key].append(sampleKey)
-
-            #print('sampleResults:', expID, str(len(sampleResults)))
-            #print(checkAllDict)
-            #print(checkNoSexDict)
-
-            # no mismatch
-            if len(checkAllDict) == 1:
-
-                fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
-                    setKey, TAB, expKey, TAB, provider, TAB, groupSet, TAB, \
-                    age, TAB, orgKey, TAB, sexKey, TAB, \
-                    emapaKey, TAB, stageKey, TAB, genotypeKey, TAB, note, TAB, \
-                    createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
-
-                for sKey in sampleKeySet:
-                    fpMember.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
-                        memberKey, TAB, setKey, TAB, sKey, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
-                    memberKey += 1
-
-                setKey += 1
-
-            # only mismatch is due to Sex
-            elif len(checkAllDict) > 1 and len(checkNoSexDict) == 1:
-
-                sexKey = 315166
-
-                fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
-                    setKey, TAB, expKey, TAB, provider, TAB, groupSet, TAB, \
-                    age, TAB, orgKey, TAB, sexKey, TAB, \
-                    emapaKey, TAB, stageKey, TAB, genotypeKey, TAB, note, TAB, \
-                    createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
-
-                for sKey in sampleKeySet:
-                    fpMember.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
-                        memberKey, TAB, setKey, TAB, sKey, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
-                    memberKey += 1
-
-                setKey += 1
-
-                if expID not in resolvedError:
-                    resolvedError[expID] = []
-                resolvedError[expID].append(groupSet)
-
-            # other mismatch
-            else:
-                if expID not in unresolvedError:
-                    unresolvedError[expID] = []
-                unresolvedError[expID].append(groupSet + '|' + ','.join(groupMeta[groupSet]))
+        	memberKey += 1
+        	setKey += 1
 
     fpSet.close()
     fpMember.close()
-
-    for e in sorted(resolvedError):
-        fpErrorResolved.write(e + '\t' + '\t'.join(resolvedError[e]) + '\n')
-    fpErrorResolved.close()
-
-    for e in sorted(unresolvedError):
-        fpErrorUnresolved.write(e + '\t' + '\t'.join(unresolvedError[e]) + '\n')
-    fpErrorUnresolved.close()
-
-    for e in sorted(sampleError):
-        fpErrorSamples.write(e + '\t' + '\t'.join(sampleError[e]) + '\n')
-    fpErrorSamples.close()
 
     return 0
 

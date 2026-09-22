@@ -13,8 +13,7 @@
 #	 4. DOWNLOAD_OK - if exists then error-free download
 #
 # Inputs:
-#	1. Database - the experiments in the 'RNASeq Load Experiment' Set
-#		and the experiments loaded 
+#	1. Database - the experiments in the 'RNASeq Load Experiment' Set and the experiments loaded 
 #	2. Configuration (see rnaseqload.config)
 #
 # Outputs:
@@ -52,12 +51,6 @@ failedList = []
 
 def init():
     global rnaSeqSetResults
-
-    cmd = 'rm %s/*.eae.*' % rawInputDir
-    rc = os.system(cmd)
-    if rc != 0:
-        msg = 'rm cmd did not succeed: %s\n' % (cmd)
-        print(msg)
 
     # create the result set of ids to load
     rnaSeqSetResults = db.sql('''
