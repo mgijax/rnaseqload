@@ -7,20 +7,16 @@
 #
 #   input files read from DIFFRAW_INPUTDIR
 #	 DIFF_RAWCOUNTS_LOCAL_FILE_TEMPLATE
-#    DIFF_GROUP_LOCAL_FILE_TEMPLATE
-#    DIFF_SDRF_LOCAL_FILE_TEMPLATE 
+#        DIFF_SDRF_LOCAL_FILE_TEMPLATE 
 #
 #   generated pre-processing files created in DIFFINPUTDIR
 #	 DIFF_RAWCOUNTS_PP_FILE_TEMPLATE
-#    DIFF_GROUP_PP_FILE_TEMPLATE
+#        DIFF_SDRF_PP_FILE_TEMPLATE
 #
 # For each Experiment (xxx) from RNASeq MGI_Set
 #   for Experiment file in DIFFRAW_INPUTDIR
 #       prcoess the sdrf file (ppAESSdrfFile())
-#           -> runToSampleDict
-#       process the configuration (ppEAEGroupFile())
-#           -> DIFFINPUTDIR/xxx.group.txt
-#           -> runToGroupDict
+#           -> DIFFINPUTDIR/xxx.sdrf.txt
 #       process the raw counts file (ppEAERawCountsFile())
 #           -> DIFFINPUTDIR/xxx.raw_counts.txt
 #           -> only process genes that appear in *all* raw_counts.txt files
@@ -38,23 +34,19 @@ db.setTrace(True)
 # Expression Atlas Experiment file Template - name of file stored locally
 rawcountsTemplate = '%s' % os.getenv('DIFF_RAWCOUNTS_LOCAL_FILE_TEMPLATE')
 rawcountsPPTemplate = '%s' % os.getenv('DIFF_RAWCOUNTS_PP_FILE_TEMPLATE')
+sdrfTemplate = '%s' % os.getenv('DIFF_SDRF_LOCAL_FILE_TEMPLATE')
+sdrfPPTemplate = '%s' % os.getenv('DIFF_SDRF_PP_FILE_TEMPLATE')
 groupTemplate = '%s' % os.getenv('DIFF_GROUP_LOCAL_FILE_TEMPLATE')
-groupPPTemplate = '%s' % os.getenv('DIFF_GROUP_PP_FILE_TEMPLATE')
-aesTemplate = '%s' % os.getenv('DIFF_SDRF_LOCAL_FILE_TEMPLATE')
 
 # excluded genes
 tsvGenesExcluded = os.getenv('DIFFRAW_INPUTDIR') + '/tsvGenesExcluded'
 excludedGenes = []
 
-# unique set of raw samples
-rawRunList = []
+# set of runs that exist in configuration for given experiment
+rawRunConfigList = []
 
-# which samples belong to this run
-# run -> sample
-runToSampleDict = {}
-# which group belong to this run
-# run -> group
-runToGroupDict = {}
+# set of raw sample/run for given experiment
+#rawSampleRunList = {}
 
 #
 # loads a lookup of samples in the db for the given experiment
@@ -109,288 +101,17 @@ def loadExcludedGenes():
 # end loadExcludedGenes()
 
 #
-# input  : DIFF_RAWCOUNTS_LOCAL_FILE_TEMPLATE
-# output : DIFF_RAWCOUNTS_PP_FILE_TEMPLATE
-#
-# input:
-#   ensembl ID
-#   name
-#   samples
-#
-# format:
-#   ensembl ID
-#   marker key
-#   marker symbol
-#   each group (g1, g2, etc. value = 3rd value avg QN TPM)
-#
-def ppEAERawCountsFile(expID):
-
-    print('in ppEAERawCountsFile(expID): %s' % expID)
-
-    #  read the input file
-    eaeFile = rawcountsTemplate % expID
-    print('eaeFile: %s' % eaeFile)
-    try:
-        fpEae = open(eaeFile, 'r')
-    except:
-        print('skipping: missing -rawcounts.tsv file: %s' % (expID))
-        return 1 # file does not exist
-
-    #  create the output file
-    ppFile = rawcountsPPTemplate % expID
-    try:
-        fpPP = open(ppFile, 'w')
-    except:
-        return 1 # file does not exist
-
-    ensemblDict = {}
-    results = db.sql('''
-        select a.accid, a._object_key, m.symbol 
-        from acc_accession a, mrk_marker m 
-        where a._logicaldb_key = 60 
-        and a._mgitype_key = 2 
-        and a.preferred = 1
-        and a._object_key = m._marker_key
-        ''', 'auto')
-    for r in results:
-        key = r['accid']
-        value = r
-        if key not in ensemblDict:
-            ensemblDict[key] = []
-        ensemblDict[key].append(value)
-
-    # read the header from fpEae and create header for fpPP
-    # each "run" is in its own column
-    # each oolumn belongs to a specific group (runToGroupDict['ERR4873299'][0] = 'g1')
-    # track the column -> group (columnGroup[2] = ['g1'])
-    # 1 group can be in more than 1 column
-    # 1 column can only be in 1 group
-    # 
-    # some raw-counts have duplicate headers & columns
-    # example: E-MTAB-8161.raw-counts.txt
-    # logic added:  uniqueHeaderList, dupSkip
-    #
-
-    headerList = str.split(fpEae.readline(), '\t')
-    uniqueHeaderList = list(dict.fromkeys(headerList))
-    col = 2
-    columnGroup = {}
-    groupList = []
-    for h in uniqueHeaderList[2:]:
-
-        h = str.strip(h)
-
-        if h not in runToGroupDict:
-            print('skipping: run not found in runToGroupDict: %s, %s' % (expID, h))
-            continue
-
-        grp = runToGroupDict[h][0]
-
-        if grp not in groupList:
-            groupList.append(grp)
-            if len(headerList) > len(uniqueHeaderList):
-                dupSkip = 1
-            else:
-                dupSkip = 0
-
-        columnGroup[col] = []
-        columnGroup[col].append(grp)
-
-        if dupSkip:
-            col += 2
-        else:
-            col += 1
-
-    fpPP.write('ensembl_id\t_marker_key\tsymbol\t')
-    fpPP.write('\t'.join(groupList) + '\n')
-    print(headerList)
-    print(columnGroup)
-    print(groupList)
-
-    # iterate thru the fpEae input file
-    for line in fpEae.readlines():
-
-        groupTPM = {}
-
-        tokens = str.split(line[:-1], '\t')
-        ensemblID = str.strip(tokens[0])
-
-        # if ensemblID is in excludedGenes, then skip
-        if ensemblID in excludedGenes:
-            #print('skipping: ensemblid is in the exclude set: %s, %s' % (expID, ensemblID))
-            continue
-
-        # if ensemblID is not in MGI, then set markerKey = 0
-        # will handle this later during RAWCOUNTS processing
-        if ensemblID in ensemblDict:
-            markerKey = ensemblDict[ensemblID][0]['_object_key']
-            markerSymbol = ensemblDict[ensemblID][0]['symbol']
-        else:
-            markerKey = 0
-            markerSymbol = ''
-
-        fpPP.write('%s\t%s\t%s' % (ensemblID, markerKey, markerSymbol))
-
-        # for each column in this row
-        #   token 2 may have dupliates; so skip dupliates
-        #   determine the "group" for the column (see columnGroup)
-        #   append the tpm value to the "group" (groupTPM)
-        col = 2
-        for value in tokens[2:]:
-
-             if col not in columnGroup:
-                #only print for debugging as this returns many rows
-                #print('skipping: column not found in columnGroup: %s, %s' % (expID, col))
-                col += 1
-                continue
-
-             grp = columnGroup[col][0]
-             if grp not in groupTPM:
-                groupTPM[grp] = []
-             groupTPM[grp].append(value)
-
-             col += 1
-
-        #print(groupTPM)    
-        for grp in groupTPM:
-            fpPP.write('\t' + ','.join(groupTPM[grp]))
-        fpPP.write('\n')
-
-    fpEae.close();
-    fpPP.close();
-
-    return 0
-
-# end ppEAERawCountsFile()
-
-#
-# input  : DIFF_SDRF_LOCAL_FILE_TEMPLATE
-# output : runToSampleDict
-#   store all Source Name's per ENA_RUN
-#   E-ERAD-169.sdrf.txt : runToSampleDict['ERS223116'] = ['ERR323395', 'ERR323401']
-#
-# format:
-#   Source Name
-#   ENA_SAMPLE
-#   ENA_RUN
-#
-def ppAESSdrfFile(expID, objectKey):
-
-    global rawRunList, runToSampleDict
-
-    print('in ppAESSdrfFile(expID, object_key): %s,%s' % (expID, objectKey))
-
-    runToSampleDict = {}
-
-    #  read the input file
-    aesFile = aesTemplate % expID
-    try:
-        fpAes = open(aesFile, 'r')
-    except:
-        print('skiping: missing .sdrf.txt file: %s' % (expID))
-        return 1 # file does not exist
-
-    # process the header line
-    #
-    headerList = str.split(fpAes.readline(), '\t')
-    if headerList == ['']: # means file is empty
-        print('skipping: missing header: %s' % (expID))
-        return 1
-
-    # load sampleInMGI() for expID
-    loadSamples(expID)
-
-    # find the idx of the columns we want - they are not ordered
-    sourceSampleIDX = None
-    enaSampleIDX = None
-    enaRunIDX = None
-    for idx, colName in enumerate(headerList):
-        colName = str.strip(colName)
-        if str.find(colName, 'Source Name') != -1:
-            sourceSampleIDX = idx
-        elif str.find(colName, 'ENA_SAMPLE') != -1:
-            enaSampleIDX = idx
-        elif str.find(colName, 'ENA_RUN') != -1:
-            enaRunIDX = idx
-    if sourceSampleIDX == None:
-        print('skipping: missing Source Name column: %s' % (expID))
-        return 1
-    if enaRunIDX == None:
-        print('skipping: missing ENA_RUN column: %s' % (expID))
-        return 1
-
-    # iterate thru the fpEae input file
-    for line in fpAes.readlines():
-
-        tokens = str.split(line, '\t')
-
-        sourceSample = None
-        enaSample = None
-        enaRun = None
-
-        if sourceSampleIDX != None:
-            sourceSample = str.strip(tokens[sourceSampleIDX])
-
-        # not every sample file contais enaSampleIDX column
-        if enaSampleIDX != None:
-            enaSample = str.strip(tokens[enaSampleIDX])
-
-        if enaRunIDX != None:
-            enaRun = str.strip(tokens[enaRunIDX])
-
-        # skip if this source is a duplicate; but don't report
-        if enaRun in rawRunList:
-            #print('skipping: enaRun already processed: %s,%s' % (expID, enaRun))
-            continue
-
-        if sourceSample not in sampleInMGI:
-            if enaSample != None and enaSample in sampleInMGI:
-                sourceSample = enaSample
-            else:
-                print('skipping: sample is not in MGI: %s, sourceSample = %s, enaSample = %s' % (expID, sourceSample, str(enaSample)))
-                continue
-
-        # if sourceSample exists in MGI, is genotype = J:DO (_genotype_key = 90560), 
-        #   or Relevance != Yes (_relevance_key != 20475450), 
-        # then skip
-        ignoreResults = db.sql('''
-            select * from GXD_HTSample where (_genotype_key = 90560 or _relevance_key != 20475450)
-                and _experiment_key = %s and name = '%s' 
-            ''' % (objectKey, sourceSample), 'auto')
-        if len(ignoreResults) > 0:
-            #print('skipping: sample is J:DO or Relevance != Yes')
-            continue
-
-        rawRunList.append(enaRun)
-
-        key = enaRun
-        value = sourceSample
-        if key not in runToSampleDict:
-            runToSampleDict[key] = []
-        runToSampleDict[key].append(value)
-
-    fpAes.close();
-
-    return 0
-
-# end ppAESSdrfFile()
-
-#
 # input  : DIFF_GROUP_LOCAL_FILE_TEMPLATE
-# output : DIFF_GROUP_PP_FILE_TEMPLATE
+# output : rawRunConfigList
 #
-# format:
-# 	group ID 
-# 	label 
-# 	Run IDs
-#   Sample IDs
+# list of run ids that exist in DIFF_GROUP_LOCAL_FILE_TEMPLATE
 #
-def ppEAEGroupFile(expID):
-    global runToGroupDict
+def ppEAEConfigurationFile(expID):
+    global rawRunConfigList
 
-    print('in ppEAEGroupFile(expID): %s' % expID)
+    print('in ppEAEConfigurationFile(expID): %s' % expID)
 
-    runToGroupDict = {}
+    rawRunConfigList = []
 
     #  read the input file
     try:
@@ -399,15 +120,6 @@ def ppEAEGroupFile(expID):
         print('skipping: missing -configuration.xml: %s' % (expID))
         return 1 # file does not exist
     print(eaeFile)
-
-    #  create the output file
-    print('ppFile...', expID, groupPPTemplate)
-    ppFile = groupPPTemplate % expID
-    try:
-        fpPP = open(ppFile, 'w')
-    except:
-        return 1 # file does not exist
-    print('ppFile:' , ppFile)
 
     #
     # eaeFile is in XML format
@@ -433,45 +145,258 @@ def ppEAEGroupFile(expID):
         for child in ag:
             #print(child.tag, child.text)
             runID = child.text
-            sampleID = 'missing'
-            if runID not in runToSampleDict:
-                continue
-            if runID in runToSampleDict:
-                sampleID = runToSampleDict[runID][0]
+            rawRunConfigList.append(runID)
 
-            # save this to use in ppEAERawCountsFile()
-            if id not in runToGroupDict:
-                runToGroupDict[runID] = []
-            runToGroupDict[runID].append(id)
-
-            fpPP.write('%s\t%s\t%s\t%s\n' % (id, label, runID, sampleID))
-
-    fpPP.close();
-    print(runToGroupDict)
+    print(rawRunConfigList)
 
     return 0
 
-# end ppEAEGroupFile()
- 
+# end ppEAEConfigurationFile()
+
+#
+# input  : DIFF_SDRF_LOCAL_FILE_TEMPLATE
+# output : DIFF_SDRF_PP_FILE_TEMPLATE
+#
+# format:
+#   Source Name
+#   ENA_SAMPLE
+#   ENA_RUN
+#
+def ppAESSdrfFile(expID, objectKey):
+    #global rawSampleRunList
+
+    print('in ppAESSdrfFile(expID, object_key): %s,%s' % (expID, objectKey))
+
+    #rawSampleRunList = {}
+
+    #  read the input file
+    aesFile = sdrfTemplate % expID
+    try:
+        fpAes = open(aesFile, 'r')
+    except:
+        print('skiping: missing .sdrf.txt file: %s' % (expID))
+        return 1 # file does not exist
+
+    #  create the output file
+    ppFile = sdrfPPTemplate % expID
+    try:
+        fpPP = open(ppFile, 'w')
+    except:
+        return 1 # file does not exist
+
+    # process the header line
+    #
+    headerList = str.split(fpAes.readline(), '\t')
+    if headerList == ['']: # means file is empty
+        print('skipping: missing header: %s' % (expID))
+        return 1
+
+    # load sampleInMGI() for expID
+    loadSamples(expID)
+
+    # find the idx of the columns we want - they are not ordered
+    sourceSampleIDX = None
+    enaSampleIDX = None
+    enaRunIDX = None
+    for idx, colName in enumerate(headerList):
+        colName = str.strip(colName)
+        if str.find(colName, 'Source Name') != -1:
+            sourceSampleIDX = idx
+        elif str.find(colName, 'ENA_SAMPLE') != -1:
+            enaSampleIDX = idx
+        elif str.find(colName, 'ENA_RUN') != -1:
+            enaRunIDX = idx
+    if sourceSampleIDX == None and enaSampleIDX == None:
+        print('skipping: missing Source Name/ENA_SAMPLE column: %s' % (expID))
+        return 1
+    if enaRunIDX == None:
+        print('skipping: missing ENA_RUN column: %s' % (expID))
+        return 1
+
+    # iterate thru the fpAes input file
+    for line in fpAes.readlines():
+
+        tokens = str.split(line, '\t')
+
+	# match MGI Sample to either sourceSampleIDX or enaSampleIDX
+        sourceSample = str.strip(tokens[sourceSampleIDX])
+        if sourceSample not in sampleInMGI:
+            sourceSample = str.strip(tokens[enaSampleIDX])
+        if sourceSample not in sampleInMGI:
+            print('skipping: sample is not in MGI: %s, sourceSample = %s, enaSample = %s' % (expID, sourceSample, enaSample))
+            continue
+
+        enaRun = str.strip(tokens[enaRunIDX])
+
+        # enaRun must exist in raw config file
+        if enaRun not in rawRunConfigList:
+            print('skipping: enaRun not found in rawRunConfigList: %s, %s' % (expID, enaRun))
+            continue
+
+        # if sourceSample exists in MGI, is genotype = J:DO (_genotype_key = 90560), 
+        #   or Relevance != Yes (_relevance_key != 20475450), 
+        # then skip
+        ignoreResults = db.sql('''
+            select * from GXD_HTSample where (_genotype_key = 90560 or _relevance_key != 20475450)
+                and _experiment_key = %s and name = '%s' 
+            ''' % (objectKey, sourceSample), 'auto')
+        if len(ignoreResults) > 0:
+            #print('skipping: sample is J:DO or Relevance != Yes')
+            continue
+
+        #if sourceSample not in rawSampleRunList:
+        #    rawSampleRunList[sourceSample] = []
+        #rawSampleRunList[sourceSample].append(enaRun)
+        fpPP.write('%s\t%s\n' % (sourceSample, enaRun))
+
+    fpPP.close();
+    fpAes.close();
+    #print(rawSampleRunList)
+
+    return 0
+
+# end ppAESSdrfFile()
+
+#
+# input  : DIFF_RAWCOUNTS_LOCAL_FILE_TEMPLATE
+# output : DIFF_RAWCOUNTS_PP_FILE_TEMPLATE
+#
+# input:
+#   ensembl ID
+#   marker symbol
+#   samples
+#
+# format:
+#   ensembl ID
+#   marker key
+#   marker symbol
+#   sample tpm value
+#
+def ppEAERawCountsFile(expID):
+
+    print('in ppEAERawCountsFile(expID): %s' % expID)
+
+    #  read the input file
+    eaeFile = rawcountsTemplate % expID
+    print('eaeFile: %s' % eaeFile)
+    try:
+        fpEae = open(eaeFile, 'r')
+    except:
+        print('skipping: missing -rawcounts.tsv file: %s' % (expID))
+        return 1 # file does not exist
+
+    #  create the output file
+    ppFile = rawcountsPPTemplate % expID
+    try:
+        fpPP = open(ppFile, 'w')
+    except:
+        return 1 # file does not exist
+
+    #
+    # read the header from fpEae and create header for fpPP
+    # each "run" is in its own column
+    # some raw-counts have duplicate headers & columns
+    # example: E-MTAB-8161.raw-counts.txt
+    # logic added:  uniqueHeaderList, dupSkip
+    #
+
+    headerList = str.split(fpEae.readline(), '\t')
+    uniqueHeaderList = list(dict.fromkeys(headerList))
+    columnList = []
+    col = 1
+    for h in uniqueHeaderList[2:]:
+
+        h = str.strip(h)
+
+        if len(headerList) > len(uniqueHeaderList):
+            dupSkip = 1
+        else:
+            dupSkip = 0
+
+        if dupSkip:
+            col += 2
+        else:
+            col += 1
+
+        if h not in rawRunConfigList:
+            print('skipping: raw run not found in rawRunConfigList: %s, %s' % (expID, h))
+            continue
+
+        columnList.append(col)
+
+    fpPP.write('ensembl_id\t_marker_key\tsymbol\t')
+    fpPP.write('\t'.join(uniqueHeaderList))
+    print(headerList)
+    print(columnList)
+
+    # iterate thru the fpEae input file
+    for line in fpEae.readlines():
+
+        tokens = str.split(line[:-1], '\t')
+        ensemblID = str.strip(tokens[0])
+
+        # if ensemblID is in excludedGenes, then skip
+        if ensemblID in excludedGenes:
+            #print('skipping: ensemblid is in the exclude set: %s, %s' % (expID, ensemblID))
+            continue
+
+        # if ensemblID is not in MGI, then set markerKey = 0
+        # will handle this later during RAWCOUNTS processing
+        if ensemblID in ensemblDict:
+            markerKey = ensemblDict[ensemblID][0]['_object_key']
+            markerSymbol = ensemblDict[ensemblID][0]['symbol']
+        else:
+            markerKey = 0
+            markerSymbol = ''
+
+        fpPP.write('%s\t%s\t%s' % (ensemblID, markerKey, markerSymbol))
+
+        # for each column in this row
+        for col in columnList:
+            fpPP.write('\t' + str.strip(tokens[col]))
+        fpPP.write('\n')
+
+    fpEae.close();
+    fpPP.close();
+
+    return 0
+
+# end ppEAERawCountsFile()
+
 #
 # pre processing
-#   read EAE rawcounts, group and AES sdrf files
-#   generate rawcounts output file, group output file
+#   read EAE rawcounts, AES sdrf files
+#   generate rawcounts output file, sdrf output file
 #
 # inputs:
-#	 DIFF_RAWCOUNTS_LOCAL_FILE_TEMPLATE
-#    DIFF_GROUP_LOCAL_FILE_TEMPLATE
+#    DIFF_RAWCOUNTS_LOCAL_FILE_TEMPLATE
 #    DIFF_SDRF_LOCAL_FILE_TEMPLATE 
 #
 # outputs:
-#	 DIFF_RAWCOUNTS_PP_FILE_TEMPLATE
-#    DIFF_GROUP_PP_FILE_TEMPLATE
+#    DIFF_RAWCOUNTS_PP_FILE_TEMPLATE
+#    DIFF_SDRF_PP_FILE_TEMPLATE
 #
 def process():
-    global rawRunList
+    global ensemblDict
 
     # set the excludedGenes list
     loadExcludedGenes()
+
+    ensemblDict = {}
+    results = db.sql('''
+        select a.accid, a._object_key, m.symbol 
+        from acc_accession a, mrk_marker m 
+        where a._logicaldb_key = 60 
+        and a._mgitype_key = 2 
+        and a.preferred = 1
+        and a._object_key = m._marker_key
+        ''', 'auto')
+    for r in results:
+        key = r['accid']
+        value = r
+        if key not in ensemblDict:
+            ensemblDict[key] = []
+        ensemblDict[key].append(value)
 
     results = db.sql('''
         select a.accid, a._object_key
@@ -496,16 +421,16 @@ def process():
         # order is important!
         #
 
-        # process the aes/sdrf file for this expID to create the runToSampleDict
+        # process the eae/configuration file for this expID
+        rc = ppEAEConfigurationFile(expID)
+        if rc != 0:
+            print('processing EAE configuration file returned rc %s, skipping file for %s' % (rc, expID))
+            continue
+
+        # process the aes/sdrf file for this expID
         rc = ppAESSdrfFile(expID, objectKey)
         if rc != 0:
             print('processing AES sdrf file returned rc %s, skipping file for %s' % (rc, expID))
-            continue
-
-        # process the eae/group file for this expID
-        rc = ppEAEGroupFile(expID)
-        if rc != 0:
-            print('processing EAE group file returned rc %s, skipping file for %s' % (rc, expID))
             continue
 
         # process the eae/rawcounts file for this expID

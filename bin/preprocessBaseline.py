@@ -99,22 +99,6 @@ def ppEAETpmsFile(expID):
     except:
         return 1 # file does not exist
 
-    ensemblDict = {}
-    results = db.sql('''
-        select a.accid, a._object_key, m.symbol 
-        from acc_accession a, mrk_marker m 
-        where a._logicaldb_key = 60 
-        and a._mgitype_key = 2 
-        and a.preferred = 1
-        and a._object_key = m._marker_key
-        ''', 'auto')
-    for r in results:
-        key = r['accid']
-        value = r
-        if key not in ensemblDict:
-            ensemblDict[key] = []
-        ensemblDict[key].append(value)
-
     # read the header from fpEae and create header for fpPP
     headerList = str.split(fpEae.readline(), '\t')
     groupSet = []
@@ -336,7 +320,23 @@ def ppEAEGroupFile(expID):
 #    BASELINE_GROUP_PP_FILE_TEMPLATE
 #
 def process():
-    global rawRunList
+    global rawRunList, ensemblDict
+
+    ensemblDict = {}
+    results = db.sql('''
+        select a.accid, a._object_key, m.symbol 
+        from acc_accession a, mrk_marker m 
+        where a._logicaldb_key = 60 
+        and a._mgitype_key = 2 
+        and a.preferred = 1
+        and a._object_key = m._marker_key
+        ''', 'auto')
+    for r in results:
+        key = r['accid']
+        value = r
+        if key not in ensemblDict:
+            ensemblDict[key] = []
+        ensemblDict[key].append(value)
 
     results = db.sql('''
         select a.accid, a._object_key
