@@ -1,3 +1,10 @@
+TAG: rnaseqload-6-0-29-?
+DATE: 09/22/2026
+STAFF: lec
+wts2-1886/Differential RNA-Seq Load
+        modified:   excludedGenesDiff.sh
+        modified:   preprocessDiff.py
+
 TAG: rnaseqload-6-0-29-4
 TAG: rnaseqload-6-0-29-3
 TAG: rnaseqload-6-0-29-2
