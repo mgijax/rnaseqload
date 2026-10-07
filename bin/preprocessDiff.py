@@ -45,9 +45,6 @@ excludedGenes = []
 # set of runs that exist in configuration for given experiment
 rawRunConfigList = []
 
-# set of raw sample/run for given experiment
-#rawSampleRunList = {}
-
 #
 # loads a lookup of samples in the db for the given experiment
 #
@@ -159,15 +156,14 @@ def ppEAEConfigurationFile(expID):
 #
 # format:
 #   Source Name
-#   ENA_SAMPLE
-#   ENA_RUN
+#   > 1 ENA_RUN 
 #
 def ppAESSdrfFile(expID, objectKey):
-    #global rawSampleRunList
 
     print('in ppAESSdrfFile(expID, object_key): %s,%s' % (expID, objectKey))
 
-    #rawSampleRunList = {}
+    enaRuns = []
+    rawSampleRunList = {}
 
     #  read the input file
     aesFile = sdrfTemplate % expID
@@ -233,6 +229,11 @@ def ppAESSdrfFile(expID, objectKey):
             print('skipping: enaRun not found in rawRunConfigList: %s, %s' % (expID, enaRun))
             continue
 
+        # skip duplicate enaRun
+        if enaRun in enaRuns:
+            continue
+        enaRuns.append(enaRun)
+
         # if sourceSample exists in MGI, is genotype = J:DO (_genotype_key = 90560), 
         #   or Relevance != Yes (_relevance_key != 20475450), 
         # then skip
@@ -244,14 +245,16 @@ def ppAESSdrfFile(expID, objectKey):
             #print('skipping: sample is J:DO or Relevance != Yes')
             continue
 
-        #if sourceSample not in rawSampleRunList:
-        #    rawSampleRunList[sourceSample] = []
-        #rawSampleRunList[sourceSample].append(enaRun)
-        fpPP.write('%s\t%s\n' % (sourceSample, enaRun))
+        if sourceSample not in rawSampleRunList:
+            rawSampleRunList[sourceSample] = []
+        rawSampleRunList[sourceSample].append(enaRun)
+    
+    print(rawSampleRunList)
+    for s in rawSampleRunList:
+        fpPP.write('%s\t%s\n' % (s, ','.join(rawSampleRunList[s])))
 
     fpPP.close();
     fpAes.close();
-    #print(rawSampleRunList)
 
     return 0
 
@@ -434,10 +437,10 @@ def process():
             continue
 
         # process the eae/rawcounts file for this expID
-        rc = ppEAERawCountsFile(expID)
-        if rc != 0:
-            print('processing EAE rawcounts file returned rc %s, skipping file for %s' % (rc, expID))
-            continue
+        #rc = ppEAERawCountsFile(expID)
+        #if rc != 0:
+        #    print('processing EAE rawcounts file returned rc %s, skipping file for %s' % (rc, expID))
+        #    continue
 
     return 0
 
