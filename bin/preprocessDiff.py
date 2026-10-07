@@ -437,10 +437,10 @@ def process():
             continue
 
         # process the eae/rawcounts file for this expID
-        #rc = ppEAERawCountsFile(expID)
-        #if rc != 0:
-        #    print('processing EAE rawcounts file returned rc %s, skipping file for %s' % (rc, expID))
-        #    continue
+        rc = ppEAERawCountsFile(expID)
+        if rc != 0:
+            print('processing EAE rawcounts file returned rc %s, skipping file for %s' % (rc, expID))
+            continue
 
     return 0
 
