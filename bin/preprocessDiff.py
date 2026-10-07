@@ -6,6 +6,7 @@
 #	 DIFFINPUTDIR
 #
 #   input files read from DIFFRAW_INPUTDIR
+#        DIFF_GROUP_LOCAL_FILE_TEMPLATE 
 #	 DIFF_RAWCOUNTS_LOCAL_FILE_TEMPLATE
 #        DIFF_SDRF_LOCAL_FILE_TEMPLATE 
 #
@@ -15,6 +16,9 @@
 #
 # For each Experiment (xxx) from RNASeq MGI_Set
 #   for Experiment file in DIFFRAW_INPUTDIR
+#       prcoess the group/configuration file (ppEAEConfigurationFile())
+#           -> DIFFINPUTDIR/xxx.configuration.xml
+#	       genereates global rawRunConfigList
 #       prcoess the sdrf file (ppAESSdrfFile())
 #           -> DIFFINPUTDIR/xxx.sdrf.txt
 #       process the raw counts file (ppEAERawCountsFile())
@@ -32,11 +36,11 @@ import mgi_utils
 db.setTrace(True)
 
 # Expression Atlas Experiment file Template - name of file stored locally
+groupTemplate = '%s' % os.getenv('DIFF_GROUP_LOCAL_FILE_TEMPLATE')
 rawcountsTemplate = '%s' % os.getenv('DIFF_RAWCOUNTS_LOCAL_FILE_TEMPLATE')
 rawcountsPPTemplate = '%s' % os.getenv('DIFF_RAWCOUNTS_PP_FILE_TEMPLATE')
 sdrfTemplate = '%s' % os.getenv('DIFF_SDRF_LOCAL_FILE_TEMPLATE')
 sdrfPPTemplate = '%s' % os.getenv('DIFF_SDRF_PP_FILE_TEMPLATE')
-groupTemplate = '%s' % os.getenv('DIFF_GROUP_LOCAL_FILE_TEMPLATE')
 
 # excluded genes
 tsvGenesExcluded = os.getenv('DIFFRAW_INPUTDIR') + '/tsvGenesExcluded'
