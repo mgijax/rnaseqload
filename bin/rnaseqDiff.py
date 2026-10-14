@@ -362,8 +362,8 @@ def processCombined():
         expID = r['expID']
 
 	# sampleByName[name'] = sample key
-    	sampleByName = {}
-    	sampleResults = db.sql('''
+        sampleByName = {}
+        sampleResults = db.sql('''
             select distinct s.expID, s.name, s._sample_key
             from samples s
 	    where s.expID = '%s'
@@ -376,7 +376,7 @@ def processCombined():
         print(sampleByName)
 
         # runsBySample
-    	runsBySample = {}
+        runsBySample = {}
         try:
             fpSdrf = open('%s/%s.sdrf.txt' % (inputDir, expID), 'r')
         except:
@@ -444,7 +444,7 @@ def processCombined():
                             countMember, TAB, avgQnTpm, TAB, \
                             createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
     
-		samples = sampleByGroup[g]
+                #samples = sampleByGroup[g]
 		#fpSeq.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
                 #            rnaSeqKey, TAB, sampleKey, TAB, combinedKey, TAB, markerKey, TAB, aveTpm, TAB, qnTpm, TAB, \
                 #            createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
