@@ -307,29 +307,25 @@ def ppEAERawCountsFile(expID):
     # logic added:  uniqueHeaderList, dupSkip
     #
 
-    headerList = str.split(fpEae.readline(), '\t')
+    thisList = str.split(fpEae.readline(), '\t')
+    headerList = [item.rstrip() for item in thisList]
     uniqueHeaderList = list(dict.fromkeys(headerList))
     columnList = []
-    col = 1
+    col = 2
     for h in uniqueHeaderList[2:]:
 
         h = str.strip(h)
-
-        if len(headerList) > len(uniqueHeaderList):
-            dupSkip = 1
-        else:
-            dupSkip = 0
-
-        if dupSkip:
-            col += 2
-        else:
-            col += 1
 
         if h not in rawRunConfigList:
             print('skipping: raw run not found in rawRunConfigList: %s, %s' % (expID, h))
             continue
 
         columnList.append(col)
+
+        if len(headerList) > len(uniqueHeaderList):
+            col += 2
+        else:
+            col += 1
 
     fpPP.write('ensembl_id\t_marker_key\tsymbol\t')
     fpPP.write('\t'.join(uniqueHeaderList))

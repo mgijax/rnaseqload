@@ -361,26 +361,7 @@ def processCombined():
 
         expID = r['expID']
 
-        # REPLACE THIS replicates() by sampleByName + sampleByGroup
-        # number of bioreplicates per experiment by groupSet
-        #replicates = {}
-        #bioresults = db.sql('''
-        #        select distinct s.expID, rm._rnaseqset_key, rs.groupset, count(rm._rnaseqsetmember_key) as countMember
-        #        from samples s, gxd_htsample_rnaseqsetmember rm, gxd_htsample_rnaseqset rs
-        #        where s._sample_key = rm._sample_key
-        #        and rm._rnaseqset_key = rs._rnaseqset_key
-        #        and s.expID = '%s'
-        #        group by s.expID, rm._rnaseqset_key, rs.groupset
-        #    ''' % (expID), 'auto')
-        #for b in bioresults:
-        #    key = b['groupset']
-        #    value = b
-        #    replicates[key] = []
-        #    replicates[key].append(value)
-
-    	# sampleByName maps samples name to its group (column = 1, column 4)
-    	# group/column 4 = sample name
-	# E-MTAB-9538.group.txt : g1      Zfp800 -/-      ERR4579268      2142-OSM-2
+	# sampleByName[name'] = sample key
     	sampleByName = {}
     	sampleResults = db.sql('''
             select distinct s.expID, s.name, s._sample_key
@@ -394,31 +375,23 @@ def processCombined():
             sampleByName[key].append(value)
         print(sampleByName)
 
-        # the group file
+        # runsBySample
+    	runsBySample = {}
         try:
-            fpGroup = open('%s/%s.group.txt' % (inputDir, expID), 'r')
+            fpSdrf = open('%s/%s.sdrf.txt' % (inputDir, expID), 'r')
         except:
-            print('experiment does not exist in %s/%s.group.txt' % (inputDir, expID))
+            print('experiment does not exist in %s/%s.sdrf.txt' % (inputDir, expID))
             continue
-        
-    	# replicates maps each group to its sample keys/names
-        replicates = {}
-        for line in fpGroup.readlines():
+        for line in fpSdrf.readlines():
             tokens = str.split(line[:-1], TAB)
-            groupKey = tokens[0]
-            name = tokens[3]
-            sampleKey = sampleByName[name][0]
-            value = [sampleKey, name]
-            if groupKey not in replicates:
-                replicates[groupKey] = []
-            replicates[groupKey].append(value)
-        fpGroup.close()
-        print(replicates)
-
-        #
-        # use sampleByGroup to map each group to its experiment-raw-counts file
-        #
-
+            key = tokens[0]
+            value = tokens[1].split(',')
+            runsBySample[key] = []
+            runsBySample[key] = value
+        fpSdrf.close()
+        print(runsBySample)
+        
+	# countByRun
         try:
             fpRawCounts = open('%s/%s.raw-counts.txt' % (inputDir, expID), 'r')
         except:
@@ -431,6 +404,7 @@ def processCombined():
         groupSet = []
         for h in headerList[3:]:
             groupSet.append(str.strip(h))
+        print(groupSet)
 
         for line in fpRawCounts.readlines():
             tokens = str.split(line[:-1], TAB)
