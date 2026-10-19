@@ -328,7 +328,7 @@ def ppEAERawCountsFile(expID):
             col += 1
 
     fpPP.write('ensembl_id\t_marker_key\tsymbol\t')
-    fpPP.write('\t'.join(uniqueHeaderList))
+    fpPP.write('\t'.join(uniqueHeaderList) + '\n')
     print(headerList)
     print(columnList)
 
