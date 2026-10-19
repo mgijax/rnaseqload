@@ -308,11 +308,11 @@ def ppEAERawCountsFile(expID):
     #
 
     thisList = str.split(fpEae.readline(), '\t')
-    headerList = [item.rstrip() for item in thisList]
+    headerList = [item.rstrip() for item in thisList[2:]]
     uniqueHeaderList = list(dict.fromkeys(headerList))
     columnList = []
     col = 2
-    for h in uniqueHeaderList[2:]:
+    for h in uniqueHeaderList:
 
         h = str.strip(h)
 
