@@ -304,9 +304,9 @@ def ppEAERawCountsFile(expID):
     # each "run" is in its own column
     # some raw-counts have duplicate headers & columns
     # example: E-MTAB-8161.raw-counts.txt
-    # logic added:  uniqueHeaderList, dupSkip
     #
 
+    fpPP.write('ensembl_id\t_marker_key\tsymbol')
     thisList = str.split(fpEae.readline(), '\t')
     headerList = [item.rstrip() for item in thisList[2:]]
     uniqueHeaderList = list(dict.fromkeys(headerList))
@@ -320,6 +320,7 @@ def ppEAERawCountsFile(expID):
             print('skipping: raw run not found in rawRunConfigList: %s, %s' % (expID, h))
             continue
 
+        fpPP.write('\t' + h)
         columnList.append(col)
 
         if len(headerList) > len(uniqueHeaderList):
@@ -327,9 +328,8 @@ def ppEAERawCountsFile(expID):
         else:
             col += 1
 
-    fpPP.write('ensembl_id\t_marker_key\tsymbol\t')
-    fpPP.write('\t'.join(uniqueHeaderList) + '\n')
-    print(headerList)
+    fpPP.write('\n')
+    #print(uniqueHeaderList)
     print(columnList)
 
     # iterate thru the fpEae input file
