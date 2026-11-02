@@ -101,6 +101,10 @@ DIFF_RAWCOUNTS_PP_FILE_TEMPLATE=${DIFFINPUTDIR}/%s.raw-counts.txt
 DIFF_SDRF_PP_FILE_TEMPLATE=${DIFFINPUTDIR}/%s.sdrf.txt
 export DIFF_RAWCOUNTS_PP_FILE_TEMPLATE DIFF_SDRF_PP_FILE_TEMPLATE
 
+# MGI composite lengths file
+COMPOSITE_LENGTH=${DATALOADSOUTPUT}/mgi/mgigff3/work/MGI.composite.lengths.tsv
+export COMPOSITE_LENGTH
+
 # cutoff for aveStdDev - report/skip
 STDDEV_CUTOFF=0.7
 export STDDEV_CUTOFF

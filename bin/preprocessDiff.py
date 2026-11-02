@@ -42,6 +42,10 @@ rawcountsPPTemplate = '%s' % os.getenv('DIFF_RAWCOUNTS_PP_FILE_TEMPLATE')
 sdrfTemplate = '%s' % os.getenv('DIFF_SDRF_LOCAL_FILE_TEMPLATE')
 sdrfPPTemplate = '%s' % os.getenv('DIFF_SDRF_PP_FILE_TEMPLATE')
 
+# composite gene length
+tsvCompositeLength = '%s' % os.getenv('COMPOSITE_LENGTH')
+compositeLength = {}
+
 # excluded genes
 tsvGenesExcluded = os.getenv('DIFFRAW_INPUTDIR') + '/tsvGenesExcluded'
 excludedGenes = []
@@ -100,6 +104,46 @@ def loadExcludedGenes():
     return 0
 
 # end loadExcludedGenes()
+
+#
+# input  : COMPOSITE_LENGTH
+#
+# genes & composite length in bp
+#
+# input:
+# Ensembl gene ID
+# MGI ID (marker)
+# Gene Symbol
+# Composite gene length (in bp)
+#
+def loadCompositeLength():
+    global compositeLength
+
+    print('in loadCompositeLength()')
+
+    #  read the tsvCompositeLength
+    print('tsvCompositeLength: %s' % tsvCompositeLength)
+
+    try:
+        fpCompositeLength = open(tsvCompositeLength, 'r')
+    except:
+        print('skiping: missing tsvCompositeLength file')
+        return 1 # file does not exist
+
+    # iterate 
+    for line in fpCompositeLength.readlines():
+        tokens = str.split(line[:-1], '\t')
+        ensemblID = str.strip(tokens[0])
+        cLength = str.strip(tokens[3])
+        compositeLength[ensemblID] = []
+        compositeLength[ensemblID].append(cLength)
+
+    print('compositeLength: ', compositeLength)
+    fpCompositeLength.close()
+
+    return 0
+
+# end loadloadCompositeLength()
 
 #
 # input  : DIFF_GROUP_LOCAL_FILE_TEMPLATE
@@ -306,7 +350,7 @@ def ppEAERawCountsFile(expID):
     # example: E-MTAB-8161.raw-counts.txt
     #
 
-    fpPP.write('ensembl_id\t_marker_key\tsymbol')
+    fpPP.write('ensembl_id\t_marker_key\tsymbol\tgene length bp\tgene length kb')
     thisList = str.split(fpEae.readline(), '\t')
     headerList = [item.rstrip() for item in thisList[2:]]
     uniqueHeaderList = list(dict.fromkeys(headerList))
@@ -352,11 +396,25 @@ def ppEAERawCountsFile(expID):
             markerKey = 0
             markerSymbol = ''
 
-        fpPP.write('%s\t%s\t%s' % (ensemblID, markerKey, markerSymbol))
+        # if ensemblID is not in MGI, then set compositeLength = 0
+        if ensemblID in compositeLength:
+            clengthBP = int(compositeLength[ensemblID][0])
+            clengthKP = clengthBP/1000
+        else:
+            clengthBP = 0
+            clengthKP = 0
+
+        fpPP.write('%s\t%s\t%s\t%s\t%s' % (ensemblID, markerKey, markerSymbol, clengthBP, clengthKP))
 
         # for each column in this row
         for col in columnList:
-            fpPP.write('\t' + str.strip(tokens[col]))
+            if clengthKP > 0:
+                applesToOranges = int(tokens[col])/clengthKP
+                roundByTwo = round(applesToOranges, 2)
+                fpPP.write('\t' + str(roundByTwo))
+            else:
+                roundByTwo = 0
+                fpPP.write('\t' + str(roundByTwo))
         fpPP.write('\n')
 
     fpEae.close();
@@ -384,6 +442,9 @@ def process():
 
     # set the excludedGenes list
     loadExcludedGenes()
+
+    # set the composite length list
+    loadCompositeLength()
 
     ensemblDict = {}
     results = db.sql('''

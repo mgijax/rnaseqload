@@ -274,6 +274,9 @@ def calcLevel(avgQnTpm):
 #
 # create BCP files for RNASeqSet, RNASeqSetMember
 #
+# Read the GXD HT Samples
+#	if the GXD HT Sample does not exist in the pre-processed sdrf.txt file, then skip it
+#
 def processRNASet():
     global fpSet, fpMember, fpErrorResolved, fpErrorUnresolved, fpErrorSamples
     global setKey, memberKey
@@ -305,6 +308,19 @@ def processRNASet():
 	    where s.expID = '%s'
             ''' % (expID), 'auto')
 
+    	sampleInSdrf = []
+    	try:
+    	    fpSdrf = open('%s/%s.sdrf.txt' % (inputDir, expID), 'r')
+    	except:
+            print('experiment does not exist in %s/%s.sdrf.txt' % (inputDir, expID))
+            continue
+    	for line in fpSdrf.readlines():
+    	    tokens = str.split(line[:-1], TAB)
+    	    sampleInSdrf.append(tokens[0])
+    	fpSdrf.close()
+    	#print('\nsampleInSdrf')
+    	#print(sampleInSdrf)
+        
 	#
 	# for each sample in the experiment
 	#
@@ -313,6 +329,11 @@ def processRNASet():
         	expKey = s['_experiment_key']
         	sampleKey = s['_sample_key']
         	sample = s['name']
+
+        	if sample not in sampleInSdrf:
+        		print('sample in MGI, but not in pre-processed sdrf.txt: ', expID, sample)
+        		continue
+
         	age = s['age']
         	orgKey = s['_organism_key']
         	sexKey = s['_sex_key']
@@ -346,6 +367,15 @@ def processRNASet():
 #
 # create BCP files for RNASeqCombined and RNASeq
 #
+# for each experiment
+# 1. get gene length in basepairs mgigff3/work/mbl_composite.lengths.tsv
+# 2. convert raw counts to tpm (apples -> oranges)
+# 3. run calcTPMAveSD
+# 4. run quantile normalize
+# 5. add rows to fpCombined
+# 6. add rows to fpSeq
+#
+
 def processCombined():
     global fpCombined, fpSeq, fpErrorEnsembl, fpErrorMarker
     global combinedKey, seqKey
@@ -356,27 +386,34 @@ def processCombined():
     #
     # for each expID
     #
-    results = db.sql(''' select expID from experiments ''', 'auto')
+    #results = db.sql(''' select expID from experiments ''', 'auto')
+    #results = db.sql(''' select expID from experiments where expID = 'E-GEOD-21860' ''', 'auto')
+    results = db.sql(''' select expID from experiments where expID = 'E-MTAB-6547' ''', 'auto')
     for r in results:
 
         expID = r['expID']
 
-	# sampleByName[name'] = sample key
-        sampleByName = {}
+	# infoBySample['name'] = expID, name, _sample_key, _rnaseqset_key
+        infoBySample = {}
         sampleResults = db.sql('''
-            select distinct s.expID, s.name, s._sample_key
-            from samples s
-	    where s.expID = '%s'
+            select distinct s.expID, s.name, s._sample_key, g._rnaseqset_key
+            from samples s, GXD_HTSample_RNASeqSetMember g
+	    where s._sample_key = g._sample_key
+	    and s.expID = '%s'
             ''' % (expID), 'auto')
         for s in sampleResults:
-            key = r['name']
-            value = r['_sample_key']
-            sampleByName[key] = []
-            sampleByName[key].append(value)
-        print(sampleByName)
+            key = s['name']
+            value = s
+            infoBySample[key] = []
+            infoBySample[key].append(value)
+	# GSM543645 1 = {E-GEOD-21860,GSM543645 1,8385,3843}
+        print('\ninfoBySample: ', expID)
+        print(infoBySample)
 
-        # runsBySample
+        # runsBySample['name'] = set of runs
         runsBySample = {}
+        sampleByRun = {}
+        sampleKeyByRun = {}
         try:
             fpSdrf = open('%s/%s.sdrf.txt' % (inputDir, expID), 'r')
         except:
@@ -384,12 +421,29 @@ def processCombined():
             continue
         for line in fpSdrf.readlines():
             tokens = str.split(line[:-1], TAB)
-            key = tokens[0]
+            sampleName = tokens[0]
+            key = sampleName
             value = tokens[1].split(',')
             runsBySample[key] = []
             runsBySample[key] = value
+            sampleKeyByRun[key] = []
+            sampleKeyByRun[key] = infoBySample[tokens[0]][0]['_sample_key']
+
+            # for each run (value):
+            for v in value:
+                key = v
+                sampleByRun[key] = []
+                sampleByRun[key] = sampleName
+
         fpSdrf.close()
+        # GSM543645 1 = {SRR054659,...}
+        # SRR054659 = 
+        print('\nrunsBySample')
         print(runsBySample)
+        print('\nsampleByRun')
+        print(sampleByRun)
+        print('\nsampleKeyByRun')
+        print(sampleKeyByRun)
         
 	# countByRun
         try:
@@ -399,14 +453,23 @@ def processCombined():
             continue
         
         # read the header from fpRawCounts
-        # generate a groupSet
+        # generate a runTpmSet
         headerList = str.split(fpRawCounts.readline(), '\t')
-        groupSet = []
+        runTpmSet = []
         for h in headerList[3:]:
-            groupSet.append(str.strip(h))
-        print(groupSet)
+            runTpmSet.append(str.strip(h))
+        print('\nrunTpmSet')
+        print(runTpmSet)
 
+
+        # ensemblDict = {}
+        # {ensemblId: {sampleId:[float(tokens[ss+3], ...], ...}, ...}
+        print('\nensemblDict')
+        ensemblDict = {}
+
+        # ENSMUSG00000000001      9199    Gnai3   116     96      184     41      119     141
         for line in fpRawCounts.readlines():
+
             tokens = str.split(line[:-1], TAB)
             ensemblId = tokens[0]
             markerKey = int(tokens[1])
@@ -429,26 +492,35 @@ def processCombined():
                         markerError[markerSymbol].append(m['accid'])
                 continue
 
-            for g in range(len(groupSet)):
-                gKey = groupSet[g]
-                # if a mismatch fails, then the groupSet will not be in the RNASeqSet
-                if gKey not in replicates:
-                    continue
-                avgQnTpm = float(tokens[g+3])
-                levelKey = calcLevel(avgQnTpm)
-                countMember = replicates[gKey][0]['countMember']
-                rnaSeqSetKey = replicates[gKey][0]['_rnaseqset_key']
+            if ensemblId not in ensemblDict:
+                ensemblDict[ensemblId] = {}
 
-                fpCombined.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
-                            combinedKey, TAB, rnaSeqSetKey, TAB, markerKey, TAB, levelKey, TAB, \
-                            countMember, TAB, avgQnTpm, TAB, \
-                            createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+            for ss in range(len(runTpmSet)):
+                runId = runTpmSet[ss]
+                sampleId = sampleByRun[runId]
+                tpm = float(tokens[ss+3])
+                if sampleId not in ensemblDict[ensemblId]:
+                    ensemblDict[ensemblId][sampleId] = []
+                ensemblDict[ensemblId][sampleId].append(tpm)
+                #print(sampleKeyByRun[sampleId])
+
+                #avgQnTpm = float(tokens[rs+3])
+                #levelKey = calcLevel(avgQnTpm)
+                #rnaSeqSetKey = replicates[gKey][0]['_rnaseqset_key']
+
+                #fpCombined.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
+                #            combinedKey, TAB, rnaSeqSetKey, TAB, markerKey, TAB, levelKey, TAB, \
+                #            countMember, TAB, avgQnTpm, TAB, \
+                #            createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
     
                 #samples = sampleByGroup[g]
 		#fpSeq.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
                 #            rnaSeqKey, TAB, sampleKey, TAB, combinedKey, TAB, markerKey, TAB, aveTpm, TAB, qnTpm, TAB, \
                 #            createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
                 combinedKey += 1
+
+            print('\n', ensemblId, ensemblDict[ensemblId])
+            print(sampleKeyByRun)
 
         fpRawCounts.close()
 
@@ -524,9 +596,9 @@ def execCombinedBCP():
 
 init()
 initRNASet()
-processRNASet()
-execSetBCP()
-#initCombined()
-#processCombined()
+#processRNASet()
+#execSetBCP()
+initCombined()
+processCombined()
 #execCombinedBCP()
 
