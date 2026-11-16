@@ -380,8 +380,8 @@ def ppEAERawCountsFile(expID):
     rpkByRun = {}
     scalingFactorByRun = {}
 
+    # read the file and save the RPK and Scaling Factor
     for line in fpEae.readlines():
-
         tokens = str.split(line[:-1], '\t')
         ensemblID = str.strip(tokens[0])
 
@@ -426,7 +426,6 @@ def ppEAERawCountsFile(expID):
                 rpkByRun[col].append(roundByTwo)
                 rpkByRunByMarker[col][ensemblID].append(roundByTwo)
 
-    fpEae.seek(1);
     # B : scaling factor per run
     # scaling factor (per Run) = Sum(RPK)/1,000,000
     for r in rpkByRun:
@@ -435,17 +434,13 @@ def ppEAERawCountsFile(expID):
             sumRPK += s
         scalingFactor = round(sumRPK/1000000, 2)
         scalingFactorByRun[r].append(scalingFactor)
-    #print(rpkByRun[2])
-    #print(scalingFactorByRun)
     #print(rpkByRunByMarker[2]['ENSMUSG00000000001'])
-    #print(rpkByRunByMarker[3]['ENSMUSG00000000001'])
-    #print(rpkByRunByMarker[4]['ENSMUSG00000000001'])
-    #print(rpkByRunByMarker[5]['ENSMUSG00000000001'])
-    #print(rpkByRunByMarker[6]['ENSMUSG00000000001'])
-    #print(rpkByRunByMarker[7]['ENSMUSG00000000001'])
 
+    # read the input file again
+    # this time, use the saved RPK and Scaling Factor to generate the TPM values
     # C : TPM values = dividing each gene's RPK value by the scaling factor for that Run
     # TPM (per gene, per Run) = RPK/scaling factor (for that Run)
+    fpEae.seek(1);
     for line in fpEae.readlines():
 
         tokens = str.split(line[:-1], '\t')
