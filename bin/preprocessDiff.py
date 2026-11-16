@@ -98,8 +98,7 @@ def loadExcludedGenes():
     with open(tsvGenesExcluded, "r") as file:
         excludedGenes = file.read().strip().split()
 
-    #print(excludedGenes)
-    print('excludedGenes: ', str(len(excludedGenes)))
+    #print('excludedGenes: ', str(len(excludedGenes)))
 
     return 0
 
@@ -374,9 +373,13 @@ def ppEAERawCountsFile(expID):
 
     fpPP.write('\n')
     #print(uniqueHeaderList)
-    print(columnList)
+    #print(columnList)
 
-    # iterate thru the fpEae input file
+    # A : RPK = reads per kilobase = divide raw counts by corresponding gene lengths (in kilobases (kb))
+    rpkByRunByMarker = {}
+    rpkByRun = {}
+    scalingFactorByRun = {}
+
     for line in fpEae.readlines():
 
         tokens = str.split(line[:-1], '\t')
@@ -404,17 +407,85 @@ def ppEAERawCountsFile(expID):
             clengthBP = 0
             clengthKP = 0
 
-        fpPP.write('%s\t%s\t%s\t%s\t%s' % (ensemblID, markerKey, markerSymbol, clengthBP, clengthKP))
-
         # for each column in this row
         for col in columnList:
+            if col not in rpkByRun:
+                rpkByRun[col] = []
+                scalingFactorByRun[col] = []
+            if col not in rpkByRunByMarker:
+                rpkByRunByMarker[col] = {}
+            if ensemblID not in rpkByRunByMarker[col]:
+                rpkByRunByMarker[col][ensemblID] = []
             if clengthKP > 0:
                 applesToOranges = int(tokens[col])/clengthKP
                 roundByTwo = round(applesToOranges, 2)
-                fpPP.write('\t' + str(roundByTwo))
+                rpkByRun[col].append(roundByTwo)
+                rpkByRunByMarker[col][ensemblID].append(roundByTwo)
             else:
                 roundByTwo = 0
-                fpPP.write('\t' + str(roundByTwo))
+                rpkByRun[col].append(roundByTwo)
+                rpkByRunByMarker[col][ensemblID].append(roundByTwo)
+
+    fpEae.seek(1);
+    # B : scaling factor per run
+    # scaling factor (per Run) = Sum(RPK)/1,000,000
+    for r in rpkByRun:
+        sumRPK = 0
+        for s in rpkByRun[r]:
+            sumRPK += s
+        scalingFactor = round(sumRPK/1000000, 2)
+        scalingFactorByRun[r].append(scalingFactor)
+    #print(rpkByRun[2])
+    #print(scalingFactorByRun)
+    #print(rpkByRunByMarker[2]['ENSMUSG00000000001'])
+    #print(rpkByRunByMarker[3]['ENSMUSG00000000001'])
+    #print(rpkByRunByMarker[4]['ENSMUSG00000000001'])
+    #print(rpkByRunByMarker[5]['ENSMUSG00000000001'])
+    #print(rpkByRunByMarker[6]['ENSMUSG00000000001'])
+    #print(rpkByRunByMarker[7]['ENSMUSG00000000001'])
+
+    # C : TPM values = dividing each gene's RPK value by the scaling factor for that Run
+    # TPM (per gene, per Run) = RPK/scaling factor (for that Run)
+    for line in fpEae.readlines():
+
+        tokens = str.split(line[:-1], '\t')
+        ensemblID = str.strip(tokens[0])
+
+        if 'ENS' not in ensemblID:
+            continue
+
+        # if ensemblID is in excludedGenes, then skip
+        if ensemblID in excludedGenes:
+            #print('skipping: ensemblid is in the exclude set: %s, %s' % (expID, ensemblID))
+            continue
+
+        # if ensemblID is not in MGI, then set markerKey = 0
+        # will handle this later during RAWCOUNTS processing
+        if ensemblID in ensemblDict:
+            markerKey = ensemblDict[ensemblID][0]['_object_key']
+            markerSymbol = ensemblDict[ensemblID][0]['symbol']
+        else:
+            markerKey = 0
+            markerSymbol = ''
+
+        # if ensemblID is not in MGI, then set compositeLength = 0
+        if ensemblID in compositeLength:
+            clengthBP = int(compositeLength[ensemblID][0])
+            clengthKP = clengthBP/1000
+        else:
+            clengthBP = 0
+            clengthKP = 0
+
+        fpPP.write('%s\t%s\t%s\t%s\t%s' % (ensemblID, markerKey, markerSymbol, clengthBP, clengthKP))
+
+        # for each column in this row
+        for col in rpkByRunByMarker:
+            #print(col, ensemblID, rpkByRunByMarker[col][ensemblID])
+            rbk = rpkByRunByMarker[col][ensemblID][0]
+            sf = scalingFactorByRun[col][0]
+            tpm = round(rbk/sf, 2)
+            #print(rbk, str(sf), str(tpm))
+            fpPP.write('\t' + str(tpm))
         fpPP.write('\n')
 
     fpEae.close();
@@ -462,6 +533,7 @@ def process():
             ensemblDict[key] = []
         ensemblDict[key].append(value)
 
+	#and a.accid in ('E-MTAB-698')
     results = db.sql('''
         select a.accid, a._object_key
         from MGI_Set s, MGI_SetMember m , ACC_Accession a
