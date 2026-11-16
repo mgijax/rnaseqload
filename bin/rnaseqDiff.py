@@ -456,16 +456,14 @@ def processCombined():
         # generate a runTpmSet
         headerList = str.split(fpRawCounts.readline(), '\t')
         runTpmSet = []
-        for h in headerList[3:]:
+        for h in headerList[5:]:
             runTpmSet.append(str.strip(h))
         print('\nrunTpmSet')
         print(runTpmSet)
 
-
-        # ensemblDict = {}
-        # {ensemblId: {sampleId:[float(tokens[ss+3], ...], ...}, ...}
-        print('\nensemblDict')
-        ensemblDict = {}
+        # ensemblTPM = {}
+        # {ensemblId: {sampleId:[float(tokens[ss+5], ...], ...}, ...}
+        ensemblTPM = {}
 
         # ENSMUSG00000000001      9199    Gnai3   116     96      184     41      119     141
         for line in fpRawCounts.readlines():
@@ -492,35 +490,44 @@ def processCombined():
                         markerError[markerSymbol].append(m['accid'])
                 continue
 
-            if ensemblId not in ensemblDict:
-                ensemblDict[ensemblId] = {}
+            if ensemblId not in ensemblTPM:
+                ensemblTPM[ensemblId] = {}
 
             for ss in range(len(runTpmSet)):
                 runId = runTpmSet[ss]
                 sampleId = sampleByRun[runId]
-                tpm = float(tokens[ss+3])
-                if sampleId not in ensemblDict[ensemblId]:
-                    ensemblDict[ensemblId][sampleId] = []
-                ensemblDict[ensemblId][sampleId].append(tpm)
-                #print(sampleKeyByRun[sampleId])
+                tpm = float(tokens[ss+5])
+                if sampleId not in ensemblTPM[ensemblId]:
+                    ensemblTPM[ensemblId][sampleId] = []
+                ensemblTPM[ensemblId][sampleId].append(tpm)
 
-                #avgQnTpm = float(tokens[rs+3])
-                #levelKey = calcLevel(avgQnTpm)
-                #rnaSeqSetKey = replicates[gKey][0]['_rnaseqset_key']
+            print('\nensemblTPM')
+            print(ensemblId, ensemblTPM[ensemblId])
+            #print(sampleKeyByRun)
 
-                #fpCombined.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
-                #            combinedKey, TAB, rnaSeqSetKey, TAB, markerKey, TAB, levelKey, TAB, \
-                #            countMember, TAB, avgQnTpm, TAB, \
-                #            createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+            for s in ensemblTPM[ensemblId]:
+               print(s, ensemblTPM[ensemblId][s])
+               print('sampleKey = ', sampleKeyByRun[s])
+               print('rnaSeqSetKey = ', infoBySample[s][0]['_rnaseqset_key'])
+               rnaSeqSetKey = infoBySample[s][0]['_rnaseqset_key']
+               numberofbiologicalreplicants = len(ensemblTPM[ensemblId][s])
+               avgTotal = 0
+               for t in ensemblTPM[ensemblId][s]:
+                  avgTotal += t
+               avgQnTpm = round(avgTotal/numberofbiologicalreplicants, 2)
+               levelKey = calcLevel(avgQnTpm)
+               print('avg:', avgTotal, numberofbiologicalreplicants, avgQnTpm)
+
+               fpCombined.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
+                           combinedKey, TAB, rnaSeqSetKey, TAB, markerKey, TAB, levelKey, TAB, \
+                           numberofbiologicalreplicants, TAB, avgQnTpm, TAB, \
+                           createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
     
-                #samples = sampleByGroup[g]
-		#fpSeq.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
-                #            rnaSeqKey, TAB, sampleKey, TAB, combinedKey, TAB, markerKey, TAB, aveTpm, TAB, qnTpm, TAB, \
-                #            createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
-                combinedKey += 1
-
-            print('\n', ensemblId, ensemblDict[ensemblId])
-            print(sampleKeyByRun)
+               #samples = sampleByGroup[g]
+	       #fpSeq.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
+               #            rnaSeqKey, TAB, sampleKey, TAB, combinedKey, TAB, markerKey, TAB, aveTpm, TAB, qnTpm, TAB, \
+               #            createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+               combinedKey += 1
 
         fpRawCounts.close()
 
@@ -595,7 +602,7 @@ def execCombinedBCP():
 #
 
 init()
-initRNASet()
+#initRNASet()
 #processRNASet()
 #execSetBCP()
 initCombined()
