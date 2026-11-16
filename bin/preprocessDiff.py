@@ -483,7 +483,10 @@ def ppEAERawCountsFile(expID):
             #print(col, ensemblID, rpkByRunByMarker[col][ensemblID])
             rbk = rpkByRunByMarker[col][ensemblID][0]
             sf = scalingFactorByRun[col][0]
-            tpm = round(rbk/sf, 2)
+            if sf > 0:
+                tpm = round(rbk/sf, 2)
+            else:
+                tpm = 0
             #print(rbk, str(sf), str(tpm))
             fpPP.write('\t' + str(tpm))
         fpPP.write('\n')
