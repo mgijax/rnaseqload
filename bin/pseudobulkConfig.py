@@ -1,22 +1,39 @@
 import logging as log
 import os
 import db
+from itertools import count
 
 log.basicConfig(level=log.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+seq = count(1)
 
 class PseudobulkConfig:
     
     AND = '_n_'   # used to join name for multiple fields
 
-    def __init__(self, experimentKey, bulkData, runOption):
+    IMPUT_METHODS = ["null_to_zero", "average", "metabimpute_rf", "remove_null", "saver_all", "saver_imput"]
+    IMPUT_METHODS = ["null_to_zero"]
+
+    def __init__(self, experimentKey, bulkData, runOption, method):
         self.experimentKey = experimentKey
         self.bulkData = bulkData
         self.runOption = runOption
-
-        self.dataDir = os.getenv('INPUTDIR')
-        self.initReplicateGroup()
-        self.imput = "metabimpute_rf" # "remove_null" #'metabimpute_rf'
+        self.imputMethod = method #"metabimpute_rf" # "remove_null" #'metabimpute_rf'
         # null_to_zero average eucknn metabimpute_rf remove_null
+
+        self.dataDir = os.path.join(os.getenv('INPUTDIR'), bulkData["name"])
+        os.makedirs(self.dataDir, exist_ok=True)
+        self.initReplicateGroup()
+
+    @staticmethod
+    def getTissueInfo(name):
+        tissueInfo = PseudobulkConfig.findBulk(name)
+        return (tissueInfo["tissue"], tissueInfo["organismPart"], tissueInfo["sex"])
+
+    @staticmethod
+    def toSampleName(tissueName, method, option, individualName):
+        return   f'{tissueName}_{method}_{option}_{individualName}'
+    
 
     def initReplicateGroup(self):
         db.useOneConnection(1)
@@ -47,9 +64,14 @@ class PseudobulkConfig:
             else:
                 group = male
 
-            sampleName = f'{self.bulkData["shortName"]}_{self.runOption["optionName"]}_{name}'
+            # sampleName = f'{self.bulkData["shortName"]}_{self.runOption["optionName"]}_{name}'
+            sampleName = PseudobulkConfig.toSampleName(self.bulkData["name"], self.imputMethod,
+                                        self.runOption["optionName"], name)
             sampleKey = self.findHTSampleKey(db, sampleName)
             log.info(f'sampleKey: {sampleKey}')
+            if sampleKey is None:
+#                sampleKey = next(seq)
+                log.info(f' generated sampleKey: {sampleKey}')
             group["replicates"].append(
                 {
                     "replicateName": name,
@@ -64,7 +86,7 @@ class PseudobulkConfig:
             SELECT _sample_key FROM gxd_htsample WHERE _experiment_key = {experimentKey} AND name = '{sampleName}'
         '''.format(experimentKey = self.experimentKey,
             sampleName = sampleName)
-        # log.info(query)
+        log.info(query)
         results = db.sql(query, 'auto')
         for r in results:
             return r["_sample_key"]        
@@ -136,10 +158,10 @@ class PseudobulkConfig:
         return self.toFile(f'{self.getFileNamePrefix()}_{groupName}_Replicate_Group_Average_{numOfReplicates}_samples.csv')
 
     def getAllMergedFile(self):
-        return self.toFile(f'{self.imput}_Detail.csv')
+        return self.toFile(f'{self.imputMethod}_Detail.csv')
 
     def getAllMergedFileTpmOnly(self):
-        return self.toFile(f'{self.imput}_TPM.csv')
+        return self.toFile(f'{self.imputMethod}_TPM.csv')
 
     @staticmethod
     def findBulk(name):
@@ -191,6 +213,7 @@ class PseudobulkConfig:
     }
 
     Intestine_ascending = {
+        "tissueKey": "fat",
         "name": "Large_Intestine__ascending_colon",
         "shortName": "Intestine_ascending",
         "tissue": "Large_Intestine",
@@ -218,6 +241,7 @@ class PseudobulkConfig:
         "pivotBFields": ["3_38_F", "3_39_F", "3_10_M", "3_11_M"]
     }
     heart_all = {
+        "tissueKey": "heart",
         "name": "Heart__All",
         "shortName": "Heart_All",
         "tissue": "Heart",
@@ -264,6 +288,109 @@ class PseudobulkConfig:
         # "pivotBFields": ["3_38_F", "3_39_F", ["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
     }
 
+
+    b_cerebellum = {
+        "name": "b_cerebellum",
+        "shortName": "b_cerebellum",
+        "tissue": ["Brain_Myeloid", "Brain_Non-Myeloid"],
+        "organismPart": "cerebellum",
+        "sex": "female",
+        "pivotAFields": ["3_38_F", "3_39_F", "3_56_F"],
+        "pivotBFields": [["3_38_F", "3_56_F"], "3_39_F"]
+    }
+    b_cerebral = {
+        "name": "b_cerebral",
+        "shortName": "b_cerebral",
+        "tissue": ["Brain_Myeloid", "Brain_Non-Myeloid"],
+        "organismPart": "cerebral cortex",
+        "sex": "female",
+        "pivotAFields": ["3_38_F", "3_39_F"],
+        "pivotBFields": ["3_38_F", "3_39_F"]
+    }
+    b_hippocampus = {
+        "name": "b_hippocampus",
+        "shortName": "b_hippocampus",
+        "tissue": ["Brain_Myeloid", "Brain_Non-Myeloid"],
+        "organismPart": "hippocampus",
+        "sex": "female",
+        "pivotAFields": ["3_38_F", "3_39_F", "3_56_F"],
+        "pivotBFields": [["3_38_F", "3_56_F"], "3_39_F"]
+    }
+    b_striatum = {
+        "name": "b_striatum",
+        "shortName": "b_striatum",
+        "tissue": ["Brain_Myeloid", "Brain_Non-Myeloid"],
+        "organismPart": "striatum",
+        "sex": "female",
+        "pivotAFields": ["3_38_F", "3_39_F", "3_56_F"],
+        "pivotBFields": [["3_38_F", "3_56_F"], "3_39_F"]
+    }
+    fat = {
+        "name": "fat",
+        "shortName": "fat",
+        "tissue": ["Fat"],
+        "organismPart": "gonadal fat pad",
+        "sex": "male",
+        "pivotAFields": ["3_8_M", "3_9_M", "3_10_M", "3_11_M"],
+        "pivotBFields": [["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
+    }
+    heart = {
+        "name": "heart",
+        "shortName": "heart",
+        "tissue": ["Heart"],
+        "organismPart": "",
+        "sex": "male",
+        "pivotAFields": ["3_8_M", "3_9_M", "3_10_M", "3_11_M"],
+        "pivotBFields": [["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
+    }
+    intestine = {
+        "name": "intestine",
+        "shortName": "intestine",
+        "tissue": ["Large_Intestine"],
+        "organismPart": "ascending colon",
+        "sex": "male",
+        "pivotAFields": ["3_8_M", "3_9_M", "3_10_M", "3_11_M"],
+        "pivotBFields": [["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
+    }
+    lung = {
+        "name": "lung",
+        "shortName": "lung",
+        "tissue": ["Lung"],
+        "organismPart": "lung",
+        "sex": "male",
+        "pivotAFields": ["3_8_M", "3_9_M", "3_10_M", "3_11_M"],
+        "pivotBFields": [["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
+    }
+    spleen = {
+        "name": "spleen",
+        "shortName": "spleen",
+        "tissue": ["Spleen"],
+        "organismPart": "spleen",
+        "sex": "male",
+        "pivotAFields": ["3_8_M", "3_9_M", "3_10_M", "3_11_M"],
+        "pivotBFields": [["3_8_M", "3_9_M"], ["3_10_M", "3_11_M"]]
+    }
+    thymus = {
+        "name": "thymus",
+        "shortName": "thymus",
+        "tissue": ["Thymus"],
+        "organismPart": "thymus",
+        "sex": "male",
+        "pivotAFields": ["3_8_M", "3_9_M", "3_11_M"],
+        "pivotBFields": [["3_8_M", "3_9_M"], "3_11_M"]
+    }
+
+    trachea = {
+        "name": "trachea",
+        "shortName": "trachea",
+        "tissue": ["Trachea"],
+        "organismPart": "trachea",
+        "sex": "male",
+        "pivotAFields": ["3_8_M", "3_9_M", "3_10_M"],
+        "pivotBFields": [["3_8_M", "3_9_M"], "3_10_M"]
+    }
+
+
     # BULK_DATA_LIST.append(Bladder)
     # BULK_DATA_LIST.append(Pancreas)    
     # BULK_DATA_LIST.append(Fat_gonadal)    
@@ -276,7 +403,21 @@ class PseudobulkConfig:
     # BULK_DATA_LIST.append(Intestine_all)
     # BULK_DATA_LIST.append(liver)
     # BULK_DATA_LIST.append(spleen)
+    # BULK_DATA_LIST.append(lung)  
+
+
+    BULK_DATA_LIST.append(b_cerebellum)
+    BULK_DATA_LIST.append(b_cerebral)
+    BULK_DATA_LIST.append(b_hippocampus)
+    BULK_DATA_LIST.append(b_striatum)
+    BULK_DATA_LIST.append(fat)
+    BULK_DATA_LIST.append(heart)
+    BULK_DATA_LIST.append(intestine)
     BULK_DATA_LIST.append(lung)
+    BULK_DATA_LIST.append(spleen)
+    BULK_DATA_LIST.append(thymus)
+    BULK_DATA_LIST.append(trachea)
+
 
     RUN_OPTIONS = []
     optionA = {
@@ -351,7 +492,7 @@ class PseudobulkConfig:
             }
         ]
     }
-    RUN_OPTIONS.append(optionB)
+    # RUN_OPTIONS.append(optionB)
 
     sex_2_group_query ='''
         WITH data AS (

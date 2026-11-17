@@ -17,11 +17,11 @@ class CSVFileMerger:
         self.merged_file_name = merged_file_name
 
     def run(self, tissue):
-        files = glob.glob(os.path.join(self.input_dir, tissue, "*.csv"))
+        files = glob.glob(os.path.join(self.input_dir, tissue, "*_TPM.csv"))
         dfs = []
 
         left_null_files = {"remove_null_TPM.csv"}
-        left_zero_files = {"saver_all_TPM.csv", "saver_replace_null_only_TPM.csv"}
+        left_zero_files = {"saver_all_TPM.csv", "saver_imput_TPM.csv"}
 
         for f in files:
             tag = os.path.splitext(os.path.basename(f))[0].replace("_TPM", "")
@@ -58,11 +58,12 @@ class CSVFileMerger:
             df[cols] = df[cols].fillna(0) 
 
         sort_order = [
-            "gene","E-MTAB-4035","E-MTAB-8573","E-GEOD-65775","E-GEOD-74747","E-MTAB-2801","E-MTAB-4035",
+            "gene", "E-MTAB-2801", "E-MTAB-4035", "E-MTAB-5020", "E-MTAB-7279", "E-MTAB-8573", "E-MTAB-8838", 
+            "E-GEOD-65775","E-GEOD-74747",
             "average_A","null_to_zero_A","metabimpute_rf_A",
-            "remove_null_A","saver_all_A","saver_replace_null_only_A",
+            "remove_null_A","saver_all_A","saver_imput_A",
             "average_B","null_to_zero_B","metabimpute_rf_B","remove_null_B",
-            "saver_all_B","saver_replace_null_only_B"
+            "saver_all_B","saver_imput_B"
         ]
 
         sort_position = {col: i for i, col in enumerate(sort_order)}
@@ -78,9 +79,11 @@ class CSVFileMerger:
         return df
 
 if __name__ == "__main__":
-    d = CSVFileMerger("/data/loads/liangh/rnaseqload/tpm_mismatch/", "/data/loads/liangh/rnaseqload/bland_altman_mismatch", "merged_tpm.csv")
-    # d = CSVFileMerger("/data/loads/liangh/rnaseqload/tpm/", "/data/loads/liangh/rnaseqload/bland_altman", "merged_tpm.csv")
-    tissues = ["heart", "intestine", "lung", "spleen"]
+    # d = CSVFileMerger("/data/loads/liangh/rnaseqload/input/", "/data/loads/liangh/rnaseqload/bland_altman", "merged_tpm.csv")
+    d = CSVFileMerger("/data/loads/liangh/rnaseqload/mismatch_tpm/", "/data/loads/liangh/rnaseqload/mismatch_bland_altman", "merged_tpm.csv")
+    tissues = ["b_cerebellum", "b_cerebral", "b_hippocampus", "b_striatum", 
+                "fat", "heart", "intestine", "lung", "spleen", "thymus", "trachea"]
+    # tissues = ["lung"]
     for tissue in tissues:
         result = d.run(tissue)
         print(f"\n{tissue}")

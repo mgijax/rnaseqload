@@ -48,7 +48,7 @@ class PseudobulkExpt:
         if self.experimentKey:
             log.info(f'Existing {self.exp_id}, experimentKey: {self.experimentKey}')
             return
-        
+
         name = "Tabula Muris: Transcriptomic characterization of 20 organs and tissues from Mus musculus at single cell resolution"
         description = "Single cell RNA sequencing of single cells across 20 tissues of 3 month aged mice"
         self.experimentKey = pseudobulkSample.createExperiment(name, description)
@@ -368,8 +368,8 @@ class PseudobulkExpt:
         return columnNames        
     
     def createPseudobulkFile(self, db):
-
-        tissue = self.config.bulkData["tissue"]
+        tissueKey = self.config.bulkData["name"]
+        tissues = self.config.bulkData["tissue"]
         organismPart = self.config.bulkData["organismPart"]
 
         pseudobulkTableName = self.config.getPseudobulkTableName()
@@ -394,30 +394,32 @@ class PseudobulkExpt:
         pivotSql = self.toPivotSql(columnNames)       
         causeSql = self.toCauseSql(columnNames)       
 
+        tissueCause = ", ".join(f"'{v.lower()}'" for v in tissues)
         organismPartCause = ''
         if organismPart and len(organismPart) > 0:
             organismPartCause = f"AND LOWER(grp.organism_part) = {self.sqlEscape(organismPart.lower())}"
 
-        imput = self.config.imput
-        dataQuery = '''
-                SELECT g.gene, grp.individual, SUM(g.value) AS count_sum,
-                    {caseSql} AS bioreplicate_name
-                FROM tm_gene_expression_saver_spleen_imput g
-                JOIN tm_group grp 
-                    ON g.group_id = grp.group_id
-                    AND grp.cell_type is not null AND length(grp.cell_type) > 0
-                    AND LOWER(grp.tissue) = {tissue}
-                    {organismPartCause}    
-                GROUP BY g.gene, grp.individual
-        '''.format(
-                caseSql=caseSql,
-                tissue=self.sqlEscape(tissue.lower()),
-                organismPartCause=organismPartCause)
-        
-        if imput:
-            dataQuery = f"SELECT * FROM tm_temp_lung_{imput}_{self.config.runOption["optionName"].lower()}"
+        imputMethod = self.config.imputMethod
+        if imputMethod == "saver_all" or imputMethod == "saver_imput": 
+            if imputMethod == "saver_all":
+                saverTable = f'tm_gene_expression_saver_{tissueKey}_all'
+            else:
+                saverTable = f'tm_gene_expression_saver_{tissueKey}_imput'
+            dataQuery = f'''
+                    SELECT g.gene, grp.individual, SUM(g.value) AS count_sum,
+                        {caseSql} AS bioreplicate_name
+                    FROM {saverTable} g
+                    JOIN tm_group grp 
+                        ON g.group_id = grp.group_id
+                        AND grp.cell_type is not null AND length(grp.cell_type) > 0
+                        AND LOWER(grp.tissue) in ({tissueCause})
+                        {organismPartCause}    
+                    GROUP BY g.gene, grp.individual
+            '''      
+        else:
+            dataQuery = f"SELECT * FROM tm_temp_{tissueKey}_{imputMethod}_{self.config.runOption["optionName"].lower()}"
 
-        query = '''
+        query = f'''
             DROP TABLE IF EXISTS {rpkSumTable};
             DROP TABLE IF EXISTS {pseudobulkTableName};
 
@@ -452,15 +454,7 @@ class PseudobulkExpt:
                 )
                 ELSE 0
             END;           
-
-        '''.format(
-                dataQuery=dataQuery,
-                pseudobulkTableName=pseudobulkTableName,
-                rpkSumTable=rpkSumTable,
-                caseSql=caseSql,
-                tissue=self.sqlEscape(tissue.lower()),
-                organismPartCause=organismPartCause
-        )
+        '''
         log.info(query)
         db.sql(query, 'auto')
        
@@ -674,6 +668,7 @@ class PseudobulkExpt:
     
     def writeMergedMatrixFile(self, pseudobulkDataframeList):
         merged_df = None
+        if len(pseudobulkDataframeList) < 1: return
 
         for df in pseudobulkDataframeList:
             if merged_df is None:
@@ -686,8 +681,8 @@ class PseudobulkExpt:
 
         # write detail file
         #if self.isWriteDetailFiles:
-        output_file = os.path.join(self.config.dataDir, self.config.getAllMergedFile())
-        merged_df.to_csv(output_file, index=False)
+        # output_file = os.path.join(self.config.dataDir, self.config.getAllMergedFile())
+        # merged_df.to_csv(output_file, index=False)
 
         # write brief file
         # keep gene + every column containing replicate_group_avg

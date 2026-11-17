@@ -193,14 +193,15 @@ class PseudobulkSample:
         db.sql(query, 'auto')
 
     def createExperimentHTSamples(self, experimentKey):
-        log.info('test_create_ht_sample')
+        log.info('create_ht_sample')
       
         for bulkData in PseudobulkConfig.BULK_DATA_LIST:
-            bulkShortName = bulkData["shortName"]
+            tissueName = bulkData["name"]
             tissue = bulkData["tissue"]
             organismPart = bulkData["organismPart"]
-            self.createPseudobulkSamples(experimentKey, bulkShortName, "A", tissue, organismPart, bulkData["pivotAFields"])
-            self.createPseudobulkSamples(experimentKey, bulkShortName, "B", tissue, organismPart, bulkData["pivotBFields"])
+            for method in PseudobulkConfig.IMPUT_METHODS:
+                self.createPseudobulkSamples(experimentKey, tissueName, method, "A", tissue, organismPart, bulkData["pivotAFields"])
+                self.createPseudobulkSamples(experimentKey, tissueName, method, "B", tissue, organismPart, bulkData["pivotBFields"])
             #break        
 
     def showHTSamples(self, experimentKey):
@@ -216,6 +217,7 @@ class PseudobulkSample:
         query = '''
             SELECT t._term_key FROM voc_term t, voc_term_emapa e
             WHERE LOWER(t.term) = LOWER({organismPart}) AND t._term_key = e._term_key
+            ORDER BY t._term_key DESC
         '''.format(organismPart = self.sqlEscape(organismPart))
         #log.info(query)
         results = db.sql(query, 'auto')
@@ -289,24 +291,24 @@ class PseudobulkSample:
         #log.info(query)
         results = db.sql(query, 'auto') 
 
-    def createPseudobulkSamples(self, experimentKey, bulkShortName, option, tissue, organismPart, fields):
+    def createPseudobulkSamples(self, experimentKey, tissueName, method, option, tissue, organismPart, fields):
         for i, field in enumerate(fields):
             if isinstance(field, list):
-                sampleName = ""
+                individualName = ""
                 for i, f in enumerate(field):
                     if i > 0:
-                        sampleName += PseudobulkConfig.AND
-                    sampleName += f
+                        individualName += PseudobulkConfig.AND
+                    individualName += f
             else:
-                sampleName = field
+                individualName = field
 
-            if "M" in sampleName:
+            if "M" in individualName:
                 sex = "Male"
             else:
                 sex = "Female"
 
             #log.info(f"{tissue} {organismPart}: {sampleName}")
-            self.findCreateHTSamples(experimentKey, tissue, organismPart, sex, f'{bulkShortName}_{option}_{sampleName}')    
-
+            self.findCreateHTSamples(experimentKey, tissue, organismPart, sex, 
+                                     PseudobulkConfig.toSampleName(tissueName, method, option, individualName))  
 
  

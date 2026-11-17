@@ -146,24 +146,35 @@ class BlandAltman:
                 )
 
 if __name__=="__main__":
+    tissueRefs = {}
     # ba=BlandAltman("/data/loads/liangh/rnaseqload/bland_altman")
-
-    # tissueRefs = {}
+    # tissueRefs["b_cerebellum"] = ["E-MTAB-8838"]
+    # tissueRefs["b_cerebral"] = ["E-MTAB-7279", "E-MTAB-8838"]
+    # tissueRefs["b_hippocampus"] = ["E-MTAB-7279"]
+    # tissueRefs["b_striatum"] = ["E-MTAB-5020", "E-MTAB-7279"]
+    # tissueRefs["fat"] = ["E-MTAB-4035"]
     # tissueRefs["heart"] = ["E-GEOD-65775", "E-GEOD-74747"]
     # tissueRefs["intestine"] = ["E-MTAB-2801"]
     # tissueRefs["lung"] = ["E-MTAB-4035","E-MTAB-8573"]
     # tissueRefs["spleen"] = ["E-MTAB-4035"]
+    # tissueRefs["thymus"] = ["E-GEOD-74747"]
+    # tissueRefs["trachea"] = ["E-MTAB-8573"]
 
-    # miss match
-    tissueRefs = {}
-    ba=BlandAltman("/data/loads/liangh/rnaseqload/bland_altman_mismatch")
-    tissueRefs["heart"] = ["E-MTAB-4035"] 
-    tissueRefs["intestine"] = ["E-GEOD-65775", "E-GEOD-74747"] 
+    # mismatch
+    ba=BlandAltman("/data/loads/liangh/rnaseqload/mismatch_bland_altman")
+    tissueRefs["b_cerebellum"] =  ["E-MTAB-5020", "E-MTAB-7279"]
+    tissueRefs["b_cerebral"] =["E-MTAB-8838"]
+    tissueRefs["b_hippocampus"] = ["E-MTAB-7279", "E-MTAB-8838"]
+    tissueRefs["b_striatum"] = ["E-MTAB-7279"]
+    tissueRefs["fat"] =  ["E-MTAB-8573"]
+    tissueRefs["heart"] = ["E-MTAB-4035"]
+    tissueRefs["intestine"] = ["E-GEOD-65775", "E-GEOD-74747"]
     tissueRefs["lung"] = ["E-MTAB-2801"]
-    tissueRefs["spleen"] = ["E-MTAB-4035","E-MTAB-8573"]
-    ba.process("heart", "merged_tpm.csv",  ["E-MTAB-4035"])
+    tissueRefs["spleen"] = ["E-MTAB-4035", "E-MTAB-8573"]
+    tissueRefs["thymus"] = ["E-MTAB-4035"]
+    tissueRefs["trachea"] = ["E-GEOD-74747"]
 
     for tissue, refs in tissueRefs.items():
         print(f"\n{tissue}: {refs}")
         ba.process(tissue, "merged_tpm.csv", refs)
-        #ba.splitFile(tissue, "merged_tpm.csv", refs)
+        # ba.splitFile(tissue, "merged_tpm.csv", refs)

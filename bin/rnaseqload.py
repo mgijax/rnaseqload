@@ -255,7 +255,7 @@ def init():
     # db.commit()    
 
     results = db.sql('''select accid, _object_key
-        from ACC_Accession
+        from ACC_Accession 
         where _MGIType_key = 42
         and preferred = 1''', 'auto')
     for r in results:
@@ -1219,25 +1219,26 @@ def process():
         if expID != 'E-ENAD-15':
             continue 
 
-        if PseudobulkExpt.isPseudobulkData(expID):
-            pseudobulkDataframeList = []
+        if PseudobulkExpt.isPseudobulkData(expID):            
             pseudobulkExpt = PseudobulkExpt(expID)            
             pseudobulkExpt.isWriteDetailFiles = False
             pseudobulkExpt.initExperimentKey()
             # run all of structure
             for bulkData in PseudobulkConfig.BULK_DATA_LIST:
-                for runOption in PseudobulkConfig.RUN_OPTIONS:
-                    pseudobulkExpt.config = PseudobulkConfig(pseudobulkExpt.experimentKey, bulkData, runOption)                    
-                    log.info(f"Process: {pseudobulkExpt.config.getLabel()}")
-                    dfs = process_one_experiment(expID, pseudobulkExpt)
-                    pseudobulkDataframeList.extend(dfs)
-                
-            # run one structure
-            # pseudobulkExpt.config = PseudobulkConfig(PseudobulkConfig.findBulk("Intestine"), PseudobulkConfig.findOption("A"))
-            # dfs = process_one_experiment(expID, pseudobulkExpt)
-            # pseudobulkDataframeList.extend(dfs)
+                for method in PseudobulkConfig.IMPUT_METHODS:
+                    pseudobulkDataframeList = []
+                    for runOption in PseudobulkConfig.RUN_OPTIONS:
+                        pseudobulkExpt.config = PseudobulkConfig(pseudobulkExpt.experimentKey, bulkData, runOption, method)
+                        tissueKey = pseudobulkExpt.config.bulkData["name"]
+                        # if tissueKey in ["heart", "intestine", "lung", "spleen"] and method in ["saver_all", "saver_imput"]:
+                        #     continue
 
-            pseudobulkExpt.writeMergedMatrixFile(pseudobulkDataframeList)
+                        # pseudobulkExpt.config.imputMethod = method                        
+                        log.info(f"Process: {pseudobulkExpt.config.getLabel()}")
+                        dfs = process_one_experiment(expID, pseudobulkExpt)
+
+                        pseudobulkDataframeList.extend(dfs)
+                    pseudobulkExpt.writeMergedMatrixFile(pseudobulkDataframeList)
         else:
             process_one_experiment(expID)
 
