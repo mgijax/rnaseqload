@@ -390,6 +390,11 @@ def ppEAERawCountsFile(expID):
             #print('skipping: ensemblid is in the exclude set: %s, %s' % (expID, ensemblID))
             continue
 
+        # if ensemblID is not in compositeLength, then skip
+        if ensemblID not in compositeLength:
+            print('skipping: ensemblid is not in the compositeLength: %s, %s' % (expID, ensemblID))
+            continue
+
         # if ensemblID is not in MGI, then set markerKey = 0
         # will handle this later during RAWCOUNTS processing
         if ensemblID in ensemblDict:
@@ -399,7 +404,7 @@ def ppEAERawCountsFile(expID):
             markerKey = 0
             markerSymbol = ''
 
-        # if ensemblID is not in MGI, then set compositeLength = 0
+        # ensemblID is in compositeLength
         if ensemblID in compositeLength:
             clengthBP = int(compositeLength[ensemblID][0])
             clengthKP = clengthBP/1000
@@ -452,6 +457,11 @@ def ppEAERawCountsFile(expID):
         # if ensemblID is in excludedGenes, then skip
         if ensemblID in excludedGenes:
             #print('skipping: ensemblid is in the exclude set: %s, %s' % (expID, ensemblID))
+            continue
+
+        # if ensemblID is not in compositeLength, then skip
+        if ensemblID not in compositeLength:
+            #print('skipping: ensemblid is not in the compositeLength: %s, %s' % (expID, ensemblID))
             continue
 
         # if ensemblID is not in MGI, then set markerKey = 0
