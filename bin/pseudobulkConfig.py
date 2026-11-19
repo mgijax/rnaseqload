@@ -12,7 +12,7 @@ class PseudobulkConfig:
     AND = '_n_'   # used to join name for multiple fields
 
     IMPUT_METHODS = ["null_to_zero", "average", "metabimpute_rf", "remove_null", "saver_all", "saver_imput"]
-    IMPUT_METHODS = ["null_to_zero"]
+    # IMPUT_METHODS = ["null_to_zero"]
 
     def __init__(self, experimentKey, bulkData, runOption, method):
         self.experimentKey = experimentKey
@@ -492,7 +492,7 @@ class PseudobulkConfig:
             }
         ]
     }
-    # RUN_OPTIONS.append(optionB)
+    RUN_OPTIONS.append(optionB)
 
     sex_2_group_query ='''
         WITH data AS (

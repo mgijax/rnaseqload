@@ -9,6 +9,7 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 import shutil
+import db
 
 class MatchGenes:
 
@@ -18,21 +19,49 @@ class MatchGenes:
         self.merged_dir = merged_dir
         self.merged_file_name = merged_file_name
 
+    def prepareData2(self, gxd, mismatchRefs, tm, trueRefs):
+        COPY_FILENAMES = ["average_TPM.csv", "metabimpute_rf_TPM.csv", "null_to_zero_TPM.csv", "saver_all_TPM.csv", "saver_imput_TPM.csv"]
+
+        toDir = os.path.join(self.mismatch_data_dir, self.getDirName2(gxd, tm))
+        os.makedirs(toDir, exist_ok=True)
+
+        tissues = [gxd, tm]
+        for tissue in tissues:
+            fromDir = os.path.join(self.tpm_dir, tissue)
+            for filename in os.listdir(fromDir):
+                if not filename in COPY_FILENAMES:
+                    continue
+                src = os.path.join(fromDir, filename)
+                dst = os.path.join(toDir, f'{tissue}_{filename}')
+                if os.path.isfile(src):
+                    self.copy(src, dst)
+        
+        for gxdRef in mismatchRefs:
+            fileName = f"{gxdRef}_TPM.csv"
+            self.copy(os.path.join(self.tpm_dir, gxd, fileName), os.path.join(toDir, f'{gxd}_{fileName}'))
+
+        for tmRef in trueRefs:
+            fileName = f"{tmRef}_TPM.csv"
+            self.copy(os.path.join(self.tpm_dir, tm, fileName), os.path.join(toDir, f'{tm}_{fileName}'))
+
+
     def prepareData(self, gxd, mismatchRef, tm, trueRef):
         fileNames = ["average_TPM.csv", "metabimpute_rf_TPM.csv", "null_to_zero_TPM.csv", "saver_all_TPM.csv", "saver_imput_TPM.csv"]
 
         fromDir = os.path.join(self.tpm_dir, tm)
         toDir = os.path.join(self.mismatch_data_dir, self.getDirName(gxd, mismatchRef, tm, trueRef))
-        # print (f'  {toDir}')
         os.makedirs(toDir, exist_ok=True)
 
-        for filename in os.listdir(fromDir):
-            if not filename in fileNames:
-                continue
-            src = os.path.join(fromDir, filename)
-            dst = os.path.join(toDir, filename)
-            if os.path.isfile(src):
-                self.copy(src, dst)
+        tissues = [gxd, tm]
+        for tissue in tissues:
+            fromDir = os.path.join(self.tpm_dir, tissue)
+            for filename in os.listdir(fromDir):
+                if not filename in fileNames:
+                    continue
+                src = os.path.join(fromDir, filename)
+                dst = os.path.join(toDir, f'{tissue}_{filename}')
+                if os.path.isfile(src):
+                    self.copy(src, dst)
 
         fileName = f"{mismatchRef}_TPM.csv"
         self.copy(os.path.join(self.tpm_dir, gxd, fileName), os.path.join(toDir, fileName))
@@ -42,12 +71,15 @@ class MatchGenes:
     def getDirName(self, gxd, mismatchRef, tm, trueRef):
         return f"GXD_{gxd}_{mismatchRef}__TM_{tm}_{trueRef}"
 
+    def getDirName2(self, gxd, tm):
+        return f"GXD_{gxd}__TM_{tm}"
+
     def copy(self, src, dst):
-        # print(f"    {src} => {dst}")
+        print(f"    {src} => {dst}")
         shutil.copy2(src, dst)
 
-    def mergeFile(self, gxd, mismatchRef, tm, trueRef):
-        tissueDir = self.getDirName(gxd, mismatchRef, tm, trueRef)
+    def mergeFile(self, gxd, tm):
+        tissueDir = self.getDirName2(gxd, tm)
         files = glob.glob(os.path.join(self.mismatch_data_dir, tissueDir, "*_TPM.csv"))
         dfs = []
 
@@ -107,9 +139,21 @@ class MatchGenes:
         os.makedirs(output_tissue_dir, exist_ok=True)
 
         out = os.path.join(self.merged_dir, tissueDir, self.merged_file_name)
-        df.to_csv(out, index=False)
+        df.iloc[:, [0]].to_csv(out, index=False)
         print(f'    merged file: {len(df)} genes')
         return df
+
+    def createMatchGeneTable(self, gxd, tm):
+        tableName = f'tm_temp_match_{self.getDirName2(gxd, tm).lower()}'
+        query = f'''
+            CREATE TABLE IF NOT EXISTS {tableName}
+            (
+                gene text COLLATE pg_catalog."default" PRIMARY KEY
+            )
+        '''
+        # db.sql(query, 'auto')
+        # db.commit()
+        print(f"\\copy {tableName} FROM 'C:/Users/liangh/Desktop/Imput/match_genes_merged/{self.getDirName2(gxd, tm)}/matched_genes.csv' WITH (FORMAT csv,HEADER true);")
 
 if __name__ == "__main__":  
     d = MatchGenes("/data/loads/liangh/rnaseqload/tpm_11_tissues", "/data/loads/liangh/rnaseqload/match_genes/",
@@ -144,37 +188,16 @@ if __name__ == "__main__":
     for gxd, tm in gxdToTM.items():
         trueRefs = refs[tm]
         mismatchRefs = refs[gxd]
-        print(f"{gxd} {mismatchRefs} (GXD): {tm} {trueRefs} (TM)")
+        # print(f"{gxd} {mismatchRefs} (GXD): {tm} {trueRefs} (TM)")
+        # d.prepareData2(gxd, mismatchRefs, tm, trueRefs)
+        # d.mergeFile(gxd, tm)
+        d.createMatchGeneTable(gxd, tm)
 
-        for mismatchRef in mismatchRefs:
-            for trueRef in trueRefs:
-                print(f"  {gxd} {mismatchRef} (GXD): {tm} {trueRef} (TM)")
+        # for mismatchRef in mismatchRefs:
+        #     for trueRef in trueRefs:
+        #         print(f"  {gxd} {mismatchRef} (GXD): {tm} {trueRef} (TM)")
 
-                d.prepareData(gxd, mismatchRef, tm, trueRef)
-                d.mergeFile(gxd, mismatchRef, tm, trueRef)
+        #         d.prepareData(gxd, mismatchRef, tm, trueRef)
+        #         d.mergeFile(gxd, mismatchRef, tm, trueRef)
 
-               
-        # ba.process(tissue, "merged_tpm.csv", refs)
-        # ba.splitFile(tissue, "merged_tpm.csv", refs)
-
-
-
-    # tissues = ["fat_E-MTAB-4035_heart_E-GEOD-65775", "fat_E-MTAB-4035_heart_E-GEOD-74747"]
-    # for tissue in tissues:
-    #     result = d.run(tissue)
-    #     print(f"\n{tissue}")
-    #     print(result.head()) 
-
-   # mismatchTissueRefs = {}
-    # mismatchTissueRefs["b_cerebellum"] =  ["E-MTAB-5020", "E-MTAB-7279"]
-    # mismatchTissueRefs["b_cerebral"] =["E-MTAB-8838"]
-    # mismatchTissueRefs["b_hippocampus"] = ["E-MTAB-7279", "E-MTAB-8838"]
-    # mismatchTissueRefs["b_striatum"] = ["E-MTAB-7279"]
-    # mismatchTissueRefs["fat"] =  ["E-MTAB-8573"]
-    # mismatchTissueRefs["heart"] = ["E-MTAB-4035"]
-    # mismatchTissueRefs["intestine"] = ["E-GEOD-65775", "E-GEOD-74747"]
-    # mismatchTissueRefs["lung"] = ["E-MTAB-2801"]
-    # mismatchTissueRefs["spleen"] = ["E-MTAB-4035", "E-MTAB-8573"]
-    # mismatchTissueRefs["thymus"] = ["E-MTAB-4035"]
-    # mismatchTissueRefs["trachea"] = ["E-GEOD-74747"]
-    #       
+                # d.createMatchGeneTable(gxd, mismatchRef, tm, trueRef)

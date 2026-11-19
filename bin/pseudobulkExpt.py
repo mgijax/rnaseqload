@@ -400,6 +400,26 @@ class PseudobulkExpt:
             organismPartCause = f"AND LOWER(grp.organism_part) = {self.sqlEscape(organismPart.lower())}"
 
         imputMethod = self.config.imputMethod
+        # if imputMethod == "saver_all" or imputMethod == "saver_imput": 
+        #     if imputMethod == "saver_all":
+        #         saverTable = f'tm_gene_expression_saver_{tissueKey}_all'
+        #     else:
+        #         saverTable = f'tm_gene_expression_saver_{tissueKey}_imput'
+        #     dataQuery = f'''
+        #             SELECT g.gene, grp.individual, SUM(g.value) AS count_sum,
+        #                 {caseSql} AS bioreplicate_name
+        #             FROM {saverTable} g
+        #             JOIN tm_group grp 
+        #                 ON g.group_id = grp.group_id
+        #                 AND grp.cell_type is not null AND length(grp.cell_type) > 0
+        #                 AND LOWER(grp.tissue) in ({tissueCause})
+        #                 {organismPartCause}    
+        #             GROUP BY g.gene, grp.individual
+        #     '''      
+        # else:
+        #     dataQuery = f"SELECT * FROM tm_temp_{tissueKey}_{imputMethod}_{self.config.runOption["optionName"].lower()}"
+
+        # mismatch
         if imputMethod == "saver_all" or imputMethod == "saver_imput": 
             if imputMethod == "saver_all":
                 saverTable = f'tm_gene_expression_saver_{tissueKey}_all'
@@ -418,6 +438,7 @@ class PseudobulkExpt:
             '''      
         else:
             dataQuery = f"SELECT * FROM tm_temp_{tissueKey}_{imputMethod}_{self.config.runOption["optionName"].lower()}"
+
 
         query = f'''
             DROP TABLE IF EXISTS {rpkSumTable};

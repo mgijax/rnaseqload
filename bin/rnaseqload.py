@@ -1230,10 +1230,6 @@ def process():
                     for runOption in PseudobulkConfig.RUN_OPTIONS:
                         pseudobulkExpt.config = PseudobulkConfig(pseudobulkExpt.experimentKey, bulkData, runOption, method)
                         tissueKey = pseudobulkExpt.config.bulkData["name"]
-                        # if tissueKey in ["heart", "intestine", "lung", "spleen"] and method in ["saver_all", "saver_imput"]:
-                        #     continue
-
-                        # pseudobulkExpt.config.imputMethod = method                        
                         log.info(f"Process: {pseudobulkExpt.config.getLabel()}")
                         dfs = process_one_experiment(expID, pseudobulkExpt)
 
