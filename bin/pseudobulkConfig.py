@@ -406,17 +406,17 @@ class PseudobulkConfig:
     # BULK_DATA_LIST.append(lung)  
 
 
-    BULK_DATA_LIST.append(b_cerebellum)
-    BULK_DATA_LIST.append(b_cerebral)
-    BULK_DATA_LIST.append(b_hippocampus)
-    BULK_DATA_LIST.append(b_striatum)
+    # BULK_DATA_LIST.append(b_cerebellum)
+    # BULK_DATA_LIST.append(b_cerebral)
+    # BULK_DATA_LIST.append(b_hippocampus)
+    # BULK_DATA_LIST.append(b_striatum)
     BULK_DATA_LIST.append(fat)
     BULK_DATA_LIST.append(heart)
-    BULK_DATA_LIST.append(intestine)
-    BULK_DATA_LIST.append(lung)
-    BULK_DATA_LIST.append(spleen)
-    BULK_DATA_LIST.append(thymus)
-    BULK_DATA_LIST.append(trachea)
+    # BULK_DATA_LIST.append(intestine)
+    # BULK_DATA_LIST.append(lung)
+    # BULK_DATA_LIST.append(spleen)
+    # BULK_DATA_LIST.append(thymus)
+    # BULK_DATA_LIST.append(trachea)
 
 
     RUN_OPTIONS = []

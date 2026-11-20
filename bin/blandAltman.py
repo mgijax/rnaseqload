@@ -147,7 +147,7 @@ class BlandAltman:
 
 if __name__=="__main__":
     tissueRefs = {}
-    # ba=BlandAltman("/data/loads/liangh/rnaseqload/bland_altman")
+    # ba=BlandAltman("/data/loads/liangh/rnaseqload/match_gene_bland_altman")
     # tissueRefs["b_cerebellum"] = ["E-MTAB-8838"]
     # tissueRefs["b_cerebral"] = ["E-MTAB-7279", "E-MTAB-8838"]
     # tissueRefs["b_hippocampus"] = ["E-MTAB-7279"]
@@ -161,18 +161,18 @@ if __name__=="__main__":
     # tissueRefs["trachea"] = ["E-MTAB-8573"]
 
     # mismatch
-    ba=BlandAltman("/data/loads/liangh/rnaseqload/mismatch_bland_altman")
-    tissueRefs["b_cerebellum"] =  ["E-MTAB-5020", "E-MTAB-7279"]
-    tissueRefs["b_cerebral"] =["E-MTAB-8838"]
-    tissueRefs["b_hippocampus"] = ["E-MTAB-7279", "E-MTAB-8838"]
-    tissueRefs["b_striatum"] = ["E-MTAB-7279"]
-    tissueRefs["fat"] =  ["E-MTAB-8573"]
+    ba=BlandAltman("/data/loads/liangh/rnaseqload/match_gene_mismatch_bland_altman")
+    # tissueRefs["b_cerebellum"] =  ["E-MTAB-5020", "E-MTAB-7279"]
+    # tissueRefs["b_cerebral"] =["E-MTAB-8838"]
+    # tissueRefs["b_hippocampus"] = ["E-MTAB-7279", "E-MTAB-8838"]
+    # tissueRefs["b_striatum"] = ["E-MTAB-7279"]
+    # tissueRefs["fat"] =  ["E-MTAB-8573"]
     tissueRefs["heart"] = ["E-MTAB-4035"]
-    tissueRefs["intestine"] = ["E-GEOD-65775", "E-GEOD-74747"]
-    tissueRefs["lung"] = ["E-MTAB-2801"]
-    tissueRefs["spleen"] = ["E-MTAB-4035", "E-MTAB-8573"]
-    tissueRefs["thymus"] = ["E-MTAB-4035"]
-    tissueRefs["trachea"] = ["E-GEOD-74747"]
+    # tissueRefs["intestine"] = ["E-GEOD-65775", "E-GEOD-74747"]
+    # tissueRefs["lung"] = ["E-MTAB-2801"]
+    # tissueRefs["spleen"] = ["E-MTAB-4035", "E-MTAB-8573"]
+    # tissueRefs["thymus"] = ["E-MTAB-4035"]
+    # tissueRefs["trachea"] = ["E-GEOD-74747"]
 
     for tissue, refs in tissueRefs.items():
         print(f"\n{tissue}: {refs}")

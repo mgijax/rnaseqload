@@ -80,10 +80,14 @@ class CSVFileMerger:
 
 if __name__ == "__main__":
     # d = CSVFileMerger("/data/loads/liangh/rnaseqload/input/", "/data/loads/liangh/rnaseqload/bland_altman", "merged_tpm.csv")
-    d = CSVFileMerger("/data/loads/liangh/rnaseqload/mismatch_tpm/", "/data/loads/liangh/rnaseqload/mismatch_bland_altman", "merged_tpm.csv")
+    # d = CSVFileMerger("/data/loads/liangh/rnaseqload/mismatch_tpm/", "/data/loads/liangh/rnaseqload/mismatch_bland_altman", "merged_tpm.csv")
+    # d = CSVFileMerger("/data/loads/liangh/rnaseqload/match_gene_input/", "/data/loads/liangh/rnaseqload/match_gene_bland_altman", "merged_tpm.csv")
+    d = CSVFileMerger("/data/loads/liangh/rnaseqload/match_gene_mismatch_tpm/", "/data/loads/liangh/rnaseqload/match_gene_mismatch_bland_altman", "merged_tpm.csv")
+
+    
     tissues = ["b_cerebellum", "b_cerebral", "b_hippocampus", "b_striatum", 
                 "fat", "heart", "intestine", "lung", "spleen", "thymus", "trachea"]
-    # tissues = ["lung"]
+    tissues = ["heart"]
     for tissue in tissues:
         result = d.run(tissue)
         print(f"\n{tissue}")

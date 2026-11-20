@@ -429,6 +429,7 @@ class PseudobulkExpt:
                     SELECT g.gene, grp.individual, SUM(g.value) AS count_sum,
                         {caseSql} AS bioreplicate_name
                     FROM {saverTable} g
+                        JOIN tm_temp_match_gxd_fat__tm_heart m on g.gene = m.gene
                     JOIN tm_group grp 
                         ON g.group_id = grp.group_id
                         AND grp.cell_type is not null AND length(grp.cell_type) > 0
@@ -437,9 +438,8 @@ class PseudobulkExpt:
                     GROUP BY g.gene, grp.individual
             '''      
         else:
-            dataQuery = f"SELECT * FROM tm_temp_{tissueKey}_{imputMethod}_{self.config.runOption["optionName"].lower()}"
-
-
+            dataQuery = f"SELECT o.* FROM tm_temp_{tissueKey}_{imputMethod}_{self.config.runOption["optionName"].lower()}"
+            dataQuery += f" o join tm_temp_match_gxd_fat__tm_heart m on o.gene = m.gene"   # mismatch only
         query = f'''
             DROP TABLE IF EXISTS {rpkSumTable};
             DROP TABLE IF EXISTS {pseudobulkTableName};
