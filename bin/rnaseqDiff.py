@@ -602,10 +602,10 @@ def execCombinedBCP():
 #
 
 init()
-#initRNASet()
-#processRNASet()
-#execSetBCP()
-initCombined()
-processCombined()
+initRNASet()
+processRNASet()
+execSetBCP()
+#initCombined()
+#processCombined()
 #execCombinedBCP()
 
