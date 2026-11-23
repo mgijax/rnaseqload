@@ -625,7 +625,7 @@ def processCombined():
             #print(sampleKeyByRun)
 
             aveTPMDict = calcTPMAveSD(expID, ensemblId, markerKey, ensemblTPM[ensemblId])
-            # for each sample in the gene (ensemblId, markerKey)
+            # for each sample in aveTPMDict:
             #for s in ensemblTPM[ensemblId]:
             #   print(expID, ensemblId, markerKey, s)
                #print('aveTPMDict')
@@ -643,15 +643,16 @@ def processCombined():
             #   levelKey = calcLevel(avgQnTpm)
             #   print('avg:', avgTotal, numberofbiologicalreplicants, avgQnTpm)
 
+               #fpCombined.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
+               #            combinedKey, TAB, rnaSeqSetKey, TAB, markerKey, TAB, levelKey, TAB, \
+               #            numberofbiologicalreplicants, TAB, avgQnTpm, TAB, \
+               #            createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+	       #
                #samples = sampleByGroup[g]
 	       #fpSeq.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
                #            rnaSeqKey, TAB, sampleKey, TAB, combinedKey, TAB, markerKey, TAB, aveTpm, TAB, qnTpm, TAB, \
                #            createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
 
-               #fpCombined.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
-               #            combinedKey, TAB, rnaSeqSetKey, TAB, markerKey, TAB, levelKey, TAB, \
-               #            numberofbiologicalreplicants, TAB, avgQnTpm, TAB, \
-               #            createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
                #combinedKey += 1
 
         fpRawCounts.close()
@@ -727,9 +728,9 @@ def execCombinedBCP():
 #
 
 init()
-#initRNASet()
-#processRNASet()
-#execSetBCP()
+initRNASet()
+processRNASet()
+execSetBCP()
 initCombined()
 processCombined()
 #execCombinedBCP()
