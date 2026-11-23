@@ -18,7 +18,7 @@
 #   for Experiment file in DIFFRAW_INPUTDIR
 #       prcoess the group/configuration file (ppEAEConfigurationFile())
 #           -> DIFFINPUTDIR/xxx.configuration.xml
-#	       genereates global rawRunConfigList
+#	       genereates global rawRunConfig
 #       prcoess the sdrf file (ppAESSdrfFile())
 #           -> DIFFINPUTDIR/xxx.sdrf.txt
 #       process the raw counts file (ppEAERawCountsFile())
@@ -51,7 +51,9 @@ tsvGenesExcluded = os.getenv('DIFFRAW_INPUTDIR') + '/tsvGenesExcluded'
 excludedGenes = []
 
 # set of runs that exist in configuration for given experiment
-rawRunConfigList = []
+rawRunConfig = []
+# run and its sample
+rawRunSample = {}
 
 #
 # loads a lookup of samples in the db for the given experiment
@@ -137,7 +139,7 @@ def loadCompositeLength():
         compositeLength[ensemblID] = []
         compositeLength[ensemblID].append(cLength)
 
-    print('compositeLength: ', compositeLength)
+    #print('compositeLength: ', compositeLength)
     fpCompositeLength.close()
 
     return 0
@@ -146,16 +148,16 @@ def loadCompositeLength():
 
 #
 # input  : DIFF_GROUP_LOCAL_FILE_TEMPLATE
-# output : rawRunConfigList
+# output : rawRunConfig
 #
 # list of run ids that exist in DIFF_GROUP_LOCAL_FILE_TEMPLATE
 #
 def ppEAEConfigurationFile(expID):
-    global rawRunConfigList
+    global rawRunConfig
 
     print('in ppEAEConfigurationFile(expID): %s' % expID)
 
-    rawRunConfigList = []
+    rawRunConfig = []
 
     #  read the input file
     try:
@@ -189,9 +191,9 @@ def ppEAEConfigurationFile(expID):
         for child in ag:
             #print(child.tag, child.text)
             runID = child.text
-            rawRunConfigList.append(runID)
+            rawRunConfig.append(runID)
 
-    print(rawRunConfigList)
+    print(rawRunConfig)
 
     return 0
 
@@ -206,11 +208,13 @@ def ppEAEConfigurationFile(expID):
 #   > 1 ENA_RUN 
 #
 def ppAESSdrfFile(expID, objectKey):
+    global rawRunSample
 
     print('in ppAESSdrfFile(expID, object_key): %s,%s' % (expID, objectKey))
 
     enaRuns = []
     rawSampleRunList = {}
+    rawRunSample = {}
 
     #  read the input file
     aesFile = sdrfTemplate % expID
@@ -272,8 +276,8 @@ def ppAESSdrfFile(expID, objectKey):
         enaRun = str.strip(tokens[enaRunIDX])
 
         # enaRun must exist in raw config file
-        if enaRun not in rawRunConfigList:
-            print('skipping: enaRun not found in rawRunConfigList: %s, %s' % (expID, enaRun))
+        if enaRun not in rawRunConfig:
+            print('skipping: enaRun not found in rawRunConfig: %s, %s' % (expID, enaRun))
             continue
 
         # skip duplicate enaRun
@@ -295,8 +299,14 @@ def ppAESSdrfFile(expID, objectKey):
         if sourceSample not in rawSampleRunList:
             rawSampleRunList[sourceSample] = []
         rawSampleRunList[sourceSample].append(enaRun)
+
+        if enaRun not in rawRunSample:
+            rawRunSample[enaRun] = []
+        rawRunSample[enaRun].append(sourceSample)
     
     print(rawSampleRunList)
+    print(rawRunSample)
+
     for s in rawSampleRunList:
         fpPP.write('%s\t%s\n' % (s, ','.join(rawSampleRunList[s])))
 
@@ -349,6 +359,7 @@ def ppEAERawCountsFile(expID):
     # example: E-MTAB-8161.raw-counts.txt
     #
 
+    rawRunList = []
     fpPP.write('ensembl_id\t_marker_key\tsymbol\tgene length bp\tgene length kb')
     thisList = str.split(fpEae.readline(), '\t')
     headerList = [item.rstrip() for item in thisList[2:]]
@@ -359,11 +370,16 @@ def ppEAERawCountsFile(expID):
 
         h = str.strip(h)
 
-        if h not in rawRunConfigList:
-            print('skipping: raw run not found in rawRunConfigList: %s, %s' % (expID, h))
+        if h not in rawRunSample:
+            print('skipping: sample in rawRunSample: %s, %s' % (expID, h))
+            continue
+
+        if h not in rawRunConfig:
+            print('skipping: raw run not found in rawRunConfig: %s, %s' % (expID, h))
             continue
 
         fpPP.write('\t' + h)
+        rawRunList.append(h)
         columnList.append(col)
 
         if len(headerList) > len(uniqueHeaderList):
@@ -372,6 +388,13 @@ def ppEAERawCountsFile(expID):
             col += 1
 
     fpPP.write('\n')
+
+    # print line for sample name
+    #fpPP.write('\t\t\t\t\t')
+    #for h in rawRunList:
+    #    fpPP.write('\t', rawRunSample[h][0])
+    #fpPP.write('\n')
+
     #print(uniqueHeaderList)
     #print(columnList)
 
@@ -392,7 +415,7 @@ def ppEAERawCountsFile(expID):
 
         # if ensemblID is not in compositeLength, then skip
         if ensemblID not in compositeLength:
-            print('skipping: ensemblid is not in the compositeLength: %s, %s' % (expID, ensemblID))
+            #print('skipping: ensemblid is not in the compositeLength: %s, %s' % (expID, ensemblID))
             continue
 
         # if ensemblID is not in MGI, then set markerKey = 0
@@ -542,6 +565,7 @@ def process():
         ensemblDict[key].append(value)
 
 	#and a.accid in ('E-MTAB-698')
+	#and a.accid in ('E-GEOD-45684')
     results = db.sql('''
         select a.accid, a._object_key
         from MGI_Set s, MGI_SetMember m , ACC_Accession a
