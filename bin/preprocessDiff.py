@@ -390,7 +390,7 @@ def ppEAERawCountsFile(expID):
     fpPP.write('\n')
 
     # print line for sample name
-    fpPP.write('\t\t\t\t\t')
+    fpPP.write('\t\t\t\t')
     for h in rawRunList:
         fpPP.write('\t' + rawRunSample[h][0])
     fpPP.write('\n')
