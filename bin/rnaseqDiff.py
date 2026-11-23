@@ -31,6 +31,9 @@ import os
 import sys
 import loadlib
 import db
+import numpy as np
+#import pandas as pd
+#import quantileNormalize
 
 db.setTrace(True)
 
@@ -82,6 +85,9 @@ seqey = None
 
 ensemblMarkers = {}
 markerEnsembls = {}
+
+stdDevCutoff = float(os.getenv('STDDEV_CUTOFF'))
+highAveStdDevList = []
 
 #
 # Level bins
@@ -269,7 +275,113 @@ def calcLevel(avgQnTpm):
         level = HIGH
 
     return  level
+
 # end calcLevel
+
+#
+# calculates the average of numList
+# returns the calculated average
+# 
+def calcAve(numList, precision):
+    tSum = sum(numList)
+    tLen =  max(len(numList), 1)
+    ave = tSum / tLen
+    fAve = float(ave)
+
+    return round(fAve, precision)
+
+# end calcAve () -------------------------------------------------
+#
+# calculates the aveTPM and Std Dev and ave Std Dev for all samples of the gene 
+# returns dictionary of average TPM values (by gene) for each sample of the gene
+#
+# input:
+# ensemblTPM[ensemblId][sample][list of tpms]
+# ENSMUSG00000111744 {
+#	'IleumWT3': [0.0, 0.0, 0.0, 0.0], 
+#	'IleumWT1': [0.0, 0.0, 0.0, 0.0], 
+#	'IleumIL17Ako4': [0.0, 0.0, 0.76, 0.76], 
+#	'IleumMR1ko2': [0.0, 0.6, 0.0, 0.59], 
+#	'IleumIL17Ako2': [0.94, 0.0, 0.0, 0.0], 
+#	'IleumMR1ko1': [0.58, 0.0, 0.0, 0.0], 
+#	'ColonWT4': [0.0, 0.0, 0.0, 0.0], 
+#	'IleumIL17Ako1': [0.0, 0.0, 0.0, 0.0], 
+#	'ColonIL17Ako1': [0.0, 1.01, 0.0, 0.0]
+#	}
+#
+# output:  the input for the quantile normalize function
+# {sampleKey:{markerKey:aveTPM, ...}, sampleKey2:{markerKey:aveTPM, ...}, ...}
+#
+def calcTPMAveSD(expID, ensemblId, markerKey, sampleDict):
+    global highAveStdDevList
+
+    print('calcTPMAveSD(expID, sampleDict): %s' % expID)
+    print(sampleDict)
+
+    # {sampleKey:{markerKey:aveTPM, ...}, sampleKey2:{markerKey:aveTPM, ...}, ...}
+    # input to QN
+    aveTPMDict = {}
+    sampleAveSDDict = {}
+
+    for sampleId in sampleDict:
+        sampleKey = sampleKeyByRun[sampleId]
+        tpmList = sampleDict[sampleId]
+        techReplCt = len(tpmList)       # number of runs for the sample (1-n)
+        aveTpm = calcAve(tpmList, 2)       # calculate the average tpm
+        stdDev = round(np.std(tpmList), 2)  # calc the SD of the tpms
+
+        # calculate the SD average
+        stdDevAve = 0.0
+        if aveTpm != 0.0:
+            stdDevAve = round(stdDev / aveTpm, 2)
+
+        # load the QN input dictionary 
+        if sampleKey not in aveTPMDict:
+            aveTPMDict[sampleKey] = {}
+            #print('calcTPMAveSD sampleId; %s sampleKey: %s' % (sampleId, sampleKey))
+        aveTPMDict[sampleKey][markerKey] = aveTpm
+        #print(aveTPMDict[sampleKey])
+
+        # collect the stdDevAve of the technical replicates - we will want to
+        # take the average of all aveSD across all genes of a sample to
+        # determine samples to include/exclude.
+        key = '%s|%s|%s' % (expID, sampleId, sampleKey)
+        if key not in sampleAveSDDict:
+            sampleAveSDDict[key] = []
+        sampleAveSDDict[key].append(stdDevAve)
+
+        # this reports the run tpm's, the tpm average, the stdDev of the run tpms 
+        # and the stdDevAve (stdDev/aveTpm) as well as the count of technical replicates (number of runs per sample)
+        #fpStudentRpt.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % \
+        #    (expID, ensemblId, sampleId, ', '.join(list(map(str, tpmList))), aveTpm, stdDev, stdDevAve, techReplCt))
+
+    # Now iterate through the sampleAveSDDict and calculate the average of each aveSD. 
+    # Report any above a threshold weeding out dupes.
+    #print('\naveTPMDict:')
+    #print(aveTPMDict)
+    #print('\nsampleAveSDDict:')
+    #print(sampleAveSDDict)
+    keyList = sorted(sampleAveSDDict.keys())
+    #print('\nkeyList')
+    #print(keyList)
+
+    for key in keyList:
+        eID, sampleId, sampleKey = str.split(key, '|')
+        aveAveSdAllGenes = calcAve(sampleAveSDDict[key], 2)
+
+        # if average of the average SD across genes in > stdDevCutoff (config)
+        # report it and remove all genes for that sample from the aveTPMDict
+        if aveAveSdAllGenes > stdDevCutoff:
+            del aveTPMDict[int(sampleKey)]
+            reportLine = '%s\t%s\t%s\t%s\n' % (eID, sampleId, aveAveSdAllGenes, stdDevCutoff)
+            print('delete from aveTPMDict: ', key, str(aveAveSdAllGenes), str(stdDevCutoff))
+            print(reportLine)
+            if reportLine not in highAveStdDevList:
+                highAveStdDevList.append(reportLine)
+
+    return aveTPMDict
+
+# end calcTPMAveSD -------------------------------------------------------------
 
 #
 # create BCP files for RNASeqSet, RNASeqSetMember
@@ -379,6 +491,7 @@ def processRNASet():
 def processCombined():
     global fpCombined, fpSeq, fpErrorEnsembl, fpErrorMarker
     global combinedKey, seqKey
+    global sampleKeyByRun
 
     ensemblError = {}
     markerError = {}
@@ -460,6 +573,12 @@ def processCombined():
             runTpmSet.append(str.strip(h))
         print('\nrunTpmSet')
         print(runTpmSet)
+        headerList2 = str.split(fpRawCounts.readline(), '\t')
+        runTpmSet2 = []
+        for h in headerList2[5:]:
+            runTpmSet2.append(str.strip(h))
+        print('\nrunTpmSet2')
+        print(runTpmSet2)
 
         # ensemblTPM = {}
         # {ensemblId: {sampleId:[float(tokens[ss+5], ...], ...}, ...}
@@ -501,33 +620,39 @@ def processCombined():
                     ensemblTPM[ensemblId][sampleId] = []
                 ensemblTPM[ensemblId][sampleId].append(tpm)
 
-            print('\nensemblTPM')
-            print(ensemblId, ensemblTPM[ensemblId])
+            #print('\nensemblTPM')
+            #print(ensemblId, ensemblTPM[ensemblId])
             #print(sampleKeyByRun)
 
-            for s in ensemblTPM[ensemblId]:
-               print(s, ensemblTPM[ensemblId][s])
-               print('sampleKey = ', sampleKeyByRun[s])
-               print('rnaSeqSetKey = ', infoBySample[s][0]['_rnaseqset_key'])
-               rnaSeqSetKey = infoBySample[s][0]['_rnaseqset_key']
-               numberofbiologicalreplicants = len(ensemblTPM[ensemblId][s])
-               avgTotal = 0
-               for t in ensemblTPM[ensemblId][s]:
-                  avgTotal += t
-               avgQnTpm = round(avgTotal/numberofbiologicalreplicants, 2)
-               levelKey = calcLevel(avgQnTpm)
-               print('avg:', avgTotal, numberofbiologicalreplicants, avgQnTpm)
+            aveTPMDict = calcTPMAveSD(expID, ensemblId, markerKey, ensemblTPM[ensemblId])
+            # for each sample in the gene (ensemblId, markerKey)
+            #for s in ensemblTPM[ensemblId]:
+            #   print(expID, ensemblId, markerKey, s)
+               #print('aveTPMDict')
+               #print(aveTPMDict)
+               #print('\nhighAveStdDevList')
+               #print(highAveStdDevList)
 
-               fpCombined.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
-                           combinedKey, TAB, rnaSeqSetKey, TAB, markerKey, TAB, levelKey, TAB, \
-                           numberofbiologicalreplicants, TAB, avgQnTpm, TAB, \
-                           createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
-    
+            #   sampleKey = sampleKeyByRun[s]
+            #   rnaSeqSetKey = infoBySample[s][0]['_rnaseqset_key']
+            #   numberofbiologicalreplicants = len(ensemblTPM[ensemblId][s])
+            #   avgTotal = 0
+            #   for t in ensemblTPM[ensemblId][s]:
+            #      avgTotal += t
+            #   avgQnTpm = round(avgTotal/numberofbiologicalreplicants, 2)
+            #   levelKey = calcLevel(avgQnTpm)
+            #   print('avg:', avgTotal, numberofbiologicalreplicants, avgQnTpm)
+
                #samples = sampleByGroup[g]
 	       #fpSeq.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
                #            rnaSeqKey, TAB, sampleKey, TAB, combinedKey, TAB, markerKey, TAB, aveTpm, TAB, qnTpm, TAB, \
                #            createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
-               combinedKey += 1
+
+               #fpCombined.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
+               #            combinedKey, TAB, rnaSeqSetKey, TAB, markerKey, TAB, levelKey, TAB, \
+               #            numberofbiologicalreplicants, TAB, avgQnTpm, TAB, \
+               #            createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+               #combinedKey += 1
 
         fpRawCounts.close()
 
@@ -602,10 +727,10 @@ def execCombinedBCP():
 #
 
 init()
-initRNASet()
-processRNASet()
-execSetBCP()
-#initCombined()
-#processCombined()
+#initRNASet()
+#processRNASet()
+#execSetBCP()
+initCombined()
+processCombined()
 #execCombinedBCP()
 

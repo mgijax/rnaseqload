@@ -47,7 +47,7 @@ tsvCompositeLength = '%s' % os.getenv('COMPOSITE_LENGTH')
 compositeLength = {}
 
 # excluded genes
-tsvGenesExcluded = os.getenv('DIFFRAW_INPUTDIR') + '/tsvGenesExcluded'
+tsvGenesExcluded = os.getenv('DIFFRAW_INPUTDIR') + '/Ensembl_107_exclude.txt'
 excludedGenes = []
 
 # set of runs that exist in configuration for given experiment
