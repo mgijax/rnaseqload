@@ -47,7 +47,7 @@ tsvCompositeLength = '%s' % os.getenv('COMPOSITE_LENGTH')
 compositeLength = {}
 
 # excluded genes
-tsvGenesExcluded = os.getenv('DIFFRAW_INPUTDIR') + '/Ensembl_107_exclude.txt'
+tsvGenesExcluded = os.getenv('DIFFRAW_INPUTDIR') + '/tsvGenesExcluded'
 excludedGenes = []
 
 # set of runs that exist in configuration for given experiment
@@ -60,7 +60,7 @@ rawRunSample = {}
 #
 def loadSamples(expID):
     global sampleInMGI
-    sampleInMGI = []
+    sampleInMGI = {}
 
     results = db.sql('''
         select hts.name, hts._Sample_key
@@ -73,7 +73,9 @@ def loadSamples(expID):
         ''' % expID, 'auto')
     for r in results:
         key = str.strip(r['name'])
-        sampleInMGI.append(key)
+        value = r['_Sample_key']
+        sampleInMGI[key] = []
+        sampleInMGI[key].append(value)
 
     return 0
 
@@ -393,6 +395,11 @@ def ppEAERawCountsFile(expID):
     fpPP.write('\t\t\t\t')
     for h in rawRunList:
         fpPP.write('\t' + rawRunSample[h][0])
+    fpPP.write('\n')
+    # print line for sample key
+    fpPP.write('\t\t\t\t')
+    for h in sampleInMGI:
+        fpPP.write('\t' + str(sampleInMGI[h][0]))
     fpPP.write('\n')
 
     #print(uniqueHeaderList)
