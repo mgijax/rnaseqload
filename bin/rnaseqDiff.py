@@ -32,8 +32,8 @@ import sys
 import loadlib
 import db
 import numpy as np
-#import pandas as pd
-#import quantileNormalize
+import pandas as pd
+import quantileNormalize
 
 db.setTrace(True)
 
@@ -67,11 +67,6 @@ fpErrorSamples = None
 
 provider = 'Expression Atlas'
 
-# Constants
-TAB = '\t'
-CRT = '\n'
-PIPE = '|'
-
 # load date
 loaddate = loadlib.loaddate
 
@@ -81,13 +76,12 @@ createdByKey = 1613
 setKey = None
 memberKey = None
 combinedKey = None
-seqey = None
+seqKey = None
 
 ensemblMarkers = {}
 markerEnsembls = {}
 
 stdDevCutoff = float(os.getenv('STDDEV_CUTOFF'))
-highAveStdDevList = []
 
 #
 # Level bins
@@ -313,10 +307,9 @@ def calcAve(numList, precision):
 # {sampleKey:{markerKey:aveTPM, ...}, sampleKey2:{markerKey:aveTPM, ...}, ...}
 #
 def calcTPMAveSD(expID, ensemblId, markerKey, sampleDict):
-    global highAveStdDevList
 
-    print('calcTPMAveSD(expID, sampleDict): %s' % expID)
-    print(sampleDict)
+    #print('calcTPMAveSD(expID, sampleDict): %s' % expID)
+    #print(sampleDict)
 
     # {sampleKey:{markerKey:aveTPM, ...}, sampleKey2:{markerKey:aveTPM, ...}, ...}
     # input to QN
@@ -373,11 +366,7 @@ def calcTPMAveSD(expID, ensemblId, markerKey, sampleDict):
         # report it and remove all genes for that sample from the aveTPMDict
         if aveAveSdAllGenes > stdDevCutoff:
             del aveTPMDict[int(sampleKey)]
-            reportLine = '%s\t%s\t%s\t%s\n' % (eID, sampleId, aveAveSdAllGenes, stdDevCutoff)
-            print('delete from aveTPMDict: ', key, str(aveAveSdAllGenes), str(stdDevCutoff))
-            print(reportLine)
-            if reportLine not in highAveStdDevList:
-                highAveStdDevList.append(reportLine)
+            print('calcTPMAveSD: deleted from aveTPMDict: ', eID, key, str(aveAveSdAllGenes), str(stdDevCutoff))
 
     return aveTPMDict
 
@@ -427,11 +416,11 @@ def processRNASet():
             print('experiment does not exist in %s/%s.sdrf.txt' % (inputDir, expID))
             continue
     	for line in fpSdrf.readlines():
-    	    tokens = str.split(line[:-1], TAB)
+    	    tokens = str.split(line[:-1], '\t')
     	    sampleInSdrf.append(tokens[0])
     	fpSdrf.close()
     	#print('\nsampleInSdrf')
-    	#print(sampleInSdrf)
+    	#print(expID, sampleInSdrf)
         
 	#
 	# for each sample in the experiment
@@ -457,14 +446,12 @@ def processRNASet():
         	if note == None:
             		note = ''
 
-        	fpSet.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
-            		setKey, TAB, expKey, TAB, provider, TAB, TAB, \
-            		age, TAB, orgKey, TAB, sexKey, TAB, \
-            		emapaKey, TAB, stageKey, TAB, genotypeKey, TAB, note, TAB, \
-            		createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+        	fpSet.write('%s\t%s\t%s\t\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (\
+            		setKey, expKey, provider, age, orgKey, sexKey, emapaKey, stageKey, genotypeKey, note, \
+            		createdByKey, createdByKey, loaddate, loaddate))
 
-        	fpMember.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
-                	memberKey, TAB, setKey, TAB, sampleKey, TAB, createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+        	fpMember.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (\
+                	memberKey, setKey, sampleKey, createdByKey, createdByKey, loaddate, loaddate))
 
         	memberKey += 1
         	setKey += 1
@@ -501,7 +488,8 @@ def processCombined():
     #
     #results = db.sql(''' select expID from experiments ''', 'auto')
     #results = db.sql(''' select expID from experiments where expID = 'E-GEOD-21860' ''', 'auto')
-    results = db.sql(''' select expID from experiments where expID = 'E-MTAB-6547' ''', 'auto')
+    #results = db.sql(''' select expID from experiments where expID = 'E-MTAB-6547' ''', 'auto')
+    results = db.sql(''' select expID from experiments where expID in('E-MTAB-698','E-MTAB-6547') ''', 'auto')
     for r in results:
 
         expID = r['expID']
@@ -533,7 +521,7 @@ def processCombined():
             print('experiment does not exist in %s/%s.sdrf.txt' % (inputDir, expID))
             continue
         for line in fpSdrf.readlines():
-            tokens = str.split(line[:-1], TAB)
+            tokens = str.split(line[:-1], '\t')
             sampleName = tokens[0]
             key = sampleName
             value = tokens[1].split(',')
@@ -547,8 +535,8 @@ def processCombined():
                 key = v
                 sampleByRun[key] = []
                 sampleByRun[key] = sampleName
-
         fpSdrf.close()
+
         # GSM543645 1 = {SRR054659,...}
         # SRR054659 = 
         print('\nrunsBySample')
@@ -573,12 +561,11 @@ def processCombined():
             runTpmSet.append(str.strip(h))
         print('\nrunTpmSet')
         print(runTpmSet)
+        # read these 2 headers; but do nothing
+	# these rows are used for testing/troubleshooting
+	# use infoBySample() instead
         headerList2 = str.split(fpRawCounts.readline(), '\t')
-        runTpmSet2 = []
-        for h in headerList2[5:]:
-            runTpmSet2.append(str.strip(h))
-        print('\nrunTpmSet2')
-        print(runTpmSet2)
+        headerList3 = str.split(fpRawCounts.readline(), '\t')
 
         # ensemblTPM = {}
         # {ensemblId: {sampleId:[float(tokens[ss+5], ...], ...}, ...}
@@ -587,7 +574,7 @@ def processCombined():
         # ENSMUSG00000000001      9199    Gnai3   116     96      184     41      119     141
         for line in fpRawCounts.readlines():
 
-            tokens = str.split(line[:-1], TAB)
+            tokens = str.split(line[:-1], '\t')
             ensemblId = tokens[0]
             markerKey = int(tokens[1])
             markerSymbol = tokens[2]
@@ -624,36 +611,44 @@ def processCombined():
             #print(ensemblId, ensemblTPM[ensemblId])
             #print(sampleKeyByRun)
 
+            # process each marker/sample
             aveTPMDict = calcTPMAveSD(expID, ensemblId, markerKey, ensemblTPM[ensemblId])
-            # for each sample in aveTPMDict:
-            #for s in ensemblTPM[ensemblId]:
-            #   print(expID, ensemblId, markerKey, s)
-               #print('aveTPMDict')
-               #print(aveTPMDict)
-               #print('\nhighAveStdDevList')
-               #print(highAveStdDevList)
+            print(aveTPMDict)
 
-            #   sampleKey = sampleKeyByRun[s]
-            #   rnaSeqSetKey = infoBySample[s][0]['_rnaseqset_key']
-            #   numberofbiologicalreplicants = len(ensemblTPM[ensemblId][s])
-            #   avgTotal = 0
-            #   for t in ensemblTPM[ensemblId][s]:
-            #      avgTotal += t
-            #   avgQnTpm = round(avgTotal/numberofbiologicalreplicants, 2)
-            #   levelKey = calcLevel(avgQnTpm)
-            #   print('avg:', avgTotal, numberofbiologicalreplicants, avgQnTpm)
+            # run QN
+            qnInput = pd.DataFrame(aveTPMDict)
+            qnOutput = quantileNormalize.qn(qnInput, list(aveTPMDict.keys()))
+            qnOutputDict = qnOutput.to_dict()
+            #print('qnOutputDict:')
+            #print(qnOutputDict)
 
-               #fpCombined.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
-               #            combinedKey, TAB, rnaSeqSetKey, TAB, markerKey, TAB, levelKey, TAB, \
-               #            numberofbiologicalreplicants, TAB, avgQnTpm, TAB, \
-               #            createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
-	       #
-               #samples = sampleByGroup[g]
-	       #fpSeq.write('%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s' % (\
-               #            rnaSeqKey, TAB, sampleKey, TAB, combinedKey, TAB, markerKey, TAB, aveTpm, TAB, qnTpm, TAB, \
-               #            createdByKey, TAB, createdByKey, TAB, loaddate, TAB, loaddate, CRT))
+            for s in ensemblTPM[ensemblId]:
+               print(expID, ensemblId, markerKey, s)
 
-               #combinedKey += 1
+               sampleKey = sampleKeyByRun[s]
+               if sampleKey not in aveTPMDict:
+                   #print('skipping: sampleKey was deleted in calcTPMAveSD step: ', s)
+                   continue
+
+               rnaSeqSetKey = infoBySample[s][0]['_rnaseqset_key']
+               #numberofbiologicalreplicants = len(ensemblTPM[ensemblId][s])
+               numberofbiologicalreplicants = 1
+               aveTpm = aveTPMDict[sampleKey][markerKey]
+               qnTpm = 0
+               levelKey = 0
+               avgQnTpm = 0
+
+               #fpCombined.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (\
+               #            combinedKey, rnaSeqSetKey, markerKey, levelKey, \
+               #            numberofbiologicalreplicants, avgQnTpm, \
+               #            createdByKey, createdByKey, loaddate, loaddate))
+
+               #fpSeq.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (\
+               #            seqKey, sampleKey, combinedKey, markerKey, aveTpm, qnTpm, \
+               #            createdByKey, createdByKey, loaddate, loaddate))
+
+               seqKey += 1
+               combinedKey += 1
 
         fpRawCounts.close()
 
@@ -728,9 +723,9 @@ def execCombinedBCP():
 #
 
 init()
-initRNASet()
-processRNASet()
-execSetBCP()
+#initRNASet()
+#processRNASet()
+#execSetBCP()
 initCombined()
 processCombined()
 #execCombinedBCP()
