@@ -499,14 +499,16 @@ def processCombined():
     #
     #results = db.sql(''' select expID from experiments ''', 'auto')
     #results = db.sql(''' select expID from experiments where expID = 'E-GEOD-21860' ''', 'auto')
-    #results = db.sql(''' select expID from experiments where expID = 'E-MTAB-6547' ''', 'auto')
-    results = db.sql(''' select expID from experiments where expID in('E-MTAB-698','E-MTAB-6547') ''', 'auto')
+    results = db.sql(''' select expID from experiments where expID = 'E-MTAB-6547' ''', 'auto')
+    #results = db.sql(''' select expID from experiments where expID in('E-MTAB-698','E-MTAB-6547') ''', 'auto')
     for r in results:
 
         expID = r['expID']
 
 	# infoBySample['name'] = expID, name, _sample_key, _rnaseqset_key
         infoBySample = {}
+        sampleSet = {}
+        setSample = {}
         sampleResults = db.sql('''
             select distinct s.expID, s.name, s._sample_key, g._rnaseqset_key
             from samples s, GXD_HTSample_RNASeqSetMember g
@@ -518,9 +520,19 @@ def processCombined():
             value = s
             infoBySample[key] = []
             infoBySample[key].append(value)
+            key = s['_sample_key']
+            value = s['_rnaseqset_key']
+            sampleSet[key] = []
+            sampleSet[key].append(value)
+            key = s['_rnaseqset_key']
+            value = s['_sample_key']
+            setSample[key] = []
+            setSample[key].append(value)
 	# GSM543645 1 = {E-GEOD-21860,GSM543645 1,8385,3843}
         print('\ninfoBySample: ', expID)
         print(infoBySample)
+        print(sampleSet)
+        print(setSample)
 
         # runsBySample['name'] = set of runs
         runsBySample = {}
@@ -624,42 +636,45 @@ def processCombined():
 
             # process each marker/sample
             aveTPMDict = calcTPMAveSD(expID, ensemblId, markerKey, ensemblTPM[ensemblId])
-            print(aveTPMDict)
+            #print('\naveTPMDict')
+            #print(aveTPMDict)
 
             # run QN
             qnInput = pd.DataFrame(aveTPMDict)
             qnOutput = quantileNormalize.qn(qnInput, list(aveTPMDict.keys()))
             qnOutputDict = qnOutput.to_dict()
-            #print('qnOutputDict:')
+            #print('\nqnOutputDict:')
             #print(qnOutputDict)
 
+            # for each sample in this row
             for s in ensemblTPM[ensemblId]:
-               print(expID, ensemblId, markerKey, s)
-
                sampleKey = sampleKeyByRun[s]
                if sampleKey not in aveTPMDict:
                    #print('skipping: sampleKey was deleted in calcTPMAveSD step: ', s)
                    continue
 
                rnaSeqSetKey = infoBySample[s][0]['_rnaseqset_key']
-               #numberofbiologicalreplicants = len(ensemblTPM[ensemblId][s])
-               numberofbiologicalreplicants = 1
                aveTpm = aveTPMDict[sampleKey][markerKey]
-               qnTpm = 0
+
+               numberofbiologicalreplicants = len(ensemblTPM[ensemblId][s])
+               qnTpm = qnOutputDict[sampleKey][markerKey]
                levelKey = 0
                avgQnTpm = 0
+
+               print(expID, ensemblId, markerKey, s, sampleKey, numberofbiologicalreplicants, aveTpm, qnOutputDict[sampleKey][markerKey])
+
+               #fpSeq.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (\
+               #            seqKey, sampleKey, combinedKey, markerKey, aveTpm, qnTpm, \
+               #            createdByKey, createdByKey, loaddate, loaddate))
+#
+#               seqKey += 1
 
                #fpCombined.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (\
                #            combinedKey, rnaSeqSetKey, markerKey, levelKey, \
                #            numberofbiologicalreplicants, avgQnTpm, \
                #            createdByKey, createdByKey, loaddate, loaddate))
 
-               #fpSeq.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (\
-               #            seqKey, sampleKey, combinedKey, markerKey, aveTpm, qnTpm, \
-               #            createdByKey, createdByKey, loaddate, loaddate))
-
-               seqKey += 1
-               combinedKey += 1
+#               combinedKey += 1
 
         fpRawCounts.close()
 
@@ -734,10 +749,10 @@ def execCombinedBCP():
 #
 
 init()
-initRNASet()
-processRNASet()
-execSetBCP()
-#initCombined()
-#processCombined()
+#initRNASet()
+#processRNASet()
+#execSetBCP()
+initCombined()
+processCombined()
 #execCombinedBCP()
 
