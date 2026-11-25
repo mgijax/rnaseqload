@@ -400,15 +400,7 @@ def processRNASet():
 
     	expID = r['expID']
 
-    	sampleResults = db.sql('''
-            select distinct s._experiment_key, s.expID, s.name, s._experiment_key, s._sample_key, s.age,
-                    s._organism_key, s._sex_key, s._stage_key, s._emapa_key, s._genotype_key, 
-                    n.note 
-            from samples s
-            left outer join sampleNotes n on (s._sample_key = n._sample_key)
-	    where s.expID = '%s'
-            ''' % (expID), 'auto')
-
+    	# create whereClause from set of sample names that in the Sdrf file
     	sampleInSdrf = []
     	try:
     	    fpSdrf = open('%s/%s.sdrf.txt' % (inputDir, expID), 'r')
@@ -417,43 +409,62 @@ def processRNASet():
             continue
     	for line in fpSdrf.readlines():
     	    tokens = str.split(line[:-1], '\t')
-    	    sampleInSdrf.append(tokens[0])
+    	    sampleInSdrf.append("'" + tokens[0] + "'")
     	fpSdrf.close()
+    	whereClause = "and s.name in (" + ",".join(sampleInSdrf) + ")"
     	#print('\nsampleInSdrf')
     	#print(expID, sampleInSdrf)
         
 	#
 	# for each sample in the experiment
+	# create sets, group by:
+        #     age, _organism_key, _sex_key, _stage_key, _emapa_key, _genotype_key, n.note 
+	# only include samples that exist in the Sdrf file (see whereClause)
 	#
+
+    	sampleSet = {}
+
+    	sampleResults = db.sql('''
+	    select array_to_string(array_agg(distinct s._sample_key),'|') as sampleSet,
+                s._experiment_key, s.age, s._organism_key, s._sex_key, s._stage_key, s._emapa_key, s._genotype_key, n.note 
+            from samples s
+            left outer join sampleNotes n on (s._sample_key = n._sample_key)
+	    where s.expID = '%s'
+	    %s
+            group by s._experiment_key, s.age, s._organism_key, s._sex_key, s._stage_key, s._emapa_key, s._genotype_key, n.note
+            ''' % (expID, whereClause), 'auto')
+
     	for s in sampleResults:
-
-        	expKey = s['_experiment_key']
-        	sampleKey = s['_sample_key']
-        	sample = s['name']
-
-        	if sample not in sampleInSdrf:
-        		print('sample in MGI, but not in pre-processed sdrf.txt: ', expID, sample)
-        		continue
-
-        	age = s['age']
-        	orgKey = s['_organism_key']
-        	sexKey = s['_sex_key']
-        	emapaKey = s['_emapa_key']
-        	stageKey = s['_stage_key']
-        	genotypeKey = s['_genotype_key']
-
         	note = s['note']
         	if note == None:
             		note = ''
 
+        	key = s['sampleSet']
+        	value = s
+        	sampleSet[key] = []
+        	sampleSet[key].append(value)
+
+    	for s in sampleSet:
+
+        	sampleKeys = s.split('|')
+
+        	expKey = sampleSet[s][0]['_experiment_key']
+        	age = sampleSet[s][0]['age']
+        	orgKey = sampleSet[s][0]['_organism_key']
+        	sexKey = sampleSet[s][0]['_sex_key']
+        	emapaKey = sampleSet[s][0]['_emapa_key']
+        	stageKey = sampleSet[s][0]['_stage_key']
+        	genotypeKey = sampleSet[s][0]['_genotype_key']
+
         	fpSet.write('%s\t%s\t%s\t\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (\
-            		setKey, expKey, provider, age, orgKey, sexKey, emapaKey, stageKey, genotypeKey, note, \
-            		createdByKey, createdByKey, loaddate, loaddate))
+                	setKey, expKey, provider, age, orgKey, sexKey, emapaKey, stageKey, genotypeKey, note, \
+                	createdByKey, createdByKey, loaddate, loaddate))
 
-        	fpMember.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (\
-                	memberKey, setKey, sampleKey, createdByKey, createdByKey, loaddate, loaddate))
+        	for sKey in sampleKeys:
+        		fpMember.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (\
+                		memberKey, setKey, sKey, createdByKey, createdByKey, loaddate, loaddate))
+        		memberKey += 1
 
-        	memberKey += 1
         	setKey += 1
 
     fpSet.close()
@@ -723,10 +734,10 @@ def execCombinedBCP():
 #
 
 init()
-#initRNASet()
-#processRNASet()
-#execSetBCP()
-initCombined()
-processCombined()
+initRNASet()
+processRNASet()
+execSetBCP()
+#initCombined()
+#processCombined()
 #execCombinedBCP()
 
