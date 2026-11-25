@@ -635,7 +635,7 @@ def processCombined():
 
                rnaSeqSetKey = infoBySample[s][0]['_rnaseqset_key']
                aveTpm = aveTPMDict[sampleKey][markerKey]
-               qnTpm = qnOutputDict[sampleKey][markerKey]
+               qnTpm = round(qnOutputDict[sampleKey][markerKey], 2)
 
                # per marker, per rnaSeqSetKey (bioreplicate)
                #print(expID, ensemblId, markerKey, rnaSeqSetKey, sampleKey, aveTpm, qnTpm)
@@ -745,9 +745,9 @@ def execCombinedBCP():
 #
 
 init()
-#initRNASet()
-#processRNASet()
-#execSetBCP()
+initRNASet()
+processRNASet()
+execSetBCP()
 initCombined()
 processCombined()
 execCombinedBCP()
