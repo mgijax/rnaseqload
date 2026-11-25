@@ -276,15 +276,22 @@ def calcLevel(avgQnTpm):
 # calculates the average of numList
 # returns the calculated average
 # 
-def calcAve(numList, precision):
+def calcAve(numList, precision, aveQN=False):
     tSum = sum(numList)
     tLen =  max(len(numList), 1)
     ave = tSum / tLen
     fAve = float(ave)
 
+    if aveQN == True:
+    	if fAve < 1:
+    		precision = 2
+    	else:
+    		precision = 1
+
     return round(fAve, precision)
 
-# end calcAve () -------------------------------------------------
+# end calcAve
+
 #
 # calculates the aveTPM and Std Dev and ave Std Dev for all samples of the gene 
 # returns dictionary of average TPM values (by gene) for each sample of the gene
@@ -343,11 +350,6 @@ def calcTPMAveSD(expID, ensemblId, markerKey, sampleDict):
             sampleAveSDDict[key] = []
         sampleAveSDDict[key].append(stdDevAve)
 
-        # this reports the run tpm's, the tpm average, the stdDev of the run tpms 
-        # and the stdDevAve (stdDev/aveTpm) as well as the count of technical replicates (number of runs per sample)
-        #fpStudentRpt.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % \
-        #    (expID, ensemblId, sampleId, ', '.join(list(map(str, tpmList))), aveTpm, stdDev, stdDevAve, techReplCt))
-
     # Now iterate through the sampleAveSDDict and calculate the average of each aveSD. 
     # Report any above a threshold weeding out dupes.
     #print('\naveTPMDict:')
@@ -366,7 +368,7 @@ def calcTPMAveSD(expID, ensemblId, markerKey, sampleDict):
         # report it and remove all genes for that sample from the aveTPMDict
         if aveAveSdAllGenes > stdDevCutoff:
             del aveTPMDict[int(sampleKey)]
-            print('calcTPMAveSD: deleted from aveTPMDict: ', eID, key, str(aveAveSdAllGenes), str(stdDevCutoff))
+            print('calcTPMAveSD: deleted from aveTPMDict: ', key, str(aveAveSdAllGenes), str(stdDevCutoff))
 
     return aveTPMDict
 
@@ -507,8 +509,6 @@ def processCombined():
 
 	# infoBySample['name'] = expID, name, _sample_key, _rnaseqset_key
         infoBySample = {}
-        sampleSet = {}
-        setSample = {}
         sampleResults = db.sql('''
             select distinct s.expID, s.name, s._sample_key, g._rnaseqset_key
             from samples s, GXD_HTSample_RNASeqSetMember g
@@ -520,22 +520,10 @@ def processCombined():
             value = s
             infoBySample[key] = []
             infoBySample[key].append(value)
-            key = s['_sample_key']
-            value = s['_rnaseqset_key']
-            sampleSet[key] = []
-            sampleSet[key].append(value)
-            key = s['_rnaseqset_key']
-            value = s['_sample_key']
-            setSample[key] = []
-            setSample[key].append(value)
 	# GSM543645 1 = {E-GEOD-21860,GSM543645 1,8385,3843}
         print('\ninfoBySample: ', expID)
         print(infoBySample)
-        print(sampleSet)
-        print(setSample)
 
-        # runsBySample['name'] = set of runs
-        runsBySample = {}
         sampleByRun = {}
         sampleKeyByRun = {}
         try:
@@ -548,11 +536,8 @@ def processCombined():
             sampleName = tokens[0]
             key = sampleName
             value = tokens[1].split(',')
-            runsBySample[key] = []
-            runsBySample[key] = value
             sampleKeyByRun[key] = []
             sampleKeyByRun[key] = infoBySample[tokens[0]][0]['_sample_key']
-
             # for each run (value):
             for v in value:
                 key = v
@@ -560,10 +545,6 @@ def processCombined():
                 sampleByRun[key] = sampleName
         fpSdrf.close()
 
-        # GSM543645 1 = {SRR054659,...}
-        # SRR054659 = 
-        print('\nrunsBySample')
-        print(runsBySample)
         print('\nsampleByRun')
         print(sampleByRun)
         print('\nsampleKeyByRun')
@@ -593,6 +574,9 @@ def processCombined():
         # ensemblTPM = {}
         # {ensemblId: {sampleId:[float(tokens[ss+5], ...], ...}, ...}
         ensemblTPM = {}
+
+        # set for fpSeq
+        fpSeqValues = {}
 
         # ENSMUSG00000000001      9199    Gnai3   116     96      184     41      119     141
         for line in fpRawCounts.readlines():
@@ -636,15 +620,11 @@ def processCombined():
 
             # process each marker/sample
             aveTPMDict = calcTPMAveSD(expID, ensemblId, markerKey, ensemblTPM[ensemblId])
-            #print('\naveTPMDict')
-            #print(aveTPMDict)
 
-            # run QN
+            # process QN
             qnInput = pd.DataFrame(aveTPMDict)
             qnOutput = quantileNormalize.qn(qnInput, list(aveTPMDict.keys()))
             qnOutputDict = qnOutput.to_dict()
-            #print('\nqnOutputDict:')
-            #print(qnOutputDict)
 
             # for each sample in this row
             for s in ensemblTPM[ensemblId]:
@@ -655,27 +635,43 @@ def processCombined():
 
                rnaSeqSetKey = infoBySample[s][0]['_rnaseqset_key']
                aveTpm = aveTPMDict[sampleKey][markerKey]
-
-               numberofbiologicalreplicants = len(ensemblTPM[ensemblId][s])
                qnTpm = qnOutputDict[sampleKey][markerKey]
-               levelKey = 0
-               avgQnTpm = 0
 
-               print(expID, ensemblId, markerKey, s, sampleKey, numberofbiologicalreplicants, aveTpm, qnOutputDict[sampleKey][markerKey])
+               # per marker, per rnaSeqSetKey (bioreplicate)
+               #print(expID, ensemblId, markerKey, rnaSeqSetKey, sampleKey, aveTpm, qnTpm)
+               if markerKey not in fpSeqValues:
+                 fpSeqValues[markerKey] = {}
+               if rnaSeqSetKey not in fpSeqValues[markerKey]:
+                 fpSeqValues[markerKey][rnaSeqSetKey] = []
+               fpSeqValues[markerKey][rnaSeqSetKey].append([sampleKey, aveTpm, qnTpm])
 
-               #fpSeq.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (\
-               #            seqKey, sampleKey, combinedKey, markerKey, aveTpm, qnTpm, \
-               #            createdByKey, createdByKey, loaddate, loaddate))
-#
-#               seqKey += 1
+        print('\ngenerating fpSeq, fpCombined')
+        for marker in fpSeqValues:
+           for rnaseqset in fpSeqValues[marker]:
+               #print(fpSeqValues[marker][rnaseqset])
+               numberofbiologicalreplicants = len(fpSeqValues[marker][rnaseqset])
+               qnList = []
+               for biorep in fpSeqValues[marker][rnaseqset]:
+                   qnList.append(biorep[2])
+               aveQnTpm = calcAve(qnList, 2, True)
+               levelKey = calcLevel(aveQnTpm)
+               #print(numberofbiologicalreplicants, aveQnTpm, levelKey)
 
-               #fpCombined.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (\
-               #            combinedKey, rnaSeqSetKey, markerKey, levelKey, \
-               #            numberofbiologicalreplicants, avgQnTpm, \
-               #            createdByKey, createdByKey, loaddate, loaddate))
-
-#               combinedKey += 1
-
+               for biorep in fpSeqValues[marker][rnaseqset]:
+                   sampleKey = biorep[0]
+                   aveTpm = biorep[1]
+                   qnTpm = biorep[2]
+                   fpSeq.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (\
+                        seqKey, sampleKey, combinedKey, marker, aveTpm, qnTpm, \
+                        createdByKey, createdByKey, loaddate, loaddate))
+                   seqKey += 1
+        
+               fpCombined.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (\
+                        combinedKey, rnaseqset, marker, levelKey, \
+                        numberofbiologicalreplicants, aveQnTpm, \
+                        createdByKey, createdByKey, loaddate, loaddate))
+               combinedKey += 1
+        
         fpRawCounts.close()
 
     fpCombined.close()
@@ -754,5 +750,5 @@ init()
 #execSetBCP()
 initCombined()
 processCombined()
-#execCombinedBCP()
+execCombinedBCP()
 
